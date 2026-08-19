@@ -30,6 +30,28 @@ function parseIcsDate(value='') {
   return { date: `${m[1]}-${m[2]}-${m[3]}`, time: `${m[4]}:${m[5]}`, allDay: false };
 }
 
+function classifyEvent(title, description) {
+  const text = `${title} ${description}`.toLowerCase();
+  if (text.includes('umpire/line ref timeslot')) return 'Officiating';
+  if (text.includes('team meet and greet')) return 'League Event';
+  if (text.includes('playoffs')) return 'Tournament';
+  if (text.includes('practice')) return 'Practice';
+  if (/\bvs\.?\b|\bgame\b/.test(text)) return 'Game';
+  return 'League Event';
+}
+
+function stableLeagueId(rawUid, description, start, title) {
+  const activity = description.match(/\/activities\/(\d+)/i)?.[1];
+  if (activity) return `leagueapps-activity-${activity}`;
+  const leading = String(rawUid || '').match(/^(\d{6,12})/)?.[1];
+  if (leading) return `leagueapps-${leading}`;
+  return `leagueapps-${start.date}-${start.time}-${title}`;
+}
+
+function extractRsvpUrl(description) {
+  return description.match(/RSVP Here:\s*(https?:\/\/\S+)/i)?.[1] || '';
+}
+
 function parseCalendar(text) {
   const rawLines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
   const lines = [];
@@ -47,20 +69,20 @@ function parseCalendar(text) {
         const start = parseIcsDate(current.DTSTART || '');
         const end = parseIcsDate(current.DTEND || '');
         const title = unescapeIcs(current.SUMMARY || 'LeagueApps event');
-        const haystack = `${title} ${current.DESCRIPTION || ''}`.toLowerCase();
-        const type = /\bvs\.?\b|\bgame\b/.test(haystack) ? 'Game' : /practice/.test(haystack) ? 'Practice' : 'League Event';
+        const description = unescapeIcs(current.DESCRIPTION || '');
+        const rawUid = unescapeIcs(current.UID || '');
         events.push({
-          uid: unescapeIcs(current.UID || `${start.date}-${start.time}-${title}`),
+          uid: stableLeagueId(rawUid, description, start, title),
           title,
-          type,
+          type: classifyEvent(title, description),
           date: start.date,
           time: start.time,
           endDate: end.date,
           endTime: end.time,
           allDay: start.allDay,
           location: unescapeIcs(current.LOCATION || ''),
-          description: unescapeIcs(current.DESCRIPTION || ''),
-          url: unescapeIcs(current.URL || '')
+          description,
+          url: unescapeIcs(current.URL || '') || extractRsvpUrl(description)
         });
       }
       current = null;
