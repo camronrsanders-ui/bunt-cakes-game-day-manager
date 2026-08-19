@@ -14,6 +14,15 @@ module.exports = async function handler(req, res) {
 
     let html = await upstream.text();
 
+    // Brand the captain experience with the team logo.
+    html = html.replace('<title>Bunt Cakes Captain</title>', '<title>Those Dirty Bunt Cakes Captain</title><link rel="icon" href="/logo.svg" type="image/svg+xml">');
+    html = html.replace('</style>', '.brand{display:flex;align-items:center;gap:12px}.brand-logo{width:88px;height:88px;object-fit:contain;flex:0 0 auto;filter:drop-shadow(0 4px 8px rgba(0,0,0,.18))}.login-logo{display:block;width:150px;height:150px;object-fit:contain;margin:-10px auto 4px}.brand h1{line-height:1.05}@media(max-width:520px){.brand-logo{width:72px;height:72px}.brand h1{font-size:1.45rem}}</style>');
+    html = html.replace('<div id="login" class="login card"><h1>Captain Access</h1>', '<div id="login" class="login card"><img class="login-logo" src="/logo.svg" alt="Those Dirty Bunt Cakes logo"><h1>Captain Access</h1>');
+    html = html.replace(
+      '<div class="row wrap"><div><h1 style="margin:.2rem 0">Bunt Cakes Captain Manager</h1><div class="muted">Live team data • changes save automatically</div></div><div><span id="who" class="pill"></span> <button id="logout">Log out</button></div></div>',
+      '<div class="row wrap"><div class="brand"><img class="brand-logo" src="/logo.svg" alt="Those Dirty Bunt Cakes logo"><div><h1 style="margin:.2rem 0">Those Dirty Bunt Cakes</h1><div class="muted">Captain Manager • live changes save automatically</div></div></div><div><span id="who" class="pill"></span> <button id="logout">Log out</button></div></div>'
+    );
+
     // Only LeagueApps officiating slots get umpire / line-ref controls.
     html = html.replace(
       "const has=e.type==='Officiating'||e.type==='Game';",
