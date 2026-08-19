@@ -50,6 +50,20 @@ module.exports = async function handler(req, res) {
       "$('addPlayer').onclick=()=>{const n=prompt('Player name');if(!n)return;state.players.push({id:uid(),name:n.trim(),role:'',present:true});state.kickingOrder.push(n.trim());queueSave();render()};$('addPod').onclick=()=>{state.pods=state.pods||[];state.pods.push({id:uid(),name:'New Rotation Pod',members:[],positions:[]});queueSave();renderPods()};$('applyPods').onclick=buildPodRotation;"
     );
 
+    // Keep pod membership valid when roster names change or players are removed.
+    html = html.replace(
+      "state.events.forEach(ev=>['umpire','lineRef1','lineRef2'].forEach(k=>{if(ev[k]===old)ev[k]=n}));queueSave();render()",
+      "state.events.forEach(ev=>['umpire','lineRef1','lineRef2'].forEach(k=>{if(ev[k]===old)ev[k]=n}));(state.pods||[]).forEach(p=>{p.members=(p.members||[]).map(x=>x===old?n:x)});queueSave();render()"
+    );
+    html = html.replace(
+      "state.players.splice(i,1);state.kickingOrder=state.kickingOrder.filter(x=>x!==p.name);queueSave();render()",
+      "state.players.splice(i,1);state.kickingOrder=state.kickingOrder.filter(x=>x!==p.name);(state.pods||[]).forEach pod=>{}"
+    );
+    html = html.replace(
+      "(state.pods||[]).forEach pod=>{}",
+      "(state.pods||[]).forEach(pod=>{pod.members=(pod.members||[]).filter(x=>x!==p.name)});queueSave();render()"
+    );
+
     // Only LeagueApps officiating slots get umpire / line-ref controls.
     html = html.replace(
       "const has=e.type==='Officiating'||e.type==='Game';",
