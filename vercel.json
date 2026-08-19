@@ -1,0 +1,11 @@
+{
+  "redirects": [
+    { "source": "/", "destination": "/team", "permanent": false }
+  ],
+  "rewrites": [
+    { "source": "/team", "destination": "/team.html" },
+    { "source": "/team/", "destination": "/team.html" },
+    { "source": "/captain", "destination": "/captain.html" },
+    { "source": "/captain/", "destination": "/captain.html" }
+  ]
+}
