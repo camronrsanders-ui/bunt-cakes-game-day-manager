@@ -6,6 +6,7 @@
     { "source": "/team", "destination": "/api/team-page" },
     { "source": "/team/", "destination": "/api/team-page" },
     { "source": "/captain", "destination": "/api/captain-page" },
-    { "source": "/captain/", "destination": "/api/captain-page" }
+    { "source": "/captain/", "destination": "/api/captain-page" },
+    { "source": "/apple-touch-icon.png", "destination": "/api/apple-touch-icon" }
   ]
 }
