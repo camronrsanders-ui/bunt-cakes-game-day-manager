@@ -14,8 +14,9 @@ module.exports = async function handler(req, res) {
 
     let html = await upstream.text();
 
-    // Brand the captain experience with the team logo.
-    html = html.replace('<title>Bunt Cakes Captain</title>', '<title>Those Dirty Bunt Cakes Captain</title><link rel="icon" href="/logo.svg" type="image/svg+xml">');
+    // Brand the captain experience with the team logo and PWA metadata.
+    const brandedHead = '<title>Those Dirty Bunt Cakes Captain</title><link rel="icon" href="/logo.svg" type="image/svg+xml"><link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><meta name="theme-color" content="#15803d"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Bunt Cakes">';
+    html = html.replace('<title>Bunt Cakes Captain</title>', brandedHead);
     html = html.replace('</style>', '.brand{display:flex;align-items:center;gap:12px}.brand-logo{width:88px;height:88px;object-fit:contain;flex:0 0 auto;filter:drop-shadow(0 4px 8px rgba(0,0,0,.18))}.login-logo{display:block;width:150px;height:150px;object-fit:contain;margin:-10px auto 4px}.brand h1{line-height:1.05}@media(max-width:520px){.brand-logo{width:72px;height:72px}.brand h1{font-size:1.45rem}}</style>');
     html = html.replace('<div id="login" class="login card"><h1>Captain Access</h1>', '<div id="login" class="login card"><img class="login-logo" src="/logo.svg" alt="Those Dirty Bunt Cakes logo"><h1>Captain Access</h1>');
     html = html.replace(
