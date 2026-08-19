@@ -3,8 +3,8 @@
   "short_name": "Bunt Cakes",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#fffaf0",
-  "theme_color": "#eab308",
+  "background_color": "#f7fff8",
+  "theme_color": "#15803d",
   "icons": [
     {
       "src": "icon.svg",
