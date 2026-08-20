@@ -112,4 +112,10 @@
     script.dataset.buntAttendance='1';
     document.head.appendChild(script);
   }
+  if(!document.querySelector('script[data-team-branding]')){
+    const script=document.createElement('script');
+    script.src='/team-branding.js?v=1';
+    script.dataset.teamBranding='1';
+    document.head.appendChild(script);
+  }
 })();
