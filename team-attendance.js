@@ -91,7 +91,7 @@
     const name=playerName(),date=targetDate();if(!name||!date||working)return;
     working=true;
     try{
-      const r=await fetch('/api/attendance',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'response',playerName:name,gameDate:date,status})});
+      const r=await fetch('/api/team-state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'attendance-response',playerName:name,gameDate:date,status})});
       const j=await r.json();if(!r.ok)throw new Error(j.error||'Could not save attendance');
       state.availability=state.availability||{};state.availability[date]=state.availability[date]||{};state.availability[date][name]={status,respondedAt:j.respondedAt};
       renderCard();
@@ -105,7 +105,7 @@
   async function registration(){if(!('serviceWorker'in navigator))throw new Error('Push notifications are not supported on this device');return navigator.serviceWorker.register('/service-worker.js').then(()=>navigator.serviceWorker.ready)}
   async function postSubscription(sub){
     const name=playerName();if(!name)return;
-    const r=await fetch('/api/attendance',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'subscribe',playerName:name,subscription:sub.toJSON()})});
+    const r=await fetch('/api/team-state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'subscribe',playerName:name,subscription:sub.toJSON()})});
     if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.error||'Could not save reminder settings')}
   }
   async function syncExistingSubscription(){
@@ -125,7 +125,7 @@
     try{
       if(!('Notification'in window)||!('PushManager'in window))throw new Error('Push notifications are not supported in this browser');
       const permission=await Notification.requestPermission();if(permission!=='granted')throw new Error('Notifications were not allowed');
-      const config=await fetch('/api/push-config',{cache:'no-store'}).then(async r=>{const j=await r.json();if(!r.ok)throw new Error(j.error||'Could not load push setup');return j});
+      const config=await fetch('/api/team-state?pushConfig=1',{cache:'no-store'}).then(async r=>{const j=await r.json();if(!r.ok)throw new Error(j.error||'Could not load push setup');return j});
       const reg=await registration();let sub=await reg.pushManager.getSubscription();if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64ToBytes(config.publicKey)});
       await postSubscription(sub);await refreshPushStatus();
     }catch(e){alert(e.message||'Could not enable reminders');if(btn){btn.disabled=false;btn.textContent='Enable Thursday Push Reminder'}}
