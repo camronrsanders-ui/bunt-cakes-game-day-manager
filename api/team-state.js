@@ -11,6 +11,39 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ state: row.state || {}, updatedAt: row.updated_at });
     }
 
+    if (req.method === 'POST') {
+      const playerName = String(req.body && req.body.playerName || '').trim().slice(0, 80);
+      const accessStatus = req.body && req.body.accessStatus === 'installed' ? 'installed' : 'browser';
+      if (!playerName) return res.status(400).json({ error: 'Player name is required' });
+
+      const rows = await sql`SELECT state FROM team_state WHERE id = 1 LIMIT 1`;
+      const state = (rows[0] && rows[0].state) || {};
+      const player = (state.players || []).find(p => p && p.name === playerName);
+      if (!player) return res.status(404).json({ error: 'Player was not found on the roster' });
+
+      const now = new Date().toISOString();
+      const current = (state.appAccess && state.appAccess[playerName]) || {};
+      const next = {
+        ...current,
+        playerName,
+        browserSeenAt: current.browserSeenAt || now,
+        lastSeenAt: now,
+        ...(accessStatus === 'installed' ? { installedAt: current.installedAt || now } : {})
+      };
+      const payload = JSON.stringify(next);
+      await sql`
+        UPDATE team_state
+        SET state = jsonb_set(
+          state,
+          '{appAccess}',
+          COALESCE(state->'appAccess', '{}'::jsonb) || jsonb_build_object(${playerName}, ${payload}::jsonb),
+          true
+        )
+        WHERE id = 1
+      `;
+      return res.status(200).json({ ok: true, accessStatus });
+    }
+
     if (req.method === 'PUT') {
       const user = await requireCaptain(req, res);
       if (!user) return;
