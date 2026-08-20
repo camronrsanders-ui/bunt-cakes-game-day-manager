@@ -41,7 +41,7 @@
 
   function mountRecord(){
     const home=document.getElementById('home');
-    if(!home)return;
+    if(!home||typeof state==='undefined'||!state)return;
     let card=document.getElementById('teamSeasonRecord');
     if(!card){
       card=document.createElement('div');
@@ -54,8 +54,8 @@
   }
 
   function currentLineup(){
-    if(!state)return;
-    const n=Number(state.gameInning)||1;
+    if(typeof state==='undefined'||!state)return;
+    const n=Number(state.gameInning||state.fieldInning)||1;
     const inn=state.innings?.[n]||{};
     const label=document.getElementById('lineupLabel');
     if(label)label.textContent='Current game inning '+n;
@@ -68,6 +68,8 @@
     if(homeCard){homeCard.classList.add('team-current-inning');const title=homeCard.querySelector('strong');if(title)title.textContent='Current fielding lineup — inning '+n;}
   }
 
+  function refreshSimpleUi(){labelTabs();mountRecord();}
+
   function install(){
     labelTabs();
     if(typeof state!=='undefined'&&state){
@@ -77,11 +79,13 @@
       mountRecord();
     }
     if('serviceWorker' in navigator){navigator.serviceWorker.register('/service-worker.js').catch(()=>{});}
+    // Shared state refreshes every few seconds; keep summary-only UI in step without adding more controls.
+    setInterval(refreshSimpleUi,3000);
   }
 
   const wait=setInterval(()=>{
     if(document.querySelector('.tabs')&&typeof state!=='undefined'&&state){clearInterval(wait);install();}
   },200);
 
-  window.addEventListener('pageshow',()=>{labelTabs();if(typeof state!=='undefined'&&state){currentLineup();mountRecord();}});
+  window.addEventListener('pageshow',()=>{if(typeof state!=='undefined'&&state){currentLineup();refreshSimpleUi();}});
 })();
