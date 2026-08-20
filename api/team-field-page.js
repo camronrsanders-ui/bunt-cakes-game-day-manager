@@ -19,7 +19,7 @@ module.exports = async function handler(req, res) {
     html = html.replace('POD ROTATION', 'YOUR ROTATION');
     html = html.replace(/No rotation pods posted yet\./g, 'No rotation posted yet.');
     html = html.replace(/No pod swaps scheduled for inning /g, 'No rotation changes scheduled for inning ');
-    html = html.replace('</body>', '<script src="/team-field-rotation.js?v=3"></script></body>');
+    html = html.replace('</body>', '<script src="/team-field-rotation.js?v=4"></script></body>');
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store, max-age=0');
