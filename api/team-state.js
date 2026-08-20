@@ -1,6 +1,6 @@
 const webpush = require('web-push');
 const { getSql } = require('./_db');
-const { requestedTeamSlug, getTeam, requireTeamCaptain } = require('./_auth');
+const { DEFAULT_TEAM_SLUG, requestedTeamSlug, getTeam, requireTeamCaptain } = require('./_auth');
 
 const ATTENDANCE = new Set(['yes', 'no', 'not_sure']);
 const DEFAULT_TEAM = {
@@ -26,23 +26,28 @@ async function loadState(sql, slug) {
   return getTeam(sql, slug);
 }
 
-async function ensurePushConfig(sql, row) {
-  if (!row) throw new Error('Team was not found');
-  const state = row.state || {};
+// Web Push subscriptions are scoped to this origin. All teams therefore use one
+// application-server key, while the subscriptions themselves remain isolated per team.
+async function ensurePushConfig(sql) {
+  const founder = await getTeam(sql, DEFAULT_TEAM_SLUG);
+  if (!founder) throw new Error('Push configuration workspace was not found');
+  const state = founder.state || {};
   let config = state._pushConfig;
   if (config && config.publicKey && config.privateKey) return config;
+
   const keys = webpush.generateVAPIDKeys();
   const candidate = { publicKey: keys.publicKey, privateKey: keys.privateKey, createdAt: new Date().toISOString() };
   const payload = JSON.stringify(candidate);
   const updated = await sql`
     UPDATE team_states
     SET state = jsonb_set(state, '{_pushConfig}', ${payload}::jsonb, true), updated_at = now()
-    WHERE team_id = ${row.id}
+    WHERE team_id = ${founder.id}
       AND (state->'_pushConfig' IS NULL OR state->'_pushConfig' = '{}'::jsonb)
     RETURNING state->'_pushConfig' AS config
   `;
   if (updated[0] && updated[0].config) return updated[0].config;
-  const current = await sql`SELECT state->'_pushConfig' AS config FROM team_states WHERE team_id=${row.id} LIMIT 1`;
+
+  const current = await sql`SELECT state->'_pushConfig' AS config FROM team_states WHERE team_id=${founder.id} LIMIT 1`;
   config = current[0] && current[0].config;
   if (!config || !config.publicKey || !config.privateKey) throw new Error('Push notification keys could not be initialized');
   return config;
@@ -72,7 +77,7 @@ async function sendAttendanceReminderForTeam(sql, row) {
 
   const subscriptions = state._pushSubscriptions || {};
   const roster = new Set((state.players || []).map(p => p && p.name).filter(Boolean));
-  const config = await ensurePushConfig(sql, row);
+  const config = await ensurePushConfig(sql);
   webpush.setVapidDetails('mailto:notifications@teamgameday.app', config.publicKey, config.privateKey);
   const times = games.map(g => time12(g.time)).filter(Boolean);
   const teamName = team.shortName || team.name || 'Team';
@@ -163,7 +168,7 @@ module.exports = async function handler(req, res) {
 
     if (req.method === 'GET') {
       if (String(req.query && req.query.pushConfig || '') === '1') {
-        const config = await ensurePushConfig(sql,row);res.setHeader('Cache-Control','no-store');return res.status(200).json({publicKey:config.publicKey});
+        const config = await ensurePushConfig(sql);res.setHeader('Cache-Control','no-store');return res.status(200).json({publicKey:config.publicKey});
       }
       if (String(req.query && req.query.manifest || '') === '1') return sendManifest(res,row);
       if (String(req.query && req.query.logo || '') === '1') return sendLogo(res,row);
@@ -181,7 +186,7 @@ module.exports = async function handler(req, res) {
       if(action==='subscribe'){
         const sub=req.body&&req.body.subscription;
         if(!sub||typeof sub.endpoint!=='string'||!sub.endpoint.startsWith('https://')||!sub.keys||!sub.keys.p256dh||!sub.keys.auth)return res.status(400).json({error:'A valid push subscription is required'});
-        await ensurePushConfig(sql,row);
+        await ensurePushConfig(sql);
         const existing=state._pushSubscriptions&&state._pushSubscriptions[playerName];
         let list=Array.isArray(existing)?existing:[];
         list=list.filter(x=>x&&x.subscription&&x.subscription.endpoint!==sub.endpoint);
