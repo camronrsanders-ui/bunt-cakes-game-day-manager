@@ -56,8 +56,7 @@
 
   function mount(){
     const section=document.getElementById('pods');if(!section||typeof state==='undefined'||!state)return false;
-    ensureStyles();
-    editInning=liveInning();
+    ensureStyles();editInning=liveInning();
     const tab=document.querySelector('[data-tab="pods"]');if(tab)tab.textContent='Field Rotation';
     section.innerHTML=`
       <div class="card rotation-hero"><div class="rotation-title"><div><div class="muted">CAPTAIN TOOL</div><h2>Field Rotation</h2><div class="muted">Plan future innings without changing the live inning players currently see.</div></div><div id="rotationProfileProgress" class="rotation-progress"></div></div><div id="rotationSurveyWarning" class="rotation-warning"></div></div>
@@ -65,19 +64,14 @@
       <div class="rotation-grid"><div id="rotationField" class="rotation-field" aria-label="Field rotation layout"></div><div class="rotation-side"><div id="rotationEditor" class="card rotation-editor"></div><div id="rotationRest" class="card"></div><div id="rotationNext" class="card"></div></div></div>
       <div class="card rotation-actions"><button id="buildPreferenceRotation" class="primary">Build Rotation From Preferences</button><div class="rotation-note">This builds a seven-inning draft only after every present player has a completed fielding profile. You will be asked before existing inning assignments are replaced.</div></div>
       <div id="rotationProfiles" class="card rotation-profile-list"></div>`;
-    document.getElementById('buildPreferenceRotation').onclick=buildPreferenceRotation;
-    mounted=true;renderFieldRotation();return true;
+    document.getElementById('buildPreferenceRotation').onclick=buildPreferenceRotation;mounted=true;renderFieldRotation();return true;
   }
 
   function makeEditedInningLive(){
-    const n=currentInning();
-    if(n===liveInning())return;
-    if(!confirm(`Make inning ${n} live for all players now?`))return;
+    const n=currentInning();if(n===liveInning())return;if(!confirm(`Make inning ${n} live for all players now?`))return;
     state.gameInning=n;state.fieldInning=n;
-    const dashboardInning=document.getElementById('inning'),lineupInning=document.getElementById('lineupInning');
-    if(dashboardInning)dashboardInning.value=String(n);if(lineupInning)lineupInning.value=String(n);
-    if(typeof renderDash==='function')renderDash();if(typeof renderLineup==='function')renderLineup();
-    queueSave();renderFieldRotation();
+    const dashboardInning=document.getElementById('inning'),lineupInning=document.getElementById('lineupInning');if(dashboardInning)dashboardInning.value=String(n);if(lineupInning)lineupInning.value=String(n);
+    if(typeof renderDash==='function')renderDash();if(typeof renderLineup==='function')renderLineup();queueSave();renderFieldRotation();
   }
 
   function renderInningStrip(){
@@ -90,37 +84,30 @@
 
   function renderField(){
     const field=document.getElementById('rotationField');if(!field)return;const inn=inningData(currentInning());field.innerHTML='';
-    Object.entries(COORDS).forEach(([pos,[left,top]])=>{
-      const name=inn[pos]||'',p=playerByName(name),fit=name?statusFor(p,pos):{key:'unassigned',label:'Unassigned'};
-      const node=document.createElement('button');node.type='button';node.className=`rotation-slot ${fit.key}${selectedPosition===pos?' selected':''}${name?'':' rotation-unassigned'}`;node.style.left=left+'%';node.style.top=top+'%';
-      node.innerHTML=`<span class="abbr">${POSITION_ABBR[pos]} • ${esc(pos)}</span><span class="person">${esc(name||'Unassigned')}</span><span class="fit">${esc(fit.label)}</span>`;
-      node.onclick=()=>{selectedPosition=pos;renderFieldRotation();};field.appendChild(node);
-    });
+    Object.entries(COORDS).forEach(([pos,[left,top]])=>{const name=inn[pos]||'',p=playerByName(name),fit=name?statusFor(p,pos):{key:'unassigned',label:'Unassigned'};const node=document.createElement('button');node.type='button';node.className=`rotation-slot ${fit.key}${selectedPosition===pos?' selected':''}${name?'':' rotation-unassigned'}`;node.style.left=left+'%';node.style.top=top+'%';node.innerHTML=`<span class="abbr">${POSITION_ABBR[pos]} • ${esc(pos)}</span><span class="person">${esc(name||'Unassigned')}</span><span class="fit">${esc(fit.label)}</span>`;node.onclick=()=>{selectedPosition=pos;renderFieldRotation();};field.appendChild(node);});
   }
 
   function renderEditor(){
     const box=document.getElementById('rotationEditor');if(!box)return;const inn=inningData(currentInning()),current=inn[selectedPosition]||'',used=new Set(Object.values(inn).filter(Boolean));
     const sorted=presentPlayers().slice().sort((a,b)=>fitScore(b,selectedPosition)-fitScore(a,selectedPosition)||a.name.localeCompare(b.name));
-    const options=['<option value="">Unassigned</option>',...sorted.filter(p=>!used.has(p.name)||p.name===current).map(p=>{const st=statusFor(p,selectedPosition);return `<option value="${esc(p.name)}" ${p.name===current?'selected':''}>${esc(p.name)} — ${esc(st.label)}</option>`;})].join('');
-    const p=playerByName(current),st=current?statusFor(p,selectedPosition):null;
+    const options=['<option value="">Unassigned</option>',...sorted.filter(p=>!used.has(p.name)||p.name===current).map(p=>{const st=statusFor(p,selectedPosition);return `<option value="${esc(p.name)}" ${p.name===current?'selected':''}>${esc(p.name)} — ${esc(st.label)}</option>`;})].join('');const p=playerByName(current),st=current?statusFor(p,selectedPosition):null;
     box.innerHTML=`<div class="muted">EDIT POSITION • INNING ${currentInning()}</div><h3 style="margin:.25rem 0">${esc(selectedPosition)}</h3><label>Player<select id="rotationPlayerSelect">${options}</select></label>${st?`<span class="fit-chip ${st.key}">${esc(st.label)}</span><div class="rotation-note" style="margin-top:7px">${esc(profileLabel(p))}</div>`:'<div class="rotation-note" style="margin-top:7px">Choose an available player. The list is sorted by survey fit.</div>'}`;
     document.getElementById('rotationPlayerSelect').onchange=e=>{inn[selectedPosition]=e.target.value;queueSave();renderFieldRotation();if(currentInning()===liveInning()&&typeof renderLineup==='function')renderLineup();};
   }
 
   function renderRest(){
-    const box=document.getElementById('rotationRest');if(!box)return;const inn=inningData(currentInning()),used=new Set(Object.values(inn).filter(Boolean));const resting=presentPlayers().filter(p=>!used.has(p.name));
+    const box=document.getElementById('rotationRest');if(!box)return;const inn=inningData(currentInning()),used=new Set(Object.values(inn).filter(Boolean)),resting=presentPlayers().filter(p=>!used.has(p.name));
     box.innerHTML=`<div class="muted">RESTING • INNING ${currentInning()}</div><h3 style="margin:.25rem 0">${resting.length} player${resting.length===1?'':'s'}</h3><div class="rotation-list">${resting.length?resting.map(p=>`<div class="rotation-person"><strong>${esc(p.name)}</strong><span class="muted">${esc(isComplete(p)?(isFlexible(p)?'Flexible':(prefs(p)[0]||'Survey complete')):'Survey missing')}</span></div>`).join(''):'<div class="muted">Everyone is assigned.</div>'}</div>`;
   }
 
   function renderNext(){
     const box=document.getElementById('rotationNext');if(!box)return;const n=currentInning();if(n>=7){box.innerHTML='<div class="muted">NEXT INNING</div><strong>Final inning — no next-inning changes.</strong>';return;}
-    const now=inningData(n),next=inningData(n+1),changes=[];presentPlayers().forEach(p=>{const a=Object.keys(now).find(pos=>now[pos]===p.name)||'Rest';const b=Object.keys(next).find(pos=>next[pos]===p.name)||'Rest';if(a!==b)changes.push({name:p.name,a,b});});
+    const now=inningData(n),next=inningData(n+1),changes=[];presentPlayers().forEach(p=>{const a=Object.keys(now).find(pos=>now[pos]===p.name)||'Rest',b=Object.keys(next).find(pos=>next[pos]===p.name)||'Rest';if(a!==b)changes.push({name:p.name,a,b});});
     box.innerHTML=`<div class="muted">NEXT INNING • ${n+1}</div><h3 style="margin:.25rem 0">Changes</h3>${changes.length?changes.map(x=>`<div class="rotation-change"><strong>${esc(x.name)}</strong><div class="muted">${esc(x.a)} → ${esc(x.b)}</div></div>`).join(''):'<div class="muted">No changes scheduled yet.</div>'}`;
   }
 
   function renderSurveySummary(){
-    const list=presentPlayers(),complete=list.filter(isComplete),missing=list.filter(p=>!isComplete(p));
-    const progress=document.getElementById('rotationProfileProgress'),warning=document.getElementById('rotationSurveyWarning');
+    const list=presentPlayers(),complete=list.filter(isComplete),missing=list.filter(p=>!isComplete(p)),progress=document.getElementById('rotationProfileProgress'),warning=document.getElementById('rotationSurveyWarning');
     if(progress)progress.textContent=`${complete.length} of ${list.length} profiles ready`;
     if(warning){warning.className='rotation-warning '+(missing.length?'':'rotation-good');warning.innerHTML=missing.length?`<strong>${missing.length} fielding profile${missing.length===1?' is':'s are'} still missing.</strong><div class="survey-missing-list">${missing.map(p=>esc(p.name)).join(', ')}</div>`:'<strong>All present players have fielding preferences on file.</strong>';}
     const profiles=document.getElementById('rotationProfiles');if(profiles)profiles.innerHTML=`<div class="row wrap"><div><strong>Fielding Preference Check</strong><div class="muted">Use this to confirm what the rotation builder will read.</div></div><span class="pill">${complete.length}/${list.length} ready</span></div><div style="margin-top:8px">${list.map(p=>`<details><summary>${esc(p.name)} ${isComplete(p)?'✓':'⚠'}</summary><div class="muted">${esc(profileLabel(p))}</div></details>`).join('')}</div>`;
@@ -133,28 +120,33 @@
     if(missing.length){alert('Rotation not built. Fielding preferences are still missing for: '+missing.map(p=>p.name).join(', '));return;}
     if(!available.length){alert('Rotation not built. No players are marked present.');return;}
     if(!confirm('Build a new preference-based seven-inning draft? This will replace the current field assignments for innings 1–7.'))return;
+
     const newInnings={},stats=new Map(available.map(p=>[p.name,{played:0,last:0,byPos:{}}]));let gaps=0;
     for(let inning=1;inning<=7;inning++){
-      const out={},used=new Set();
+      const matchPlayerToPosition=new Map();
       const positions=Object.keys(COORDS).slice().sort((a,b)=>available.filter(p=>fitScore(p,a)>-5000).length-available.filter(p=>fitScore(p,b)>-5000).length);
-      positions.forEach(pos=>{
-        let best=null,bestScore=-Infinity;
-        available.forEach(p=>{
-          if(used.has(p.name))return;const fit=fitScore(p,pos);if(fit<=-5000)return;
-          const s=stats.get(p.name);let score=fit-(s.played*160)-((s.byPos[pos]||0)*45);score+=s.last===inning-1?-25:70;
-          if(score>bestScore){bestScore=score;best=p;}
-        });
-        if(best){out[pos]=best.name;used.add(best.name);const s=stats.get(best.name);s.played++;s.last=inning;s.byPos[pos]=(s.byPos[pos]||0)+1;}else{out[pos]='';gaps++;}
-      });
-      newInnings[inning]=out;
+      const dynamicScore=(p,pos)=>{const s=stats.get(p.name);return fitScore(p,pos)-(s.played*160)-((s.byPos[pos]||0)*45)+(s.last===inning-1?-25:70);};
+      const tryAssign=(pos,seenPlayers,seenPositions)=>{
+        if(seenPositions.has(pos))return false;seenPositions.add(pos);
+        const candidates=available.filter(p=>fitScore(p,pos)>-5000).slice().sort((a,b)=>dynamicScore(b,pos)-dynamicScore(a,pos)||a.name.localeCompare(b.name));
+        for(const p of candidates){
+          if(seenPlayers.has(p.name))continue;seenPlayers.add(p.name);
+          const oldPos=matchPlayerToPosition.get(p.name);
+          if(!oldPos||tryAssign(oldPos,seenPlayers,seenPositions)){matchPlayerToPosition.set(p.name,pos);return true;}
+        }
+        return false;
+      };
+      positions.forEach(pos=>{if(!tryAssign(pos,new Set(),new Set()))gaps++;});
+      const out={};Object.keys(COORDS).forEach(pos=>out[pos]='');matchPlayerToPosition.forEach((pos,name)=>{out[pos]=name;});
+      Object.entries(out).forEach(([pos,name])=>{if(!name)return;const s=stats.get(name);s.played++;s.last=inning;s.byPos[pos]=(s.byPos[pos]||0)+1;});newInnings[inning]=out;
     }
+
     state.innings=newInnings;queueSave();renderFieldRotation();if(currentInning()===liveInning()&&typeof renderLineup==='function')renderLineup();
-    alert(gaps?`Draft built with ${gaps} unassigned field slot${gaps===1?'':'s'} because the completed preferences do not cover every position. Review the red/dashed openings before game day.`:'Preference-based seven-inning draft built. Review each inning before game day.');
+    alert(gaps?`Draft built with ${gaps} truly unfillable field slot${gaps===1?'':'s'} based on the completed preferences. Review the dashed openings before game day.`:'Preference-based seven-inning draft built with full field coverage. Review each inning before game day.');
   }
 
   function install(){
-    if(typeof state==='undefined'||!state||!document.getElementById('pods')){setTimeout(install,150);return;}
-    mount();
+    if(typeof state==='undefined'||!state||!document.getElementById('pods')){setTimeout(install,150);return;}mount();
     const oldRender=window.render;if(typeof oldRender==='function'&&!oldRender.__fieldRotationWrapped){const wrapped=function(...args){const r=oldRender.apply(this,args);setTimeout(()=>{if(!document.getElementById('rotationField'))mount();else renderFieldRotation();},0);return r;};wrapped.__fieldRotationWrapped=true;window.render=wrapped;}
   }
   install();
