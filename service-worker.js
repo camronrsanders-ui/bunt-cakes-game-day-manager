@@ -1,4 +1,4 @@
-const CACHE='bunt-cakes-v6';
+const CACHE='bunt-cakes-v7';
 const CORE=['/manifest.webmanifest','/logo.svg','/icon.svg'];
 
 self.addEventListener('install',event=>{
@@ -25,6 +25,30 @@ async function networkFirst(request){
     throw error;
   }
 }
+
+self.addEventListener('push',event=>{
+  let data={};
+  try{data=event.data?event.data.json():{}}catch(e){data={body:event.data?event.data.text():''}}
+  const title=data.title||'Those Dirty Bunt Cakes';
+  event.waitUntil(self.registration.showNotification(title,{
+    body:data.body||'Open the team app for an update.',
+    icon:'/logo.svg',
+    badge:'/icon.svg',
+    tag:data.tag||'bunt-cakes-update',
+    renotify:true,
+    data:{url:data.url||'/team'}
+  }));
+});
+
+self.addEventListener('notificationclick',event=>{
+  event.notification.close();
+  const url=new URL((event.notification.data&&event.notification.data.url)||'/team',self.location.origin).href;
+  event.waitUntil(self.clients.matchAll({type:'window',includeUncontrolled:true}).then(async list=>{
+    const client=list[0];
+    if(client){try{if('navigate'in client)await client.navigate(url);return client.focus()}catch(e){}}
+    return self.clients.openWindow(url);
+  }));
+});
 
 self.addEventListener('fetch',event=>{
   const request=event.request;
