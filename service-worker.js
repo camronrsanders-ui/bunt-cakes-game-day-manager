@@ -1,5 +1,5 @@
-const CACHE='bunt-cakes-v7';
-const CORE=['/manifest.webmanifest','/logo.svg','/icon.svg'];
+const CACHE='team-game-day-v8';
+const CORE=['/manifest.webmanifest','/generic-team-icon.svg'];
 
 self.addEventListener('install',event=>{
   self.skipWaiting();
@@ -29,12 +29,12 @@ async function networkFirst(request){
 self.addEventListener('push',event=>{
   let data={};
   try{data=event.data?event.data.json():{}}catch(e){data={body:event.data?event.data.text():''}}
-  const title=data.title||'Those Dirty Bunt Cakes';
+  const title=data.title||'Team Game Day';
   event.waitUntil(self.registration.showNotification(title,{
     body:data.body||'Open the team app for an update.',
-    icon:'/logo.svg',
-    badge:'/icon.svg',
-    tag:data.tag||'bunt-cakes-update',
+    icon:'/api/team-state?logo=1',
+    badge:'/generic-team-icon.svg',
+    tag:data.tag||'team-game-day-update',
     renotify:true,
     data:{url:data.url||'/team'}
   }));
@@ -70,7 +70,7 @@ self.addEventListener('fetch',event=>{
           const team=await cache.match('/team');
           if(team)return team;
         }
-        return new Response('Bunt Cakes is offline. Reconnect and reopen the app.',{status:503,headers:{'Content-Type':'text/plain; charset=utf-8'}});
+        return new Response('The team app is offline. Reconnect and reopen it.',{status:503,headers:{'Content-Type':'text/plain; charset=utf-8'}});
       }
     })());
     return;
