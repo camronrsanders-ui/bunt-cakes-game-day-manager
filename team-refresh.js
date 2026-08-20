@@ -96,7 +96,7 @@
 (()=>{
   if(!document.querySelector('script[data-bunt-pods-organizer]')){
     const script=document.createElement('script');
-    script.src='/team-pods-organizer.js?v=3';
+    script.src='/team-pods-organizer.js?v=4';
     script.dataset.buntPodsOrganizer='1';
     document.head.appendChild(script);
   }
