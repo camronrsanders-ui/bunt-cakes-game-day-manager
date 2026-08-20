@@ -89,7 +89,7 @@
 
   if(!document.querySelector('script[data-bunt-field-rotation]')){
     const script=document.createElement('script');
-    script.src='/team-field-rotation.js?v=5';
+    script.src='/team-field-rotation.js?v=6';
     script.dataset.buntFieldRotation='1';
     document.head.appendChild(script);
   }
