@@ -9,7 +9,7 @@
   function esc(value){return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));}
   function players(){return Array.isArray(state?.players)?state.players:[];}
   function selectedPlayer(){const q=new URLSearchParams(location.search).get('player');return q||localStorage.getItem('buntCakesPlayerName')||'';}
-  function setSelected(name){if(name){localStorage.setItem('buntCakesPlayerName',name);const u=new URL(location.href);u.searchParams.set('player',name);history.replaceState(null,'',u.pathname+u.search+u.hash);}renderMyRotation();}
+  function setSelected(name){const u=new URL(location.href);if(name){localStorage.setItem('buntCakesPlayerName',name);u.searchParams.set('player',name);}else{localStorage.removeItem('buntCakesPlayerName');u.searchParams.delete('player');}history.replaceState(null,'',u.pathname+u.search+u.hash);renderMyRotation();}
   function posFor(name,inning){const inn=state?.innings?.[inning]||{};return Object.keys(COORDS).find(pos=>inn[pos]===name)||'Rest';}
   function gameInning(){return Math.max(1,Math.min(7,Number(state?.gameInning||state?.fieldInning||1)));}
   function ensureStyles(){if(document.getElementById('teamFieldRotationStyles'))return;const style=document.createElement('style');style.id='teamFieldRotationStyles';style.textContent=`
