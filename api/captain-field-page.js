@@ -3,17 +3,28 @@ module.exports = async function handler(req, res) {
   try {
     const proto = req.headers['x-forwarded-proto'] || 'https';
     const host = req.headers.host;
+    const rawSlug=String(req.query&&req.query.team||'').toLowerCase();
+    const teamSlug=/^[a-z0-9][a-z0-9-]{2,63}$/.test(rawSlug)?rawSlug:'those-dirty-bunt-cakes';
     const upstream = await fetch(`${proto}://${host}/api/captain-page`, {
       headers: { 'User-Agent': 'TeamGameDayCaptainFieldView/1.0' }
     });
     if (!upstream.ok) return res.status(502).send('Could not load captain manager');
     let html = await upstream.text();
 
+    if(teamSlug!=='those-dirty-bunt-cakes'){
+      html=html.replaceAll('Those Dirty Bunt Cakes','Your Team').replaceAll('Bunt Cakes','Team').replaceAll('/logo.svg','/generic-team-icon.svg');
+      html=html.replace('Stonewall Boston Resources','Team Resources').replace('Quick links for players and captains.','Links selected by this team.');
+    }
+
     html = html.replace('</head>', '<script src="/tenant-context.js?v=1"></script></head>');
+    html = html.replace(
+      "const today=()=>new Date().toLocaleDateString('en-CA',{timeZone:'America/New_York'});",
+      "const today=()=>new Date().toLocaleDateString('en-CA',{timeZone:state?.team?.timeZone||Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC'});"
+    );
 
     html = html.replace(
       /function defaultState\(\)\{[\s\S]*?\}function migrate\(s\)\{/,
-      `function defaultState(){const innings={};for(let i=1;i<=7;i++)innings[i]={};return{team:{name:'',shortName:'',organization:'',sport:'Kickball',location:'',primaryColor:'#15803d',accentColor:'#f7fff8',logoDataUrl:'',logoUrl:'',chatUrl:'',announcement:'',arrivalMinutes:60,secondReminderMinutes:30,leagueAppsEnabled:false,timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone||'America/New_York'},playerVisibility:{schedule:true,lineup:true,pods:true,kicking:true,officials:true,resources:true,attendance:true},resources:[],players:[],innings,pods:[],kickingOrder:[],score:{team:0,opponent:0},counts:{balls:0,fouls:0,outs:0},gameInning:1,fieldInning:1,half:'Team kicking',events:[],season:{name:'',division:'',color:'#15803d'},lastLeagueSync:null}}function migrate(s){`
+      `function defaultState(){const innings={};for(let i=1;i<=7;i++)innings[i]={};return{team:{name:'',shortName:'',organization:'',sport:'Kickball',location:'',primaryColor:'#15803d',accentColor:'#f7fff8',logoDataUrl:'',logoUrl:'',chatUrl:'',announcement:'',arrivalMinutes:60,secondReminderMinutes:30,leagueAppsEnabled:false,timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC'},playerVisibility:{schedule:true,lineup:true,pods:true,kicking:true,officials:true,resources:true,attendance:true},resources:[],players:[],innings,pods:[],kickingOrder:[],score:{team:0,opponent:0},counts:{balls:0,fouls:0,outs:0},gameInning:1,fieldInning:1,half:'Team kicking',events:[],season:{name:'',division:'',color:'#15803d'},lastLeagueSync:null}}function migrate(s){`
     );
 
     html = html.replace('<button data-tab="pods">Pods</button>', '<button data-tab="pods">Field Rotation</button>');
@@ -24,7 +35,7 @@ module.exports = async function handler(req, res) {
     html = html.replace('renderDash();renderRoster();renderLineup();renderPods();renderKicking();renderEvents();renderTracker();renderAccess()', 'renderDash();renderRoster();renderLineup();renderKicking();renderEvents();renderTracker();renderAccess()');
 
     const freshLeagueApps = `<script>(function(){const base=window.api;if(typeof base==='function'){window.api=function(url,opt){if(url==='/api/leagueapps')url='/api/leagueapps?cb='+Date.now();return base(url,opt)}}})();</script>`;
-    html = html.replace('</body>', freshLeagueApps + '<script src="/captain-field.js?v=2"></script><script src="/captain-access.js?v=2"></script><script src="/captain-field-rotation.js?v=4"></script><script src="/captain-kicking.js?v=2"></script><script src="/captain-live-sync.js?v=4"></script><script src="/captain-roster-survey.js?v=3"></script><script src="/preferred-names.js?v=1"></script><script src="/captain-results.js?v=1"></script><script src="/captain-attendance.js?v=1"></script><script src="/captain-team-settings.js?v=2"></script><script src="/captain-team-preview.js?v=1"></script><script src="/captain-tenant-ui.js?v=1"></script></body>');
+    html = html.replace('</body>', freshLeagueApps + '<script src="/captain-field.js?v=2"></script><script src="/captain-access.js?v=2"></script><script src="/captain-field-rotation.js?v=4"></script><script src="/captain-kicking.js?v=2"></script><script src="/captain-live-sync.js?v=4"></script><script src="/captain-roster-survey.js?v=3"></script><script src="/preferred-names.js?v=1"></script><script src="/captain-results.js?v=1"></script><script src="/captain-attendance.js?v=1"></script><script src="/captain-team-settings.js?v=2"></script><script src="/captain-team-preview.js?v=1"></script><script src="/captain-tenant-ui.js?v=2"></script></body>');
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store');
