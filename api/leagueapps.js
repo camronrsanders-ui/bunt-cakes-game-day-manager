@@ -21,12 +21,40 @@ function unescapeIcs(value='') {
     .trim();
 }
 
-function parseIcsDate(value='') {
+function partsInBoston(date) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+  }).formatToParts(date);
+  const out = {};
+  for (const p of parts) if (p.type !== 'literal') out[p.type] = p.value;
+  return { date: `${out.year}-${out.month}-${out.day}`, time: `${out.hour}:${out.minute}` };
+}
+
+function parseIcsDate(prop='') {
+  const value = typeof prop === 'string' ? prop : (prop && prop.value) || '';
+  const params = typeof prop === 'object' && prop ? (prop.params || {}) : {};
   const v = value.trim();
   let m = v.match(/^(\d{4})(\d{2})(\d{2})$/);
   if (m) return { date: `${m[1]}-${m[2]}-${m[3]}`, time: '', allDay: true };
-  m = v.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})?Z?$/);
+  m = v.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})?(Z)?$/);
   if (!m) return { date:'', time:'', allDay:false };
+
+  // LeagueApps commonly exports UTC timestamps (trailing Z). Convert those to Boston local time.
+  if (m[7] === 'Z') {
+    const utc = new Date(Date.UTC(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +(m[6] || 0)));
+    const local = partsInBoston(utc);
+    return { ...local, allDay: false };
+  }
+
+  // If LeagueApps supplies a TZID matching Boston/Eastern, the clock value is already local.
+  const tzid = String(params.TZID || '').toLowerCase();
+  if (!tzid || tzid.includes('new_york') || tzid.includes('eastern')) {
+    return { date: `${m[1]}-${m[2]}-${m[3]}`, time: `${m[4]}:${m[5]}`, allDay: false };
+  }
+
+  // Unknown non-UTC TZID: preserve the exported wall clock instead of guessing an offset.
   return { date: `${m[1]}-${m[2]}-${m[3]}`, time: `${m[4]}:${m[5]}`, allDay: false };
 }
 
@@ -93,8 +121,15 @@ function parseCalendar(text) {
     if (colon < 0) continue;
     const lhs = line.slice(0, colon);
     const value = line.slice(colon + 1);
-    const key = lhs.split(';')[0].toUpperCase();
-    if (['UID','SUMMARY','DESCRIPTION','LOCATION','URL','DTSTART','DTEND'].includes(key)) current[key] = value;
+    const chunks = lhs.split(';');
+    const key = chunks[0].toUpperCase();
+    const params = {};
+    chunks.slice(1).forEach(part => {
+      const eq = part.indexOf('=');
+      if (eq > 0) params[part.slice(0,eq).toUpperCase()] = part.slice(eq+1);
+    });
+    if (['DTSTART','DTEND'].includes(key)) current[key] = { value, params };
+    else if (['UID','SUMMARY','DESCRIPTION','LOCATION','URL'].includes(key)) current[key] = value;
   }
   return events.filter(e => e.date).sort((a,b) => `${a.date}T${a.time || '00:00'}`.localeCompare(`${b.date}T${b.time || '00:00'}`));
 }
