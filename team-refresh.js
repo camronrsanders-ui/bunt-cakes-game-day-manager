@@ -44,3 +44,11 @@
   btn.onclick=refreshLiveTeam;
   window.buntCakesRefresh=refreshLiveTeam;
 })();
+
+(()=>{
+  if(document.querySelector('script[data-bunt-pods-organizer]'))return;
+  const script=document.createElement('script');
+  script.src='/team-pods-organizer.js?v=2';
+  script.dataset.buntPodsOrganizer='1';
+  document.head.appendChild(script);
+})();
