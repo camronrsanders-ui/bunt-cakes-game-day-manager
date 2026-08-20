@@ -61,6 +61,7 @@
     };
 
     function setLiveInning(value){
+      if(!state)return;
       const n=Math.min(7,Math.max(1,Number(value)||1));
       state.gameInning=n;
       state.fieldInning=n;
@@ -99,6 +100,19 @@
         card.appendChild(help);
       }
     }
+
+    // Repair state created by the old split controls. Once captain data has loaded,
+    // the lineup inning becomes the live inning so player and captain views agree.
+    function repairOldMismatch(tries=0){
+      if(!state){
+        if(tries<100)setTimeout(()=>repairOldMismatch(tries+1),100);
+        return;
+      }
+      const editor=Number(state.fieldInning)||1;
+      const live=Number(state.gameInning)||1;
+      if(editor!==live)setLiveInning(editor);
+    }
+    setTimeout(()=>repairOldMismatch(),100);
 
     document.addEventListener('visibilitychange',()=>{
       if(document.hidden&&pending)drain();
