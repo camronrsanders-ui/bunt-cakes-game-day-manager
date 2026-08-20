@@ -76,7 +76,7 @@
   async function saveCaptainVote(status,date){
     if(saving)return;saving=true;
     try{
-      const r=await fetch('/api/captain-availability',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({gameDate:date,status})});
+      const r=await fetch('/api/captains',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'availability-response',gameDate:date,status})});
       const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Could not save captain availability');
       const key=String(session?.user?.email||'').toLowerCase();
       state.availability=state.availability||{};state.availability[date]=state.availability[date]||{};state.availability[date]._captains=state.availability[date]._captains||{};
