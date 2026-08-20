@@ -12,6 +12,8 @@
       .team-current-inning{border:2px solid #86efac;background:#f0fdf4}
       .team-record-card{display:flex;justify-content:space-between;align-items:center;gap:12px;border:2px solid #bbf7d0;background:#f7fff8}
       .team-record-big{font-size:1.55rem;font-weight:900;color:#166534;white-space:nowrap}
+      .team-quick-guide{border:2px solid #bbf7d0;background:#f0fdf4;margin:8px 0 10px}
+      .team-quick-guide strong{display:block;font-size:1.05rem;color:#166534;margin-bottom:2px}
       @media(max-width:650px){
         body{font-size:17px}
         .app{padding-left:10px;padding-right:10px}
@@ -30,6 +32,16 @@
   function labelTabs(){
     const labels={home:'Home',schedule:'Schedule',lineup:'Field Lineup',pods:'My Rotation',kicking:'Kicking',officials:'Officiating',resources:'Resources'};
     document.querySelectorAll('.tabs button[data-tab]').forEach(b=>{if(labels[b.dataset.tab])b.textContent=labels[b.dataset.tab]});
+  }
+
+  function mountQuickGuide(){
+    const tabs=document.querySelector('.tabs');
+    if(!tabs||document.getElementById('teamQuickGuide'))return;
+    const guide=document.createElement('div');
+    guide.id='teamQuickGuide';
+    guide.className='card team-quick-guide';
+    guide.innerHTML='<strong>Need something? Tap a button below.</strong><div>Start with <b>Home</b>. Use <b>Schedule</b> for game times, <b>Field Lineup</b> for your position, and <b>Kicking</b> for the kicking order.</div>';
+    tabs.parentNode.insertBefore(guide,tabs);
   }
 
   function record(){
@@ -68,10 +80,11 @@
     if(homeCard){homeCard.classList.add('team-current-inning');const title=homeCard.querySelector('strong');if(title)title.textContent='Current fielding lineup — inning '+n;}
   }
 
-  function refreshSimpleUi(){labelTabs();mountRecord();}
+  function refreshSimpleUi(){labelTabs();mountQuickGuide();mountRecord();}
 
   function install(){
     labelTabs();
+    mountQuickGuide();
     if(typeof state!=='undefined'&&state){
       window.renderLineup=currentLineup;
       renderLineup=currentLineup;
