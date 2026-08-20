@@ -5,13 +5,39 @@
   if(!btn)return;
 
   let busy=false;
+  let lastVersion='';
 
-  async function refreshLiveTeam(){
+  // Player-facing lineup must always follow the actual current game inning.
+  // fieldInning is only the captain's private editing/view selector.
+  if(typeof renderLineup==='function'){
+    renderLineup=function(){
+      const n=Number((state&&state.gameInning)||1);
+      const inn=(state&&state.innings&&state.innings[n])||{};
+      const positions=['Pitcher','Catcher','First Base','Second Base','Third Base','Shortstop','Left Field','Left Center Field','Center Field','Right Center Field','Right Field'];
+      const label=document.getElementById('lineupLabel');
+      const positionsBox=document.getElementById('positions');
+      const homeBox=document.getElementById('homeLineup');
+      if(label)label.textContent='Current game inning '+n;
+      const html=positions.map(p=>'<div class="card"><div class="muted">'+p+'</div><strong>'+(inn[p]||'Unassigned')+'</strong></div>').join('');
+      if(positionsBox)positionsBox.innerHTML=html;
+      if(homeBox)homeBox.innerHTML=html;
+    };
+  }
+
+  function showLiveTime(serverTime,prefix='Live'){
+    if(!updated)return;
+    if(!serverTime){updated.textContent=prefix;return;}
+    updated.textContent=prefix+' • '+new Date(serverTime).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',second:'2-digit',hour12:true});
+  }
+
+  async function refreshLiveTeam(manual=false){
     if(busy)return;
     busy=true;
-    btn.disabled=true;
-    btn.textContent='Refreshing…';
-    if(updated)updated.textContent='Refreshing…';
+    if(manual){
+      btn.disabled=true;
+      btn.textContent='Refreshing…';
+      if(updated)updated.textContent='Refreshing…';
+    }
 
     try{
       const r=await fetch('/api/team-state?fresh='+Date.now(),{
@@ -24,23 +50,37 @@
       const j=await r.json();
       if(!r.ok)throw new Error(j.error||'Could not refresh live team data');
 
-      state=j.state||{};
-      if(typeof render==='function')render();
-      if(error)error.classList.add('hidden');
-      if(updated)updated.textContent='Refreshed just now';
-    }catch(e){
-      if(error){
-        error.textContent=e.message||'Could not refresh live team data';
-        error.classList.remove('hidden');
+      const version=String(j.updatedAt||'');
+      if(manual||version!==lastVersion){
+        state=j.state||{};
+        if(typeof render==='function')render();
+        lastVersion=version;
       }
-      if(updated)updated.textContent='Refresh failed';
+      if(error)error.classList.add('hidden');
+      showLiveTime(j.updatedAt,manual?'Refreshed':'Live');
+    }catch(e){
+      if(manual){
+        if(error){
+          error.textContent=e.message||'Could not refresh live team data';
+          error.classList.remove('hidden');
+        }
+        if(updated)updated.textContent='Refresh failed';
+      }
     }finally{
       busy=false;
-      btn.disabled=false;
-      btn.textContent='Refresh';
+      if(manual){
+        btn.disabled=false;
+        btn.textContent='Refresh';
+      }
     }
   }
 
-  btn.onclick=refreshLiveTeam;
-  window.buntCakesRefresh=refreshLiveTeam;
+  btn.onclick=()=>refreshLiveTeam(true);
+  window.buntCakesRefresh=()=>refreshLiveTeam(true);
+
+  // Keep player phones close to the captain's live state without requiring taps.
+  setInterval(()=>{if(!document.hidden)refreshLiveTeam(false)},3000);
+  window.addEventListener('focus',()=>refreshLiveTeam(false));
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshLiveTeam(false)});
+  setTimeout(()=>refreshLiveTeam(false),250);
 })();
