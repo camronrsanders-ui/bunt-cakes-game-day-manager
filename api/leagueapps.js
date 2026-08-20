@@ -164,7 +164,7 @@ module.exports = async function handler(req, res) {
     }
     const text = await upstream.text();
     const events = parseCalendar(text);
-    res.setHeader('Cache-Control','s-maxage=300, stale-while-revalidate=1800');
+    res.setHeader('Cache-Control','no-store, max-age=0');
     return res.status(200).json({ source:'LeagueApps', start, end, count:events.length, events });
   } catch (error) {
     return res.status(502).json({ error:'Could not reach LeagueApps', detail:String(error && error.message || error) });
