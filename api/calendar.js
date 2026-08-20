@@ -27,8 +27,10 @@ module.exports = async function handler(req, res) {
   try {
     const proto = req.headers['x-forwarded-proto'] || 'https';
     const host = req.headers.host;
-    const r = await fetch(`${proto}://${host}/api/team-state?fresh=${Date.now()}`, {headers:{'User-Agent':'TeamGameDayCalendar/1.0'},cache:'no-store'});
-    if (!r.ok) return res.status(502).send('Could not load team schedule');
+    const rawTeam=String(req.query&&req.query.team||'those-dirty-bunt-cakes').toLowerCase();
+    const teamSlug=/^[a-z0-9][a-z0-9-]{2,63}$/.test(rawTeam)?rawTeam:'those-dirty-bunt-cakes';
+    const r = await fetch(`${proto}://${host}/api/team-state?team=${encodeURIComponent(teamSlug)}&fresh=${Date.now()}`, {headers:{'User-Agent':'TeamGameDayCalendar/1.0'},cache:'no-store'});
+    if (!r.ok) return res.status(r.status===404?404:502).send(r.status===404?'Team was not found':'Could not load team schedule');
     const data = await r.json();
     const state = data.state || {};
     const team = state.team || {};
@@ -40,19 +42,14 @@ module.exports = async function handler(req, res) {
     const games = (state.events || []).filter(e => e.type === 'Game' && e.date && e.time).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
 
     const lines = [
-      'BEGIN:VCALENDAR',
-      'VERSION:2.0',
-      `PRODID:-//${esc(teamName)}//Game Calendar//EN`,
-      'CALSCALE:GREGORIAN',
-      'METHOD:PUBLISH',
-      `X-WR-CALNAME:${esc(shortName)} Games`,
-      `X-WR-TIMEZONE:${esc(timeZone)}`
+      'BEGIN:VCALENDAR','VERSION:2.0',`PRODID:-//${esc(teamName)}//Game Calendar//EN`,'CALSCALE:GREGORIAN','METHOD:PUBLISH',
+      `X-WR-CALNAME:${esc(shortName)} Games`,`X-WR-TIMEZONE:${esc(timeZone)}`
     ];
 
     for (const e of games) {
       const endInfo = e.endDate && e.endTime ? {date:e.endDate,time:e.endTime} : gameEnd(e.date,e.time);
       lines.push('BEGIN:VEVENT');
-      lines.push(`UID:${esc(e.sourceUid || e.uid || `${e.date}-${e.time}-${e.title}`)}@teamgameday`);
+      lines.push(`UID:${esc(e.sourceUid || e.uid || `${e.date}-${e.time}-${e.title}`)}@${slug(teamSlug)}.teamgameday`);
       lines.push(`DTSTAMP:${new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d{3}Z$/,'Z')}`);
       lines.push(`DTSTART;TZID=${esc(timeZone)}:${icsLocal(e.date,e.time)}`);
       lines.push(`DTEND;TZID=${esc(timeZone)}:${icsLocal(endInfo.date,endInfo.time)}`);
@@ -62,18 +59,10 @@ module.exports = async function handler(req, res) {
       lines.push(`DESCRIPTION:${esc(reminderText + (e.url ? `\nSchedule link: ${e.url}` : ''))}`);
       if (e.url) lines.push(`URL:${esc(e.url)}`);
       if (arrival > 0) {
-        lines.push('BEGIN:VALARM');
-        lines.push(`TRIGGER:-PT${arrival}M`);
-        lines.push('ACTION:DISPLAY');
-        lines.push(`DESCRIPTION:${esc(`Arrival time — ${teamName} warm-up / check-in.`)}`);
-        lines.push('END:VALARM');
+        lines.push('BEGIN:VALARM',`TRIGGER:-PT${arrival}M`,'ACTION:DISPLAY',`DESCRIPTION:${esc(`Arrival time — ${teamName} warm-up / check-in.`)}`,'END:VALARM');
       }
       if (second > 0 && second !== arrival) {
-        lines.push('BEGIN:VALARM');
-        lines.push(`TRIGGER:-PT${second}M`);
-        lines.push('ACTION:DISPLAY');
-        lines.push(`DESCRIPTION:${esc(`Game starts in ${second} minutes.`)}`);
-        lines.push('END:VALARM');
+        lines.push('BEGIN:VALARM',`TRIGGER:-PT${second}M`,'ACTION:DISPLAY',`DESCRIPTION:${esc(`Game starts in ${second} minutes.`)}`,'END:VALARM');
       }
       lines.push('END:VEVENT');
     }
