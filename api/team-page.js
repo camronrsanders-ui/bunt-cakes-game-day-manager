@@ -11,13 +11,14 @@ module.exports = async function handler(req, res) {
     if (!upstream.ok) return res.status(502).send('Could not load team page');
 
     let html = await upstream.text();
+    const whatsapp = 'https://chat.whatsapp.com/EUg12yVH0YVKfQPEJplnow';
 
     const brandedHead = '<title>Those Dirty Bunt Cakes</title><link rel="icon" href="/logo.svg" type="image/svg+xml"><link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><meta name="theme-color" content="#15803d"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Bunt Cakes">';
     html = html.replace('<title>Bunt Cakes Team</title>', brandedHead);
-    html = html.replace('</style>', '.brand{display:flex;align-items:center;gap:12px}.brand-logo{width:88px;height:88px;object-fit:contain;flex:0 0 auto;filter:drop-shadow(0 4px 8px rgba(0,0,0,.18))}.brand h1{line-height:1.05}.pod-inning{display:grid;grid-template-columns:72px 1fr;gap:8px;padding:7px 0;border-top:1px solid var(--l)}.pod-inning:first-child{border-top:0}.pod-rest{color:#a16207;font-weight:700}.swap-line{padding:6px 0;border-top:1px solid var(--l)}.swap-line:first-child{border-top:0}@media(max-width:520px){.brand-logo{width:72px;height:72px}.brand h1{font-size:1.55rem}.pod-inning{grid-template-columns:62px 1fr}}</style>');
+    html = html.replace('</style>', '.brand{display:flex;align-items:center;gap:12px}.brand-logo{width:88px;height:88px;object-fit:contain;flex:0 0 auto;filter:drop-shadow(0 4px 8px rgba(0,0,0,.18))}.brand h1{line-height:1.05}.pod-inning{display:grid;grid-template-columns:72px 1fr;gap:8px;padding:7px 0;border-top:1px solid var(--l)}.pod-inning:first-child{border-top:0}.pod-rest{color:#a16207;font-weight:700}.swap-line{padding:6px 0;border-top:1px solid var(--l)}.swap-line:first-child{border-top:0}.chat-btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;background:#15803d;color:#fff;border-radius:12px;padding:10px 14px;min-height:44px;font-weight:700}.chat-card{border:2px solid #15803d;background:#f0fdf4}@media(max-width:520px){.brand-logo{width:72px;height:72px}.brand h1{font-size:1.55rem}.pod-inning{grid-template-columns:62px 1fr}.chat-btn{width:100%}}</style>');
     html = html.replace(
       '<div class="row wrap"><div><h1 style="margin:.2rem 0">Bunt Cakes</h1><div class="muted">Live Team View</div></div><div><span id="updated" class="pill">Loading…</span> <button id="refresh">Refresh</button></div></div>',
-      '<div class="row wrap"><div class="brand"><img class="brand-logo" src="/logo.svg" alt="Those Dirty Bunt Cakes logo"><div><h1 style="margin:.2rem 0">Those Dirty Bunt Cakes</h1><div class="muted">Live Team View</div></div></div><div><span id="updated" class="pill">Loading…</span> <button id="refresh">Refresh</button></div></div>'
+      `<div class="row wrap"><div class="brand"><img class="brand-logo" src="/logo.svg" alt="Those Dirty Bunt Cakes logo"><div><h1 style="margin:.2rem 0">Those Dirty Bunt Cakes</h1><div class="muted">Live Team View</div></div></div><div><a class="chat-btn" href="${whatsapp}" target="_blank" rel="noopener">Open Team Chat</a> <span id="updated" class="pill">Loading…</span> <button id="refresh">Refresh</button></div></div>`
     );
 
     // Player-facing rotation pod plan and next-inning swap summary.
@@ -27,11 +28,15 @@ module.exports = async function handler(req, res) {
     );
     html = html.replace(
       '<div id="next" class="card event"></div><div class="card"><strong>Today’s fielding lineup</strong>',
-      '<div id="next" class="card event"></div><div id="nextSwap" class="card"></div><div class="card"><strong>Today’s fielding lineup</strong>'
+      `<div id="next" class="card event"></div><div class="card chat-card"><div class="muted">TEAM COMMUNICATION</div><h2 style="margin:.3rem 0">Bunt Cakes WhatsApp</h2><div class="muted" style="margin-bottom:10px">Open the team group chat for announcements, questions, and game-day communication.</div><a class="chat-btn" href="${whatsapp}" target="_blank" rel="noopener">Open Team Chat</a></div><div id="nextSwap" class="card"></div><div class="card"><strong>Today’s fielding lineup</strong>`
     );
     html = html.replace(
       '<section id="kicking" class="stack hidden">',
       '<section id="pods" class="stack hidden"><div class="card"><strong>Rotation Pods</strong><div class="muted">Your captain sets these groups. Check here to know where you play each inning, when you rest, and who rotates in after you.</div></div><div id="podPlan" class="stack"></div></section><section id="kicking" class="stack hidden">'
+    );
+    html = html.replace(
+      '<div class="grid g2"><a class="card resource"',
+      `<div class="grid g2"><a class="card resource" target="_blank" rel="noopener" href="${whatsapp}"><strong>Bunt Cakes Team Chat</strong><div class="muted">Open our WhatsApp group for team communication.</div><div class="go">Open WhatsApp ↗</div></a><a class="card resource"`
     );
     html = html.replace(
       'function render(){$(\'teamScore\').textContent=state.score?.team??0;$(\'oppScore\').textContent=state.score?.opponent??0;$(\'inning\').textContent=state.gameInning??1;$(\'half\').textContent=state.half||\'\';renderNext();renderLineup();renderKicking();renderEvents();renderTracker()}',
@@ -47,7 +52,7 @@ module.exports = async function handler(req, res) {
     );
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+    res.setHeader('Cache-Control', 'no-store, max-age=0');
     return res.status(200).send(html);
   } catch (error) {
     return res.status(500).send('Team page failed to load');
