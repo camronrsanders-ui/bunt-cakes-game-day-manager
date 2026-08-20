@@ -21,40 +21,19 @@ function unescapeIcs(value='') {
     .trim();
 }
 
-function partsInBoston(date) {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/New_York',
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
-  }).formatToParts(date);
-  const out = {};
-  for (const p of parts) if (p.type !== 'literal') out[p.type] = p.value;
-  return { date: `${out.year}-${out.month}-${out.day}`, time: `${out.hour}:${out.minute}` };
-}
-
 function parseIcsDate(prop='') {
   const value = typeof prop === 'string' ? prop : (prop && prop.value) || '';
-  const params = typeof prop === 'object' && prop ? (prop.params || {}) : {};
   const v = value.trim();
   let m = v.match(/^(\d{4})(\d{2})(\d{2})$/);
   if (m) return { date: `${m[1]}-${m[2]}-${m[3]}`, time: '', allDay: true };
   m = v.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})?(Z)?$/);
   if (!m) return { date:'', time:'', allDay:false };
 
-  // LeagueApps commonly exports UTC timestamps (trailing Z). Convert those to Boston local time.
-  if (m[7] === 'Z') {
-    const utc = new Date(Date.UTC(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +(m[6] || 0)));
-    const local = partsInBoston(utc);
-    return { ...local, allDay: false };
-  }
-
-  // If LeagueApps supplies a TZID matching Boston/Eastern, the clock value is already local.
-  const tzid = String(params.TZID || '').toLowerCase();
-  if (!tzid || tzid.includes('new_york') || tzid.includes('eastern')) {
-    return { date: `${m[1]}-${m[2]}-${m[3]}`, time: `${m[4]}:${m[5]}`, allDay: false };
-  }
-
-  // Unknown non-UTC TZID: preserve the exported wall clock instead of guessing an offset.
+  // IMPORTANT: Stonewall Boston's LeagueApps iCal feed currently appends a trailing Z
+  // while the numeric clock value itself matches the published Boston local schedule.
+  // Converting that value from UTC shifts games 4 hours earlier during EDT and 5 hours
+  // earlier during EST. Preserve the exported wall clock exactly so 150000Z displays
+  // as 3:00 PM Boston time, matching LeagueApps and the league schedule.
   return { date: `${m[1]}-${m[2]}-${m[3]}`, time: `${m[4]}:${m[5]}`, allDay: false };
 }
 
