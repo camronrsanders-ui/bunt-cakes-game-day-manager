@@ -1,13 +1,13 @@
 {
   "redirects": [
-    { "source": "/", "destination": "/team", "permanent": false }
+    { "source": "/", "destination": "/team", "permanent": false },
+    { "source": "/apple-touch-icon.png", "destination": "/logo.svg", "permanent": false }
   ],
   "rewrites": [
     { "source": "/team", "destination": "/api/team-reminders-page" },
     { "source": "/team/", "destination": "/api/team-reminders-page" },
     { "source": "/captain", "destination": "/api/captain-field-page" },
     { "source": "/captain/", "destination": "/api/captain-field-page" },
-    { "source": "/calendar.ics", "destination": "/api/calendar" },
-    { "source": "/apple-touch-icon.png", "destination": "/api/apple-touch-icon" }
+    { "source": "/calendar.ics", "destination": "/api/calendar" }
   ]
 }
