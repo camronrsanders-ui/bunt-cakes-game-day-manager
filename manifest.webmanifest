@@ -1,7 +1,7 @@
 {
   "id": "/team",
-  "name": "Those Dirty Bunt Cakes Game Day Manager",
-  "short_name": "Bunt Cakes",
+  "name": "Team Game Day Manager",
+  "short_name": "Game Day",
   "start_url": "/team",
   "scope": "/",
   "display": "standalone",
@@ -9,7 +9,7 @@
   "theme_color": "#15803d",
   "icons": [
     {
-      "src": "/logo.svg",
+      "src": "/generic-team-icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
