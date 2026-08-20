@@ -7,11 +7,16 @@
   let busy=false;
   let lastVersion='';
 
-  // Player-facing lineup always follows the actual current game inning.
-  // fieldInning is only the captain's private editing/view selector.
+  function liveInning(){
+    return Number((state&&state.fieldInning)||(state&&state.gameInning)||1);
+  }
+
+  // The captain Lineup inning is now a live control. Player-facing lineup and
+  // score header both use the same normalized inning so old split state cannot
+  // leave players stranded on a different inning.
   if(typeof renderLineup==='function'){
     renderLineup=function(){
-      const n=Number((state&&state.gameInning)||1);
+      const n=liveInning();
       const inn=(state&&state.innings&&state.innings[n])||{};
       const positions=['Pitcher','Catcher','First Base','Second Base','Third Base','Shortstop','Left Field','Left Center Field','Center Field','Right Center Field','Right Field'];
       const label=document.getElementById('lineupLabel');
@@ -53,6 +58,9 @@
       const version=String(j.updatedAt||'');
       if(manual||version!==lastVersion){
         state=j.state||{};
+        const n=Number(state.fieldInning||state.gameInning||1);
+        state.gameInning=n;
+        state.fieldInning=n;
         if(typeof render==='function')render();
         lastVersion=version;
       }
