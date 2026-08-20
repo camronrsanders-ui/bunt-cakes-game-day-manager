@@ -1,5 +1,5 @@
 # Deployment trigger
 
-This file was added after connecting the repository to Vercel to verify that commits to `main` automatically create a new deployment.
+This file was added after connecting the repository to Vercel to verify that commits create a new deployment.
 
-Latest production refresh: live player pod inning board.
+Latest preview refresh: complete field-first rotation redesign with My Rotation and preference-aware survey profiles.
