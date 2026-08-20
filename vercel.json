@@ -11,6 +11,6 @@
     { "source": "/calendar.ics", "destination": "/api/calendar" }
   ],
   "crons": [
-    { "path": "/api/attendance-reminder", "schedule": "30 22 * * 4" }
+    { "path": "/api/team-state", "schedule": "30 22 * * 4" }
   ]
 }
