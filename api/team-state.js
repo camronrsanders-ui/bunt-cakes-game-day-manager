@@ -38,7 +38,8 @@ module.exports = async function handler(req, res) {
           '{appAccess}',
           COALESCE(state->'appAccess', '{}'::jsonb) || jsonb_build_object(${playerName}, ${payload}::jsonb),
           true
-        )
+        ),
+        updated_at = now()
         WHERE id = 1
       `;
       return res.status(200).json({ ok: true, accessStatus });
@@ -53,7 +54,18 @@ module.exports = async function handler(req, res) {
       }
       const payload = JSON.stringify(next);
       if (payload.length > 1000000) return res.status(413).json({ error: 'Team state is too large' });
-      const rows = await sql`UPDATE team_state SET state = ${payload}, updated_at = now() WHERE id = 1 RETURNING updated_at`;
+
+      // Player Home Screen check-ins can happen while a captain has the manager open.
+      // Keep the newest server-side access tracker instead of overwriting it with an older captain snapshot.
+      const rows = await sql`
+        UPDATE team_state
+        SET state = ${payload}::jsonb || jsonb_build_object(
+          'appAccess', COALESCE(state->'appAccess', '{}'::jsonb)
+        ),
+        updated_at = now()
+        WHERE id = 1
+        RETURNING updated_at
+      `;
       return res.status(200).json({ ok: true, updatedAt: rows[0] && rows[0].updated_at, updatedBy: user.display_name });
     }
 
