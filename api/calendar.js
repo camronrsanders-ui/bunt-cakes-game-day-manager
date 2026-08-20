@@ -26,7 +26,7 @@ module.exports = async function handler(req, res) {
     const now = new Date();
     const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth()-1, 1)).toISOString().slice(0,10);
     const end = new Date(Date.UTC(now.getUTCFullYear()+1, now.getUTCMonth()+2, 1)).toISOString().slice(0,10);
-    const r = await fetch(`${proto}://${host}/api/leagueapps?start=${start}&end=${end}`, {headers:{'User-Agent':'BuntCakesCalendar/1.0'}});
+    const r = await fetch(`${proto}://${host}/api/leagueapps?start=${start}&end=${end}&cb=${Date.now()}`, {headers:{'User-Agent':'BuntCakesCalendar/1.0'}});
     if (!r.ok) return res.status(502).send('Could not load LeagueApps schedule');
     const data = await r.json();
     const games = (data.events || []).filter(e => e.type === 'Game' && e.date && e.time);
