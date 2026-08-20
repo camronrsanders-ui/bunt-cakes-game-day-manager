@@ -3,6 +3,16 @@ const { getSql } = require('./_db');
 const { requireCaptain } = require('./_auth');
 
 const ATTENDANCE = new Set(['yes', 'no', 'not_sure']);
+const DEFAULT_TEAM = {
+  name: '', shortName: '', organization: '', sport: 'Kickball', location: '',
+  primaryColor: '#15803d', accentColor: '#f7fff8', logoDataUrl: '', logoUrl: '',
+  chatUrl: '', announcement: '', arrivalMinutes: 60, secondReminderMinutes: 30,
+  leagueAppsEnabled: false, timeZone: 'America/New_York'
+};
+
+function teamConfig(state) {
+  return { ...DEFAULT_TEAM, ...((state && state.team) || {}) };
+}
 
 function publicState(value) {
   const state = value && typeof value === 'object' ? { ...value } : {};
@@ -12,9 +22,14 @@ function publicState(value) {
   return state;
 }
 
+async function loadState(sql) {
+  const rows = await sql`SELECT state, updated_at FROM team_state WHERE id = 1 LIMIT 1`;
+  return rows[0] || { state: {}, updated_at: null };
+}
+
 async function ensurePushConfig(sql) {
-  const rows = await sql`SELECT state FROM team_state WHERE id = 1 LIMIT 1`;
-  const state = (rows[0] && rows[0].state) || {};
+  const row = await loadState(sql);
+  const state = row.state || {};
   let config = state._pushConfig;
   if (config && config.publicKey && config.privateKey) return config;
   const keys = webpush.generateVAPIDKeys();
@@ -32,20 +47,23 @@ async function ensurePushConfig(sql) {
   return config;
 }
 
-function easternParts(date = new Date()) {
-  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short' }).formatToParts(date);
+function zonedParts(date = new Date(), timeZone = 'America/New_York') {
+  let zone = timeZone || 'America/New_York';
+  try { new Intl.DateTimeFormat('en-US', { timeZone: zone }).format(date); } catch (_) { zone = 'America/New_York'; }
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short' }).formatToParts(date);
   const obj = Object.fromEntries(parts.map(p => [p.type, p.value]));
-  return { date: `${obj.year}-${obj.month}-${obj.day}`, weekday: obj.weekday };
+  return { date: `${obj.year}-${obj.month}-${obj.day}`, weekday: obj.weekday, timeZone: zone };
 }
 function plusDays(iso, days) { const [y,m,d]=iso.split('-').map(Number); return new Date(Date.UTC(y,m-1,d+days)).toISOString().slice(0,10); }
 function time12(value) { if(!value)return''; const [h,m]=value.split(':').map(Number); return new Date(2000,0,1,h,m||0).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}); }
 
 async function sendAttendanceReminder(sql) {
-  const eastern = easternParts();
-  if (eastern.weekday !== 'Thu') return { ok: true, skipped: 'Not Thursday in Boston' };
-  const gameDate = plusDays(eastern.date, 3);
-  const rows = await sql`SELECT state FROM team_state WHERE id = 1 LIMIT 1`;
-  const state = (rows[0] && rows[0].state) || {};
+  const row = await loadState(sql);
+  const state = row.state || {};
+  const team = teamConfig(state);
+  const local = zonedParts(new Date(), team.timeZone);
+  if (local.weekday !== 'Thu') return { ok: true, skipped: `Not Thursday in ${local.timeZone}` };
+  const gameDate = plusDays(local.date, 3);
   const games = (state.events || []).filter(e => e && e.type === 'Game' && e.date === gameDate).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
   if (!games.length) return { ok: true, gameDate, skipped: 'No Sunday game scheduled' };
   if (state._pushReminderLog && state._pushReminderLog[gameDate] && state._pushReminderLog[gameDate].sentAt) return { ok: true, gameDate, skipped: 'Reminder already sent' };
@@ -53,8 +71,9 @@ async function sendAttendanceReminder(sql) {
   const subscriptions = state._pushSubscriptions || {};
   const roster = new Set((state.players || []).map(p => p && p.name).filter(Boolean));
   const config = await ensurePushConfig(sql);
-  webpush.setVapidDetails('mailto:notifications@those-dirty-bunt-cakes.app', config.publicKey, config.privateKey);
+  webpush.setVapidDetails('mailto:notifications@teamgameday.app', config.publicKey, config.privateKey);
   const times = games.map(g => time12(g.time)).filter(Boolean);
+  const teamName = team.shortName || team.name || 'Team';
   const body = `Will you be at Sunday’s game${games.length > 1 ? 's' : ''}${times.length ? ` at ${times.join(' & ')}` : ''}? Tap to answer Yes, No, or Not sure.`;
   let sent=0,failed=0;
   const cleaned={...subscriptions};
@@ -64,7 +83,7 @@ async function sendAttendanceReminder(sql) {
     for(const entry of list){
       if(!entry||!entry.subscription)continue;
       try{
-        await webpush.sendNotification(entry.subscription,JSON.stringify({title:'Bunt Cakes • Sunday availability',body,url:`/team?player=${encodeURIComponent(playerName)}&availability=${gameDate}`,tag:`bunt-attendance-${gameDate}`,gameDate}),{TTL:259200,urgency:'normal'});
+        await webpush.sendNotification(entry.subscription,JSON.stringify({title:`${teamName} • Sunday availability`,body,url:`/team?player=${encodeURIComponent(playerName)}&availability=${gameDate}`,tag:`team-attendance-${gameDate}`,gameDate}),{TTL:259200,urgency:'normal'});
         keep.push(entry);sent++;
       }catch(error){const code=Number(error&&error.statusCode);if(code!==404&&code!==410)keep.push(entry);failed++;}
     }
@@ -81,6 +100,36 @@ async function sendAttendanceReminder(sql) {
   return { ok:true,gameDate,sent,failed,games:games.length };
 }
 
+function sendManifest(res, state) {
+  const team = teamConfig(state);
+  const name = team.name ? `${team.name} Game Day Manager` : 'Team Game Day Manager';
+  const shortName = team.shortName || team.name || 'Game Day';
+  res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+  return res.status(200).json({
+    id: '/team', name, short_name: shortName.slice(0, 30), start_url: '/team', scope: '/', display: 'standalone',
+    background_color: team.accentColor || '#f7fff8', theme_color: team.primaryColor || '#15803d',
+    icons: [{ src: '/api/team-state?logo=1', sizes: 'any', purpose: 'any maskable' }]
+  });
+}
+
+function sendLogo(res, state) {
+  const team = teamConfig(state);
+  const data = String(team.logoDataUrl || '');
+  const match = data.match(/^data:(image\/(?:png|jpeg|webp|gif|svg\+xml));base64,([A-Za-z0-9+/=]+)$/);
+  if (match) {
+    const buffer = Buffer.from(match[2], 'base64');
+    if (buffer.length <= 750000) {
+      res.setHeader('Content-Type', match[1]);
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(200).send(buffer);
+    }
+  }
+  const fallback = typeof team.logoUrl === 'string' && team.logoUrl.startsWith('/') ? team.logoUrl : '/generic-team-icon.svg';
+  res.setHeader('Cache-Control', 'no-store');
+  return res.redirect(307, fallback);
+}
+
 module.exports = async function handler(req, res) {
   try {
     const sql = getSql();
@@ -94,15 +143,16 @@ module.exports = async function handler(req, res) {
         res.setHeader('Cache-Control','no-store');
         return res.status(200).json({ publicKey: config.publicKey });
       }
-      const rows = await sql`SELECT state, updated_at FROM team_state WHERE id = 1 LIMIT 1`;
-      const row = rows[0] || { state: {}, updated_at: null };
+      const row = await loadState(sql);
+      if (String(req.query && req.query.manifest || '') === '1') return sendManifest(res, row.state || {});
+      if (String(req.query && req.query.logo || '') === '1') return sendLogo(res, row.state || {});
       res.setHeader('Cache-Control', 'no-store');
       return res.status(200).json({ state: publicState(row.state), updatedAt: row.updated_at });
     }
 
     if (req.method === 'POST') {
-      const rows = await sql`SELECT state FROM team_state WHERE id = 1 LIMIT 1`;
-      const state = (rows[0] && rows[0].state) || {};
+      const row = await loadState(sql);
+      const state = row.state || {};
       const playerName = String(req.body && req.body.playerName || '').trim().slice(0, 80);
       const player = (state.players || []).find(p => p && p.name === playerName);
       if (!player) return res.status(404).json({ error: 'Player was not found on the roster' });
