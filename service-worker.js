@@ -1,25 +1,64 @@
-const CACHE='bunt-cakes-v5';
-const ASSETS=['./','index.html','manifest.webmanifest','icon.svg','enhancements.js'];
-self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)))});
-self.addEventListener('activate',e=>e.waitUntil(Promise.all([caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))),self.clients.claim()])));
-self.addEventListener('fetch',e=>{
-  const req=e.request;
-  if(req.url.includes('/api/')){e.respondWith(fetch(req));return}
-  if(req.mode==='navigate'){
-    e.respondWith(fetch(req).then(async r=>{
-      const text=await r.clone().text();
-      const injected=text.includes('enhancements.js')?text:text.replace('</body>','<script src="/enhancements.js?v=5"></script></body>');
-      const response=new Response(injected,{status:r.status,statusText:r.statusText,headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'}});
-      caches.open(CACHE).then(c=>c.put('index.html',response.clone()));
-      return response;
-    }).catch(async()=>{
-      const cached=await caches.match('index.html');
-      if(!cached)return new Response('Offline',{status:503});
-      const text=await cached.text();
-      const injected=text.includes('enhancements.js')?text:text.replace('</body>','<script src="/enhancements.js?v=5"></script></body>');
-      return new Response(injected,{headers:{'Content-Type':'text/html; charset=utf-8'}});
-    }));
+const CACHE='bunt-cakes-v6';
+const CORE=['/manifest.webmanifest','/logo.svg','/icon.svg'];
+
+self.addEventListener('install',event=>{
+  self.skipWaiting();
+  event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(CORE)));
+});
+
+self.addEventListener('activate',event=>{
+  event.waitUntil(Promise.all([
+    caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))),
+    self.clients.claim()
+  ]));
+});
+
+async function networkFirst(request){
+  const cache=await caches.open(CACHE);
+  try{
+    const response=await fetch(request,{cache:'no-store'});
+    if(response&&response.ok)await cache.put(request,response.clone());
+    return response;
+  }catch(error){
+    const cached=await cache.match(request);
+    if(cached)return cached;
+    throw error;
+  }
+}
+
+self.addEventListener('fetch',event=>{
+  const request=event.request;
+  const url=new URL(request.url);
+  if(url.origin!==self.location.origin)return;
+
+  if(url.pathname.startsWith('/api/')||url.pathname==='/calendar.ics'){
+    event.respondWith(fetch(request,{cache:'no-store'}));
     return;
   }
-  e.respondWith(caches.match(req).then(r=>r||fetch(req).then(net=>{const copy=net.clone();caches.open(CACHE).then(c=>c.put(req,copy));return net})))
+
+  if(request.mode==='navigate'){
+    event.respondWith((async()=>{
+      try{return await networkFirst(request)}catch(error){
+        const cache=await caches.open(CACHE);
+        const exact=await cache.match(request);
+        if(exact)return exact;
+        if(url.pathname!=='/team'){
+          const team=await cache.match('/team');
+          if(team)return team;
+        }
+        return new Response('Bunt Cakes is offline. Reconnect and reopen the app.',{status:503,headers:{'Content-Type':'text/plain; charset=utf-8'}});
+      }
+    })());
+    return;
+  }
+
+  if(request.destination==='script'||request.destination==='style'||request.destination==='document'){
+    event.respondWith(networkFirst(request).catch(()=>caches.match(request)));
+    return;
+  }
+
+  event.respondWith(caches.match(request).then(cached=>cached||fetch(request).then(response=>{
+    if(response&&response.ok){const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(request,copy));}
+    return response;
+  })));
 });
