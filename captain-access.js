@@ -15,14 +15,10 @@
     }
     const rows=document.getElementById('phoneAccessRows');
     try{
-      const [accessRes,stateRes]=await Promise.all([
-        fetch('/api/player-access',{cache:'no-store',credentials:'same-origin'}),
-        fetch('/api/team-state',{cache:'no-store'})
-      ]);
-      if(!accessRes.ok)throw new Error('Could not load phone access');
-      const accessJson=await accessRes.json();
+      const stateRes=await fetch('/api/team-state',{cache:'no-store'});
+      if(!stateRes.ok)throw new Error('Could not load phone access');
       const stateJson=await stateRes.json();
-      const access=accessJson.access||{};
+      const access=stateJson.state?.appAccess||{};
       const players=(stateJson.state?.players||[]).slice().sort((a,b)=>(a.fullName||a.name).localeCompare(b.fullName||b.name));
       const installed=players.filter(p=>access[p.name]?.installedAt).length;
       const browserOnly=players.filter(p=>access[p.name]?.browserSeenAt&&!access[p.name]?.installedAt).length;
