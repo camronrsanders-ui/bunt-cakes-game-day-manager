@@ -60,32 +60,42 @@
       return drain();
     };
 
+    function setLiveInning(value){
+      const n=Math.min(7,Math.max(1,Number(value)||1));
+      state.gameInning=n;
+      state.fieldInning=n;
+
+      const dashboardInning=document.getElementById('inning');
+      const lineupInning=document.getElementById('lineupInning');
+      if(dashboardInning)dashboardInning.value=String(n);
+      if(lineupInning)lineupInning.value=String(n);
+
+      if(typeof renderDash==='function')renderDash();
+      if(typeof renderLineup==='function')renderLineup();
+      if(typeof renderCaptainField==='function')renderCaptainField();
+      queueSave();
+    }
+
     const currentInning=document.getElementById('inning');
     if(currentInning){
       const label=currentInning.closest('label');
-      if(label&&label.firstChild)label.firstChild.nodeValue='Current game inning ';
-      currentInning.addEventListener('change',()=>{
-        state.gameInning=Number(currentInning.value)||1;
-        state.fieldInning=state.gameInning;
-        const editInning=document.getElementById('lineupInning');
-        if(editInning)editInning.value=String(state.fieldInning);
-        if(typeof renderLineup==='function')renderLineup();
-        if(typeof renderCaptainField==='function')renderCaptainField();
-        queueSave();
-      });
+      if(label&&label.firstChild)label.firstChild.nodeValue='Live game inning ';
+      currentInning.onchange=()=>setLiveInning(currentInning.value);
     }
 
     const lineupInning=document.getElementById('lineupInning');
     if(lineupInning){
       const label=lineupInning.closest('label');
-      if(label&&label.firstChild)label.firstChild.nodeValue='Edit lineup for inning ';
+      if(label&&label.firstChild)label.firstChild.nodeValue='Live inning — players see this ';
+      lineupInning.onchange=()=>setLiveInning(lineupInning.value);
+
       const card=lineupInning.closest('.card');
       if(card&&!document.getElementById('lineupInningHelp')){
         const help=document.createElement('div');
         help.id='lineupInningHelp';
         help.className='muted';
         help.style.marginTop='6px';
-        help.textContent='This only changes the inning you are editing. Players follow Current game inning on the Dashboard.';
+        help.textContent='Changing this inning immediately makes the same inning and defensive lineup live on every player view.';
         card.appendChild(help);
       }
     }
