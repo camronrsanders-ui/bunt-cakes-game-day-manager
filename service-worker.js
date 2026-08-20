@@ -1,4 +1,4 @@
-const CACHE='team-game-day-v8';
+const CACHE='team-game-day-v9';
 const CORE=['/manifest.webmanifest','/generic-team-icon.svg'];
 
 self.addEventListener('install',event=>{
@@ -32,7 +32,7 @@ self.addEventListener('push',event=>{
   const title=data.title||'Team Game Day';
   event.waitUntil(self.registration.showNotification(title,{
     body:data.body||'Open the team app for an update.',
-    icon:'/api/team-state?logo=1',
+    icon:data.icon||'/generic-team-icon.svg',
     badge:'/generic-team-icon.svg',
     tag:data.tag||'team-game-day-update',
     renotify:true,
@@ -44,7 +44,8 @@ self.addEventListener('notificationclick',event=>{
   event.notification.close();
   const url=new URL((event.notification.data&&event.notification.data.url)||'/team',self.location.origin).href;
   event.waitUntil(self.clients.matchAll({type:'window',includeUncontrolled:true}).then(async list=>{
-    const client=list[0];
+    const matching=list.find(client=>{try{return new URL(client.url).pathname===new URL(url).pathname}catch(_){return false}});
+    const client=matching||list[0];
     if(client){try{if('navigate'in client)await client.navigate(url);return client.focus()}catch(e){}}
     return self.clients.openWindow(url);
   }));
@@ -55,7 +56,7 @@ self.addEventListener('fetch',event=>{
   const url=new URL(request.url);
   if(url.origin!==self.location.origin)return;
 
-  if(url.pathname.startsWith('/api/')||url.pathname==='/calendar.ics'){
+  if(url.pathname.startsWith('/api/')||url.pathname==='/calendar.ics'||url.pathname.startsWith('/calendar/')){
     event.respondWith(fetch(request,{cache:'no-store'}));
     return;
   }
@@ -66,10 +67,6 @@ self.addEventListener('fetch',event=>{
         const cache=await caches.open(CACHE);
         const exact=await cache.match(request);
         if(exact)return exact;
-        if(url.pathname!=='/team'){
-          const team=await cache.match('/team');
-          if(team)return team;
-        }
         return new Response('The team app is offline. Reconnect and reopen it.',{status:503,headers:{'Content-Type':'text/plain; charset=utf-8'}});
       }
     })());
