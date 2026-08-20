@@ -11,7 +11,6 @@
     return Number((state&&state.gameInning)||(state&&state.fieldInning)||1);
   }
 
-  // Player-facing lineup and score header use the same normalized live inning.
   if(typeof renderLineup==='function'){
     renderLineup=function(){
       const n=liveInning();
@@ -36,26 +35,16 @@
   async function refreshLiveTeam(manual=false){
     if(busy)return;
     busy=true;
-    if(manual){
-      btn.disabled=true;
-      btn.textContent='Refreshing…';
-      if(updated)updated.textContent='Refreshing…';
-    }
-
+    if(manual){btn.disabled=true;btn.textContent='Refreshing…';if(updated)updated.textContent='Refreshing…';}
     try{
-      const r=await fetch('/api/team-state?fresh='+Date.now(),{
-        cache:'no-store',
-        headers:{'Cache-Control':'no-cache, no-store, must-revalidate','Pragma':'no-cache'}
-      });
+      const r=await fetch('/api/team-state?fresh='+Date.now(),{cache:'no-store',headers:{'Cache-Control':'no-cache, no-store, must-revalidate','Pragma':'no-cache'}});
       const j=await r.json();
       if(!r.ok)throw new Error(j.error||'Could not refresh live team data');
-
       const version=String(j.updatedAt||'');
       if(manual||version!==lastVersion){
         state=j.state||{};
         const n=Number(state.gameInning||state.fieldInning||1);
-        state.gameInning=n;
-        state.fieldInning=n;
+        state.gameInning=n;state.fieldInning=n;
         if(typeof render==='function')render();
         window.dispatchEvent(new Event('buntpreferrednamesrefresh'));
         lastVersion=version;
@@ -63,18 +52,13 @@
       if(error)error.classList.add('hidden');
       showLiveTime(j.updatedAt,manual?'Refreshed':'Live');
     }catch(e){
-      if(manual){
-        if(error){error.textContent=e.message||'Could not refresh live team data';error.classList.remove('hidden');}
-        if(updated)updated.textContent='Refresh failed';
-      }
-    }finally{
-      busy=false;
-      if(manual){btn.disabled=false;btn.textContent='Refresh';}
-    }
+      if(manual){if(error){error.textContent=e.message||'Could not refresh live team data';error.classList.remove('hidden');}if(updated)updated.textContent='Refresh failed';}
+    }finally{busy=false;if(manual){btn.disabled=false;btn.textContent='Refresh';}}
   }
 
   btn.onclick=()=>refreshLiveTeam(true);
-  window.buntCakesRefresh=()=>refreshLiveTeam(true);
+  window.teamGameDayRefresh=()=>refreshLiveTeam(true);
+  window.buntCakesRefresh=window.teamGameDayRefresh;
   setInterval(()=>{if(!document.hidden)refreshLiveTeam(false)},3000);
   window.addEventListener('focus',()=>refreshLiveTeam(false));
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshLiveTeam(false)});
@@ -82,40 +66,14 @@
 })();
 
 (()=>{
-  // Replace the old Pods organizer without adding another Serverless Function.
   const tab=document.querySelector('[data-tab="pods"]');
   if(tab)tab.textContent='My Rotation';
   const section=document.getElementById('pods');
-  if(section) section.innerHTML='<div class="card"><strong>Loading My Rotation…</strong><div class="muted">Getting the live inning and your seven-inning plan.</div></div>';
+  if(section)section.innerHTML='<div class="card"><strong>Loading My Rotation…</strong><div class="muted">Getting the live inning and your seven-inning plan.</div></div>';
 
-  if(!document.querySelector('script[data-bunt-field-rotation]')){
-    const script=document.createElement('script');
-    script.src='/team-field-rotation.js?v=6';
-    script.dataset.buntFieldRotation='1';
-    document.head.appendChild(script);
-  }
-  if(!document.querySelector('script[data-bunt-team-usability]')){
-    const script=document.createElement('script');
-    script.src='/team-usability.js?v=1';
-    script.dataset.buntTeamUsability='1';
-    document.head.appendChild(script);
-  }
-  if(!document.querySelector('script[data-bunt-preferred-names]')){
-    const script=document.createElement('script');
-    script.src='/preferred-names.js?v=1';
-    script.dataset.buntPreferredNames='1';
-    document.head.appendChild(script);
-  }
-  if(!document.querySelector('script[data-bunt-attendance]')){
-    const script=document.createElement('script');
-    script.src='/team-attendance.js?v=1';
-    script.dataset.buntAttendance='1';
-    document.head.appendChild(script);
-  }
-  if(!document.querySelector('script[data-team-branding]')){
-    const script=document.createElement('script');
-    script.src='/team-branding.js?v=1';
-    script.dataset.teamBranding='1';
-    document.head.appendChild(script);
-  }
+  if(!document.querySelector('script[data-bunt-field-rotation]')){const script=document.createElement('script');script.src='/team-field-rotation.js?v=7';script.dataset.buntFieldRotation='1';document.head.appendChild(script);}
+  if(!document.querySelector('script[data-bunt-team-usability]')){const script=document.createElement('script');script.src='/team-usability.js?v=1';script.dataset.buntTeamUsability='1';document.head.appendChild(script);}
+  if(!document.querySelector('script[data-bunt-preferred-names]')){const script=document.createElement('script');script.src='/preferred-names.js?v=1';script.dataset.buntPreferredNames='1';document.head.appendChild(script);}
+  if(!document.querySelector('script[data-bunt-attendance]')){const script=document.createElement('script');script.src='/team-attendance.js?v=2';script.dataset.buntAttendance='1';document.head.appendChild(script);}
+  if(!document.querySelector('script[data-team-branding]')){const script=document.createElement('script');script.src='/team-branding.js?v=2';script.dataset.teamBranding='1';document.head.appendChild(script);}
 })();
