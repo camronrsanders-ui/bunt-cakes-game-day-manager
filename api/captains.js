@@ -8,7 +8,12 @@ const {
   requireTeamCaptain
 } = require('./_auth');
 
-function blankState() {
+function safeTimeZone(value){
+  const zone=String(value||'').trim();
+  try{new Intl.DateTimeFormat('en-US',{timeZone:zone}).format(new Date());return zone||'UTC';}catch(_){return'UTC';}
+}
+
+function blankState(timeZone='UTC') {
   const innings = {};
   for (let i=1;i<=7;i++) innings[i] = {};
   return {
@@ -16,7 +21,7 @@ function blankState() {
       name:'',shortName:'',organization:'',sport:'Kickball',location:'',
       primaryColor:'#15803d',accentColor:'#f7fff8',logoDataUrl:'',logoUrl:'',
       chatUrl:'',announcement:'',arrivalMinutes:60,secondReminderMinutes:30,
-      leagueAppsEnabled:false,timeZone:'America/New_York'
+      leagueAppsEnabled:false,timeZone:safeTimeZone(timeZone)
     },
     playerVisibility:{schedule:true,lineup:true,pods:true,kicking:true,officials:true,resources:true,attendance:true},
     resources:[],players:[],innings,pods:[],kickingOrder:[],score:{team:0,opponent:0},
@@ -35,24 +40,11 @@ function setSessionCookie(res,token){
   res.setHeader('Set-Cookie',`bc_captain=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=604800`);
 }
 
-async function signup(req,res,sql){
-  const {email,displayName,password}=req.body||{};
-  if(!email||!displayName||!password||String(password).length<10){
-    return res.status(400).json({error:'Name, email, and a password of at least 10 characters are required'});
-  }
-  const normalizedEmail=String(email).trim().toLowerCase();
-  const exists=await sql`SELECT id FROM captain_users WHERE lower(email)=lower(${normalizedEmail}) LIMIT 1`;
-  if(exists.length) return res.status(409).json({error:'An account already exists for this email. Sign in instead.'});
-
-  const {salt,hash}=passwordParts(password);
-  let teamSlug='team-'+crypto.randomBytes(5).toString('hex');
-  const statePayload=JSON.stringify(blankState());
+async function createWorkspace(sql,captainId,timeZone='UTC'){
+  const teamSlug='team-'+crypto.randomBytes(5).toString('hex');
+  const statePayload=JSON.stringify(blankState(timeZone));
   const rows=await sql`
-    WITH new_user AS (
-      INSERT INTO captain_users(email,display_name,password_hash,password_salt,active)
-      VALUES (${normalizedEmail},${String(displayName).trim()},${hash},${salt},true)
-      RETURNING id,email,display_name
-    ), new_team AS (
+    WITH new_team AS (
       INSERT INTO teams(slug,active,is_legacy_default,plan,billing_status)
       VALUES (${teamSlug},true,false,'trial','trialing')
       RETURNING id,slug
@@ -62,22 +54,40 @@ async function signup(req,res,sql){
       RETURNING team_id
     ), new_membership AS (
       INSERT INTO captain_team_memberships(captain_user_id,team_id,role,active)
-      SELECT new_user.id,new_team.id,'owner',true FROM new_user CROSS JOIN new_team
+      SELECT ${captainId},new_team.id,'owner',true FROM new_team
       RETURNING captain_user_id,team_id
     )
-    SELECT new_user.id,new_user.email,new_user.display_name,new_team.slug
-    FROM new_user CROSS JOIN new_team
+    SELECT id,slug FROM new_team
   `;
-  const user=rows[0];
-  if(!user) throw new Error('Could not create team workspace');
+  return rows[0]||null;
+}
+
+async function signup(req,res,sql){
+  const {email,displayName,password,timeZone}=req.body||{};
+  if(!email||!displayName||!password||String(password).length<10){
+    return res.status(400).json({error:'Name, email, and a password of at least 10 characters are required'});
+  }
+  const normalizedEmail=String(email).trim().toLowerCase();
+  const exists=await sql`SELECT id FROM captain_users WHERE lower(email)=lower(${normalizedEmail}) LIMIT 1`;
+  if(exists.length) return res.status(409).json({error:'An account already exists for this email. Sign in instead.'});
+
+  const {salt,hash}=passwordParts(password);
+  const created=await sql`
+    INSERT INTO captain_users(email,display_name,password_hash,password_salt,active)
+    VALUES (${normalizedEmail},${String(displayName).trim()},${hash},${salt},true)
+    RETURNING id,email,display_name
+  `;
+  const user=created[0];
+  if(!user) throw new Error('Could not create captain account');
+  let workspace;
+  try{workspace=await createWorkspace(sql,user.id,timeZone);}catch(error){await sql`DELETE FROM captain_users WHERE id=${user.id}`;throw error;}
+  if(!workspace) throw new Error('Could not create team workspace');
+
   const token=crypto.randomBytes(32).toString('base64url');
   await sql`INSERT INTO captain_sessions(token_hash,captain_user_id,expires_at) VALUES (${hashToken(token)},${user.id},now()+interval '7 days')`;
   setSessionCookie(res,token);
   return res.status(201).json({
-    ok:true,
-    teamSlug:user.slug,
-    teamUrl:`/team/${user.slug}`,
-    captainUrl:`/captain/${user.slug}`,
+    ok:true,teamSlug:workspace.slug,teamUrl:`/team/${workspace.slug}`,captainUrl:`/captain/${workspace.slug}`,
     user:{email:user.email,displayName:user.display_name}
   });
 }
@@ -87,6 +97,13 @@ module.exports = async function handler(req,res){
     const sql=getSql();
     const action=String(req.body&&req.body.action||'');
     if(req.method==='POST'&&action==='signup') return signup(req,res,sql);
+
+    if(req.method==='POST'&&action==='create-team'){
+      const account=await getCaptain(req);
+      if(!account) return res.status(401).json({error:'Captain login required'});
+      const workspace=await createWorkspace(sql,account.id,req.body&&req.body.timeZone);
+      return res.status(201).json({ok:true,teamSlug:workspace.slug,teamUrl:`/team/${workspace.slug}`,captainUrl:`/captain/${workspace.slug}`});
+    }
 
     const teamSlug=requestedTeamSlug(req);
     const user=await requireTeamCaptain(req,res,teamSlug);if(!user)return;
