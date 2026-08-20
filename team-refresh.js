@@ -57,6 +57,7 @@
         state.gameInning=n;
         state.fieldInning=n;
         if(typeof render==='function')render();
+        window.dispatchEvent(new Event('buntpreferrednamesrefresh'));
         lastVersion=version;
       }
       if(error)error.classList.add('hidden');
@@ -97,6 +98,12 @@
     const script=document.createElement('script');
     script.src='/team-usability.js?v=1';
     script.dataset.buntTeamUsability='1';
+    document.head.appendChild(script);
+  }
+  if(!document.querySelector('script[data-bunt-preferred-names]')){
+    const script=document.createElement('script');
+    script.src='/preferred-names.js?v=1';
+    script.dataset.buntPreferredNames='1';
     document.head.appendChild(script);
   }
 })();
