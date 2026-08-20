@@ -86,9 +86,16 @@
 })();
 
 (()=>{
-  if(document.querySelector('script[data-bunt-pods-organizer]'))return;
-  const script=document.createElement('script');
-  script.src='/team-pods-organizer.js?v=2';
-  script.dataset.buntPodsOrganizer='1';
-  document.head.appendChild(script);
+  if(!document.querySelector('script[data-bunt-pods-organizer]')){
+    const script=document.createElement('script');
+    script.src='/team-pods-organizer.js?v=2';
+    script.dataset.buntPodsOrganizer='1';
+    document.head.appendChild(script);
+  }
+  if(!document.querySelector('script[data-bunt-team-usability]')){
+    const script=document.createElement('script');
+    script.src='/team-usability.js?v=1';
+    script.dataset.buntTeamUsability='1';
+    document.head.appendChild(script);
+  }
 })();
