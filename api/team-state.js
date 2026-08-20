@@ -1,6 +1,14 @@
 const { getSql } = require('./_db');
 const { requireCaptain } = require('./_auth');
 
+function publicState(value) {
+  const state = value && typeof value === 'object' ? { ...value } : {};
+  delete state._pushConfig;
+  delete state._pushSubscriptions;
+  delete state._pushReminderLog;
+  return state;
+}
+
 module.exports = async function handler(req, res) {
   try {
     const sql = getSql();
@@ -8,7 +16,7 @@ module.exports = async function handler(req, res) {
       const rows = await sql`SELECT state, updated_at FROM team_state WHERE id = 1 LIMIT 1`;
       const row = rows[0] || { state: {}, updated_at: null };
       res.setHeader('Cache-Control', 'no-store');
-      return res.status(200).json({ state: row.state || {}, updatedAt: row.updated_at });
+      return res.status(200).json({ state: publicState(row.state), updatedAt: row.updated_at });
     }
 
     if (req.method === 'POST') {
@@ -55,12 +63,16 @@ module.exports = async function handler(req, res) {
       const payload = JSON.stringify(next);
       if (payload.length > 1000000) return res.status(413).json({ error: 'Team state is too large' });
 
-      // Player Home Screen check-ins can happen while a captain has the manager open.
-      // Keep the newest server-side access tracker instead of overwriting it with an older captain snapshot.
+      // Player check-ins, Sunday availability, and private push data can change while
+      // a captain has the manager open. Preserve the newest server-side versions.
       const rows = await sql`
         UPDATE team_state
         SET state = ${payload}::jsonb || jsonb_build_object(
-          'appAccess', COALESCE(state->'appAccess', '{}'::jsonb)
+          'appAccess', COALESCE(state->'appAccess', '{}'::jsonb),
+          'availability', COALESCE(state->'availability', '{}'::jsonb),
+          '_pushConfig', COALESCE(state->'_pushConfig', '{}'::jsonb),
+          '_pushSubscriptions', COALESCE(state->'_pushSubscriptions', '{}'::jsonb),
+          '_pushReminderLog', COALESCE(state->'_pushReminderLog', '{}'::jsonb)
         ),
         updated_at = now()
         WHERE id = 1
