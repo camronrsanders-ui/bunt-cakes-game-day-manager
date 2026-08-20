@@ -106,4 +106,10 @@
     script.dataset.buntPreferredNames='1';
     document.head.appendChild(script);
   }
+  if(!document.querySelector('script[data-bunt-attendance]')){
+    const script=document.createElement('script');
+    script.src='/team-attendance.js?v=1';
+    script.dataset.buntAttendance='1';
+    document.head.appendChild(script);
+  }
 })();
