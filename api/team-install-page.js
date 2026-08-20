@@ -4,7 +4,7 @@ module.exports = async function handler(req, res) {
   try {
     const proto = req.headers['x-forwarded-proto'] || 'https';
     const host = req.headers.host;
-    const upstream = await fetch(`${proto}://${host}/api/team-page`, {
+    const upstream = await fetch(`${proto}://${host}/api/team-reminders-page`, {
       headers: { 'User-Agent': 'BuntCakesInstallExperience/1.0' }
     });
     if (!upstream.ok) return res.status(502).send('Could not load team page');
