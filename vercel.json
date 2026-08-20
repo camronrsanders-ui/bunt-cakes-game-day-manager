@@ -3,8 +3,8 @@
     { "source": "/", "destination": "/team", "permanent": false }
   ],
   "rewrites": [
-    { "source": "/team", "destination": "/api/team-install-page" },
-    { "source": "/team/", "destination": "/api/team-install-page" },
+    { "source": "/team", "destination": "/api/team-reminders-page" },
+    { "source": "/team/", "destination": "/api/team-reminders-page" },
     { "source": "/captain", "destination": "/api/captain-field-page" },
     { "source": "/captain/", "destination": "/api/captain-field-page" },
     { "source": "/calendar.ics", "destination": "/api/calendar" },
