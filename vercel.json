@@ -9,5 +9,8 @@
     { "source": "/captain", "destination": "/api/captain-field-page" },
     { "source": "/captain/", "destination": "/api/captain-field-page" },
     { "source": "/calendar.ics", "destination": "/api/calendar" }
+  ],
+  "crons": [
+    { "path": "/api/attendance-reminder", "schedule": "30 22 * * 4" }
   ]
 }
