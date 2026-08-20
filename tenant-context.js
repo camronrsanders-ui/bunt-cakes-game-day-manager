@@ -13,7 +13,7 @@
       const raw=typeof input==='string'?input:input&&input.url;
       if(raw){
         const url=new URL(raw,location.origin);
-        if(url.origin===location.origin&&['/api/team-state','/api/captains','/api/calendar','/api/session','/api/captain-availability'].includes(url.pathname)&&!url.searchParams.has('team')){
+        if(url.origin===location.origin&&['/api/team-state','/api/captains','/api/calendar','/api/session'].includes(url.pathname)&&!url.searchParams.has('team')){
           url.searchParams.set('team',slug);
           if(typeof input==='string') input=url.pathname+url.search+url.hash;
           else input=new Request(url.href,input);
