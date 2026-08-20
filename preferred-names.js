@@ -2,7 +2,8 @@
   const SELECT_IDS=['myRotationPlayer','installPlayer'];
 
   function roster(){
-    return Array.isArray(window.state?.players)?window.state.players:[];
+    const shared=typeof state!=='undefined'?state:window.state;
+    return Array.isArray(shared?.players)?shared.players:[];
   }
 
   function preferredName(value){
