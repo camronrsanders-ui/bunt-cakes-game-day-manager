@@ -11,7 +11,6 @@
     return Number((state&&state.gameInning)||(state&&state.fieldInning)||1);
   }
 
-  // Player-facing lineup and score header use the same normalized live inning.
   if(typeof renderLineup==='function'){
     renderLineup=function(){
       const n=liveInning();
@@ -74,7 +73,8 @@
   }
 
   btn.onclick=()=>refreshLiveTeam(true);
-  window.buntCakesRefresh=()=>refreshLiveTeam(true);
+  window.teamGameDayRefresh=()=>refreshLiveTeam(true);
+  window.buntCakesRefresh=window.teamGameDayRefresh;
   setInterval(()=>{if(!document.hidden)refreshLiveTeam(false)},3000);
   window.addEventListener('focus',()=>refreshLiveTeam(false));
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshLiveTeam(false)});
@@ -82,46 +82,32 @@
 })();
 
 (()=>{
-  // Replace the old Pods organizer without adding another Serverless Function.
+  const founder='those-dirty-bunt-cakes';
+  if(window.__teamSlug&&window.__teamSlug!==founder){
+    const scoreLabel=document.querySelector('#home .grid.g3 .card .muted');
+    if(scoreLabel)scoreLabel.textContent='Team';
+    const resources=document.getElementById('resources');
+    if(resources)resources.innerHTML='<div class="card"><strong>Team Resources</strong><div class="muted">Links selected by your captain.</div></div><div class="card muted">No resources have been added yet.</div>';
+  }
+
   const tab=document.querySelector('[data-tab="pods"]');
   if(tab)tab.textContent='My Rotation';
   const section=document.getElementById('pods');
-  if(section) section.innerHTML='<div class="card"><strong>Loading My Rotation…</strong><div class="muted">Getting the live inning and your seven-inning plan.</div></div>';
+  if(section)section.innerHTML='<div class="card"><strong>Loading My Rotation…</strong><div class="muted">Getting the live inning and your seven-inning plan.</div></div>';
 
-  if(!document.querySelector('script[data-bunt-field-rotation]')){
+  const helpers=[
+    ['data-bunt-field-rotation','/team-field-rotation.js?v=8'],
+    ['data-bunt-team-usability','/team-usability.js?v=2'],
+    ['data-bunt-preferred-names','/preferred-names.js?v=2'],
+    ['data-bunt-attendance','/team-attendance.js?v=3'],
+    ['data-bunt-access-checkin','/team-access-checkin.js?v=3'],
+    ['data-team-branding','/team-branding.js?v=3']
+  ];
+  helpers.forEach(([attr,src])=>{
+    if(document.querySelector('script['+attr+']'))return;
     const script=document.createElement('script');
-    script.src='/team-field-rotation.js?v=6';
-    script.dataset.buntFieldRotation='1';
+    script.src=src;
+    script.setAttribute(attr,'1');
     document.head.appendChild(script);
-  }
-  if(!document.querySelector('script[data-bunt-team-usability]')){
-    const script=document.createElement('script');
-    script.src='/team-usability.js?v=1';
-    script.dataset.buntTeamUsability='1';
-    document.head.appendChild(script);
-  }
-  if(!document.querySelector('script[data-bunt-preferred-names]')){
-    const script=document.createElement('script');
-    script.src='/preferred-names.js?v=1';
-    script.dataset.buntPreferredNames='1';
-    document.head.appendChild(script);
-  }
-  if(!document.querySelector('script[data-bunt-attendance]')){
-    const script=document.createElement('script');
-    script.src='/team-attendance.js?v=1';
-    script.dataset.buntAttendance='1';
-    document.head.appendChild(script);
-  }
-  if(!document.querySelector('script[data-bunt-access-checkin]')){
-    const script=document.createElement('script');
-    script.src='/team-access-checkin.js?v=1';
-    script.dataset.buntAccessCheckin='1';
-    document.head.appendChild(script);
-  }
-  if(!document.querySelector('script[data-team-branding]')){
-    const script=document.createElement('script');
-    script.src='/team-branding.js?v=1';
-    script.dataset.teamBranding='1';
-    document.head.appendChild(script);
-  }
+  });
 })();
