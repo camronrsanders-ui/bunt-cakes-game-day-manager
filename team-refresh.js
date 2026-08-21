@@ -112,6 +112,12 @@
     script.dataset.buntAttendance='1';
     document.head.appendChild(script);
   }
+  if(!document.querySelector('script[data-bunt-access-checkin]')){
+    const script=document.createElement('script');
+    script.src='/team-access-checkin.js?v=1';
+    script.dataset.buntAccessCheckin='1';
+    document.head.appendChild(script);
+  }
   if(!document.querySelector('script[data-team-branding]')){
     const script=document.createElement('script');
     script.src='/team-branding.js?v=1';
