@@ -20,11 +20,12 @@
       @media(max-width:650px){.team-kick-stage{grid-template-columns:1fr 1fr}.team-kick-card.now{grid-column:1/-1;min-height:140px}.team-kick-card{min-height:100px}.team-kick-name{font-size:1.2rem}.team-kick-card.now .team-kick-name{font-size:2rem}.kick-queue-row{grid-template-columns:38px minmax(0,1fr) auto;padding:10px}}
     `;document.head.appendChild(style);
   }
+  function identityKey(){return window.__teamStorageKey?window.__teamStorageKey('playerName'):'buntCakesPlayerName';}
   function presentSet(){return new Set((state.players||[]).filter(p=>p.present!==false).map(p=>p.name));}
   function activeOrder(){const present=presentSet();return(state.kickingOrder||[]).filter(n=>present.has(n));}
   function info(){const active=activeOrder();if(!active.length)return{active,current:'',index:-1,next:'',third:''};let current=state.currentKicker;if(!current||!active.includes(current))current=active[0];const index=active.indexOf(current);return{active,current,index,next:active[(index+1)%active.length],third:active[(index+2)%active.length]};}
   function personalStatus(i){
-    const mine=localStorage.getItem('buntCakesPlayerName')||'';if(!mine)return'';
+    const mine=new URLSearchParams(location.search).get('player')||localStorage.getItem(identityKey())||'';if(!mine)return'';
     const idx=i.active.indexOf(mine);if(idx<0)return '<strong>'+mine+':</strong> you are not in the active kicking queue right now.';
     const away=(idx-i.index+i.active.length)%i.active.length;
     if(away===0)return '<strong>'+mine+': you are kicking now.</strong>';
