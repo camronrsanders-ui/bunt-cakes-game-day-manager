@@ -12,27 +12,27 @@
     `;document.head.appendChild(style);
   }
 
-  function esc(value){return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));}
+  function esc(value){return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[ch]));}
   function prefs(player){return Array.isArray(player?.preferences)?player.preferences:[];}
   function isFlexible(player){return player?.flexible===true||player?.flexibleAnywhere===true||player?.preferenceMode==='flexible';}
   function isWillingElsewhere(player){return player?.willingElsewhere===true||player?.flexibleElsewhere===true;}
-  function isComplete(player){return player?.surveyComplete===true&&(isFlexible(player)||prefs(player).length>0);}
+  function isSubmitted(player){return player?.surveySubmitted===true;}
   function prefsText(player){
-    const list=prefs(player),parts=[];if(list.length)parts.push(list.join(' → '));if(isFlexible(player))parts.push('Flexible / anywhere');if(isWillingElsewhere(player))parts.push('Willing to play elsewhere');return parts.join(' • ')||'No field preferences on file';
+    const list=prefs(player),parts=[];if(list.length)parts.push(list.join(' → '));if(isFlexible(player))parts.push('Flexible / anywhere');if(isWillingElsewhere(player))parts.push('Willing to play elsewhere');return parts.join(' • ')||'No position preference stated';
   }
 
   function decorate(){
     if(typeof state==='undefined'||!state)return;const box=document.getElementById('players');if(!box)return;
     [...box.children].forEach(card=>{
       if(card.dataset.surveyEnhanced==='1')return;const nameInput=card.querySelector('input.n');if(!nameInput)return;const player=(state.players||[]).find(p=>p.name===nameInput.value);if(!player)return;
-      card.dataset.surveyEnhanced='1';const list=prefs(player),complete=isComplete(player);
-      const status=document.createElement('div');status.className='survey-status '+(complete?'complete':'missing');status.innerHTML='<div><strong>'+(complete?'✅ Fielding profile ready':'❌ Fielding profile missing')+'</strong><div class="muted">'+esc(player.fullName||player.name)+'</div></div><div><strong>'+esc(prefsText(player))+'</strong></div>';card.prepend(status);
-      const details=document.createElement('details');details.className='survey-editor';details.innerHTML='<summary>Edit fielding preferences</summary><div class="survey-position-grid">'+POS.map(pos=>'<label class="survey-position"><input type="checkbox" value="'+esc(pos)+'" '+(list.includes(pos)?'checked':'')+'>'+esc(pos)+'</label>').join('')+'</div><div class="survey-mode-grid"><label class="survey-mode"><input class="flexibleAnywhere" type="checkbox" '+(isFlexible(player)?'checked':'')+'><div><strong>Flexible / anywhere</strong><span>Player is comfortable being placed at any field position.</span></div></label><label class="survey-mode"><input class="willingElsewhere" type="checkbox" '+(isWillingElsewhere(player)?'checked':'')+'><div><strong>Willing to play elsewhere</strong><span>Keep listed positions as preferences, but allow another position if the team needs it.</span></div></label></div><div class="survey-note">Existing rankings stay in order. Newly selected positions are added after the current choices.</div><div class="survey-actions"><button type="button" class="surveyCompleteBtn primary">Mark profile ready</button><button type="button" class="surveyMissingBtn">Mark as missing</button></div>';
+      card.dataset.surveyEnhanced='1';const list=prefs(player),submitted=isSubmitted(player);
+      const status=document.createElement('div');status.className='survey-status '+(submitted?'complete':'missing');status.innerHTML='<div><strong>'+(submitted?'✅ Survey submitted':'❌ Survey missing')+'</strong><div class="muted">'+esc(player.name)+'</div></div><div><strong>'+esc(prefsText(player))+'</strong></div>';card.prepend(status);
+      const details=document.createElement('details');details.className='survey-editor';details.innerHTML='<summary>Edit survey & fielding preferences</summary><div class="survey-position-grid">'+POS.map(pos=>'<label class="survey-position"><input type="checkbox" value="'+esc(pos)+'" '+(list.includes(pos)?'checked':'')+'>'+esc(pos)+'</label>').join('')+'</div><div class="survey-mode-grid"><label class="survey-mode"><input class="flexibleAnywhere" type="checkbox" '+(isFlexible(player)?'checked':'')+'><div><strong>Flexible / anywhere</strong><span>Player is comfortable being placed at any field position.</span></div></label><label class="survey-mode"><input class="willingElsewhere" type="checkbox" '+(isWillingElsewhere(player)?'checked':'')+'><div><strong>Willing to play elsewhere</strong><span>Keep listed positions as preferences, but allow another position if the team needs it.</span></div></label></div><div class="survey-note">A survey can be submitted with no position preference. Preferences guide the rotation builder, but the captain can always override fielding assignments.</div><div class="survey-actions"><button type="button" class="surveyCompleteBtn primary">Mark survey submitted</button><button type="button" class="surveyMissingBtn">Mark survey missing</button></div>';
       details.querySelectorAll('.survey-position input').forEach(cb=>cb.onchange=()=>{const checked=new Set([...details.querySelectorAll('.survey-position input:checked')].map(x=>x.value)),old=prefs(player),next=old.filter(pos=>checked.has(pos));POS.forEach(pos=>{if(checked.has(pos)&&!next.includes(pos))next.push(pos)});player.preferences=next;queueSave();card.dataset.surveyEnhanced='';renderRoster();});
       details.querySelector('.flexibleAnywhere').onchange=e=>{player.flexible=e.target.checked;player.flexibleAnywhere=e.target.checked;queueSave();card.dataset.surveyEnhanced='';renderRoster();};
       details.querySelector('.willingElsewhere').onchange=e=>{player.willingElsewhere=e.target.checked;player.flexibleElsewhere=e.target.checked;queueSave();card.dataset.surveyEnhanced='';renderRoster();};
-      details.querySelector('.surveyCompleteBtn').onclick=()=>{if(!isFlexible(player)&&!prefs(player).length){alert('Choose at least one position or mark Flexible / anywhere first.');return;}player.surveyComplete=true;queueSave();renderRoster();};
-      details.querySelector('.surveyMissingBtn').onclick=()=>{player.surveyComplete=false;queueSave();renderRoster();};card.appendChild(details);
+      details.querySelector('.surveyCompleteBtn').onclick=()=>{player.surveySubmitted=true;player.surveyComplete=true;queueSave();renderRoster();};
+      details.querySelector('.surveyMissingBtn').onclick=()=>{player.surveySubmitted=false;player.surveyComplete=false;queueSave();renderRoster();};card.appendChild(details);
     });
   }
 
