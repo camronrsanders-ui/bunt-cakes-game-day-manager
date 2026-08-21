@@ -141,10 +141,10 @@ module.exports = async function handler(req,res){
             state,
             '{availability}',
             COALESCE(state->'availability','{}'::jsonb) || jsonb_build_object(
-              ${gameDate},
-              COALESCE(state->'availability'->${gameDate},'{}'::jsonb) || jsonb_build_object(
+              ${gameDate}::text,
+              COALESCE(state->'availability'->(${gameDate}::text),'{}'::jsonb) || jsonb_build_object(
                 '_captains',
-                COALESCE(state->'availability'->${gameDate}->'_captains','{}'::jsonb) || jsonb_build_object(${key},${payload}::jsonb)
+                COALESCE(state->'availability'->(${gameDate}::text)->'_captains','{}'::jsonb) || jsonb_build_object(${key}::text,${payload}::jsonb)
               )
             ),
             true
