@@ -1,6 +1,6 @@
 const webpush = require('web-push');
 const { getSql } = require('./_db');
-const { DEFAULT_TEAM_SLUG, requestedTeamSlug, getTeam, requireTeamCaptain } = require('./_auth');
+const { DEFAULT_TEAM_SLUG, requestedTeamSlug, getTeam, getCaptainTeam, requireTeamCaptain } = require('./_auth');
 
 const ATTENDANCE = new Set(['yes', 'no', 'not_sure']);
 const DEFAULT_TEAM = {
@@ -14,7 +14,7 @@ function teamConfig(state) {
   return { ...DEFAULT_TEAM, ...((state && state.team) || {}) };
 }
 
-function publicState(value) {
+function captainState(value) {
   const state = value && typeof value === 'object' ? { ...value } : {};
   delete state._pushConfig;
   delete state._pushSubscriptions;
@@ -22,12 +22,59 @@ function publicState(value) {
   return state;
 }
 
+function publicAvailability(state, playerName) {
+  if (!playerName) return {};
+  const roster = new Set((state.players || []).map(p => p && p.name).filter(Boolean));
+  if (!roster.has(playerName)) return {};
+  const out = {};
+  for (const [date, answers] of Object.entries(state.availability || {})) {
+    const answer = answers && answers[playerName];
+    if (!answer || !ATTENDANCE.has(answer.status)) continue;
+    out[date] = {
+      [playerName]: {
+        status: answer.status,
+        respondedAt: answer.respondedAt || null
+      }
+    };
+  }
+  return out;
+}
+
+function publicState(value, playerName = '') {
+  const raw = value && typeof value === 'object' ? value : {};
+  const players = (Array.isArray(raw.players) ? raw.players : []).map(p => ({
+    id: p && p.id || '',
+    name: p && p.name || '',
+    fullName: p && p.fullName || '',
+    present: !(p && p.present === false)
+  })).filter(p => p.name);
+
+  return {
+    team: teamConfig(raw),
+    playerVisibility: raw.playerVisibility || {},
+    resources: Array.isArray(raw.resources) ? raw.resources : [],
+    players,
+    innings: raw.innings || {},
+    pods: Array.isArray(raw.pods) ? raw.pods : [],
+    kickingOrder: Array.isArray(raw.kickingOrder) ? raw.kickingOrder : [],
+    currentKicker: raw.currentKicker || '',
+    kickerIndex: Number(raw.kickerIndex || 0),
+    score: raw.score || { team: 0, opponent: 0 },
+    counts: raw.counts || { balls: 0, fouls: 0, outs: 0 },
+    gameInning: Number(raw.gameInning || 1),
+    fieldInning: Number(raw.fieldInning || raw.gameInning || 1),
+    half: raw.half || '',
+    events: Array.isArray(raw.events) ? raw.events : [],
+    season: raw.season || {},
+    lastLeagueSync: raw.lastLeagueSync || null,
+    availability: publicAvailability(raw, playerName)
+  };
+}
+
 async function loadState(sql, slug) {
   return getTeam(sql, slug);
 }
 
-// Web Push subscriptions are scoped to this origin. All teams therefore use one
-// application-server key, while the subscriptions themselves remain isolated per team.
 async function ensurePushConfig(sql) {
   const founder = await getTeam(sql, DEFAULT_TEAM_SLUG);
   if (!founder) throw new Error('Push configuration workspace was not found');
@@ -56,9 +103,11 @@ async function ensurePushConfig(sql) {
 function zonedParts(date = new Date(), timeZone = 'America/New_York') {
   let zone = timeZone || 'America/New_York';
   try { new Intl.DateTimeFormat('en-US', { timeZone: zone }).format(date); } catch (_) { zone = 'America/New_York'; }
-  const parts = new Intl.DateTimeFormat('en-US', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short' }).formatToParts(date);
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short', hour: '2-digit', hour12: false
+  }).formatToParts(date);
   const obj = Object.fromEntries(parts.map(p => [p.type, p.value]));
-  return { date: `${obj.year}-${obj.month}-${obj.day}`, weekday: obj.weekday, timeZone: zone };
+  return { date: `${obj.year}-${obj.month}-${obj.day}`, weekday: obj.weekday, hour: Number(obj.hour), timeZone: zone };
 }
 function plusDays(iso, days) { const [y,m,d]=iso.split('-').map(Number); return new Date(Date.UTC(y,m-1,d+days)).toISOString().slice(0,10); }
 function time12(value) { if(!value)return''; const [h,m]=value.split(':').map(Number); return new Date(2000,0,1,h,m||0).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}); }
@@ -67,7 +116,7 @@ async function sendAttendanceReminderForTeam(sql, row) {
   const state = row.state || {};
   const team = teamConfig(state);
   const local = zonedParts(new Date(), team.timeZone);
-  if (local.weekday !== 'Thu') return { slug:row.slug, ok:true, skipped:`Not Thursday in ${local.timeZone}` };
+  if (local.weekday !== 'Thu' || local.hour !== 18) return { slug:row.slug, ok:true, skipped:`Not Thursday at 6 PM in ${local.timeZone}` };
   const gameDate = plusDays(local.date, 3);
   const games = (state.events || []).filter(e => e && e.type === 'Game' && e.date === gameDate).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
   if (!games.length) return { slug:row.slug, ok:true, gameDate, skipped:'No Sunday game scheduled' };
@@ -172,8 +221,13 @@ module.exports = async function handler(req, res) {
       }
       if (String(req.query && req.query.manifest || '') === '1') return sendManifest(res,row);
       if (String(req.query && req.query.logo || '') === '1') return sendLogo(res,row);
+      const captain = await getCaptainTeam(req, teamSlug);
+      const requestedPlayer = String(req.query && req.query.player || '').trim().slice(0,80);
       res.setHeader('Cache-Control', 'no-store');
-      return res.status(200).json({state:publicState(row.state),updatedAt:row.updated_at,teamSlug:row.slug,plan:row.plan,billingStatus:row.billing_status});
+      return res.status(200).json({
+        state: captain ? captainState(row.state) : publicState(row.state, requestedPlayer),
+        updatedAt:row.updated_at,teamSlug:row.slug,plan:row.plan,billingStatus:row.billing_status
+      });
     }
 
     if (req.method === 'POST') {
