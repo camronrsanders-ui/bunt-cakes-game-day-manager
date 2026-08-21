@@ -28,7 +28,7 @@ function blankState(timeZone='UTC') {
     playerVisibility:{schedule:true,lineup:true,pods:true,kicking:true,officials:true,resources:true,attendance:true},
     resources:[],players:[],innings,pods:[],kickingOrder:[],score:{team:0,opponent:0},
     counts:{balls:0,fouls:0,outs:0},gameInning:1,fieldInning:1,half:'Team kicking',
-    events:[],season:{name:'',division:'',color:'#15803d'},lastLeagueSync:null,appAccess:{},availability:{}
+    events:[],season:{name:'',division:'',color:'#15803d'},lastLeagueSync:null,appAccess:{},availability:{},captainPlayerLinks:{}
   };
 }
 
@@ -40,6 +40,18 @@ function passwordParts(password){
 
 function setSessionCookie(res,token){
   res.setHeader('Set-Cookie',`bc_captain=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=604800`);
+}
+
+function linkedPlayerName(state,user){
+  const players=Array.isArray(state&&state.players)?state.players:[];
+  const email=String(user&&user.email||'').trim().toLowerCase();
+  const explicit=state&&state.captainPlayerLinks&&state.captainPlayerLinks[email];
+  if(explicit&&players.some(p=>p&&p.name===explicit))return explicit;
+  const display=String(user&&user.display_name||'').trim().toLowerCase();
+  const byName=players.find(p=>String(p&&p.name||'').trim().toLowerCase()===display);
+  if(byName)return byName.name;
+  const byFull=players.find(p=>String(p&&p.fullName||'').trim().toLowerCase()===display);
+  return byFull&&byFull.name||'';
 }
 
 async function createWorkspace(sql,captainId,timeZone='UTC'){
@@ -133,26 +145,46 @@ module.exports = async function handler(req,res){
         const games=(state.events||[]).filter(e=>e&&e.type==='Game'&&e.date===gameDate);
         if(!games.length) return res.status(400).json({error:'No game is scheduled for that date'});
         const key=String(user.email||'').trim().toLowerCase();
-        const answer={status,respondedAt:new Date().toISOString(),displayName:user.display_name||user.email,role:user.role||'captain'};
+        const playerName=linkedPlayerName(state,user);
+        const answer={status,respondedAt:new Date().toISOString(),displayName:user.display_name||user.email,role:user.role||'captain',source:'captain-login'};
         const payload=JSON.stringify(answer);
-        await sql`
-          UPDATE team_states
-          SET state=jsonb_set(
-            state,
-            '{availability}',
-            COALESCE(state->'availability','{}'::jsonb) || jsonb_build_object(
-              ${gameDate}::text,
-              COALESCE(state->'availability'->(${gameDate}::text),'{}'::jsonb) || jsonb_build_object(
-                '_captains',
-                COALESCE(state->'availability'->(${gameDate}::text)->'_captains','{}'::jsonb) || jsonb_build_object(${key}::text,${payload}::jsonb)
-              )
+        if(playerName){
+          await sql`
+            UPDATE team_states
+            SET state=jsonb_set(
+              state,
+              '{availability}',
+              COALESCE(state->'availability','{}'::jsonb) || jsonb_build_object(
+                ${gameDate}::text,
+                (COALESCE(state->'availability'->(${gameDate}::text),'{}'::jsonb) || jsonb_build_object(${playerName}::text,${payload}::jsonb)) || jsonb_build_object(
+                  '_captains',COALESCE(state->'availability'->(${gameDate}::text)->'_captains','{}'::jsonb) - (${key}::text)
+                )
+              ),
+              true
             ),
-            true
-          ),
-          updated_at=now()
-          WHERE team_id=${user.team_id}
-        `;
-        return res.status(200).json({ok:true,gameDate,status,respondedAt:answer.respondedAt,displayName:answer.displayName});
+            updated_at=now()
+            WHERE team_id=${user.team_id}
+          `;
+        }else{
+          await sql`
+            UPDATE team_states
+            SET state=jsonb_set(
+              state,
+              '{availability}',
+              COALESCE(state->'availability','{}'::jsonb) || jsonb_build_object(
+                ${gameDate}::text,
+                COALESCE(state->'availability'->(${gameDate}::text),'{}'::jsonb) || jsonb_build_object(
+                  '_captains',
+                  COALESCE(state->'availability'->(${gameDate}::text)->'_captains','{}'::jsonb) || jsonb_build_object(${key}::text,${payload}::jsonb)
+                )
+              ),
+              true
+            ),
+            updated_at=now()
+            WHERE team_id=${user.team_id}
+          `;
+        }
+        return res.status(200).json({ok:true,gameDate,status,respondedAt:answer.respondedAt,displayName:answer.displayName,playerName:playerName||null});
       }
 
       if(action==='update-slug'){
