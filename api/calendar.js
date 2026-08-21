@@ -1,3 +1,8 @@
+const crypto = require('crypto');
+const webpush = require('web-push');
+const { getSql } = require('./_db');
+const { DEFAULT_TEAM_SLUG, getTeam } = require('./_auth');
+
 function esc(value='') {
   return String(value).replace(/\\/g,'\\\\').replace(/\n/g,'\\n').replace(/,/g,'\\,').replace(/;/g,'\\;');
 }
@@ -22,6 +27,47 @@ function slug(value='team') {
   return String(value).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,50) || 'team';
 }
 
+async function sendSignedTestPush(req, res, teamSlug) {
+  const playerName = String(req.query && req.query.testPush || '').trim().slice(0,80);
+  const stamp = String(req.query && req.query.ts || '');
+  const signature = String(req.query && req.query.sig || '').toLowerCase();
+  if (!playerName || !/^\d+$/.test(stamp) || !/^[a-f0-9]{64}$/.test(signature)) return res.status(403).json({error:'Invalid test authorization'});
+  const minute = Math.floor(Date.now()/60000);
+  if (Math.abs(Number(stamp)-minute) > 2) return res.status(403).json({error:'Test authorization expired'});
+
+  const sql = getSql();
+  const founder = await getTeam(sql, DEFAULT_TEAM_SLUG);
+  const config = founder && founder.state && founder.state._pushConfig;
+  if (!config || !config.publicKey || !config.privateKey) return res.status(503).json({error:'Push configuration unavailable'});
+  const expected = crypto.createHmac('sha256', config.privateKey).update(`${teamSlug}|${playerName}|${stamp}`).digest('hex');
+  if (signature.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(signature,'hex'), Buffer.from(expected,'hex'))) return res.status(403).json({error:'Invalid test authorization'});
+
+  const teamRow = await getTeam(sql, teamSlug);
+  if (!teamRow) return res.status(404).json({error:'Team was not found'});
+  const entries = teamRow.state && teamRow.state._pushSubscriptions && teamRow.state._pushSubscriptions[playerName];
+  const list = Array.isArray(entries) ? entries.filter(x=>x&&x.subscription) : [];
+  if (!list.length) return res.status(404).json({error:'No push subscription is saved for this player'});
+
+  const team = teamRow.state.team || {};
+  const teamName = team.shortName || team.name || 'Team';
+  webpush.setVapidDetails('mailto:notifications@teamgameday.app', config.publicKey, config.privateKey);
+  let sent=0,failed=0;
+  for (const entry of list) {
+    try {
+      await webpush.sendNotification(entry.subscription, JSON.stringify({
+        title:`${teamName} • Test notification`,
+        body:'Push notifications are working on this phone. You are ready for Thursday availability reminders.',
+        url:`/team/${teamSlug}?player=${encodeURIComponent(playerName)}`,
+        tag:`team-${teamSlug}-push-test-${Date.now()}`
+      }), {TTL:120, urgency:'high'});
+      sent++;
+    } catch (error) {
+      failed++;
+    }
+  }
+  return res.status(sent ? 200 : 502).json({ok:sent>0,playerName,sent,failed});
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).send('Method not allowed');
   try {
@@ -29,6 +75,9 @@ module.exports = async function handler(req, res) {
     const host = req.headers.host;
     const rawTeam=String(req.query&&req.query.team||'those-dirty-bunt-cakes').toLowerCase();
     const teamSlug=/^[a-z0-9][a-z0-9-]{2,63}$/.test(rawTeam)?rawTeam:'those-dirty-bunt-cakes';
+
+    if (req.query && req.query.testPush) return sendSignedTestPush(req,res,teamSlug);
+
     const r = await fetch(`${proto}://${host}/api/team-state?team=${encodeURIComponent(teamSlug)}&fresh=${Date.now()}`, {headers:{'User-Agent':'TeamGameDayCalendar/1.0'},cache:'no-store'});
     if (!r.ok) return res.status(r.status===404?404:502).send(r.status===404?'Team was not found':'Could not load team schedule');
     const data = await r.json();
