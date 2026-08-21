@@ -30,3 +30,4 @@
   const timer=setInterval(()=>{if(document.getElementById('access')){clearInterval(timer);loadAccess()}},300);
   setInterval(loadAccess,30000);
 })();
+// Build retry after Vercel rate-limit window cleared.
