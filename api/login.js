@@ -14,33 +14,43 @@ module.exports = async function handler(req, res) {
     const derived = crypto.pbkdf2Sync(String(password), user.password_salt, 120000, 32, 'sha256').toString('hex');
     const ok = crypto.timingSafeEqual(Buffer.from(derived,'hex'), Buffer.from(user.password_hash,'hex'));
     if (!ok) return res.status(401).json({ error: 'Invalid login' });
+
     const token = crypto.randomBytes(32).toString('base64url');
     const tokenHash = hashToken(token);
     await sql`DELETE FROM captain_sessions WHERE expires_at <= now()`;
     await sql`INSERT INTO captain_sessions (token_hash,captain_user_id,expires_at) VALUES (${tokenHash},${user.id},now()+interval '7 days')`;
 
-    // A successful captain login also proves that captain can access the team app.
-    // Match the captain display name to the roster's preferred/display name so
-    // Cam/Camron and CJ are tracked in the same appAccess object as every player.
+    const teams = await sql`
+      SELECT t.id,t.slug,m.role,
+             COALESCE(NULLIF(ts.state->'team'->>'name',''),NULLIF(ts.state->'team'->>'shortName',''),'Untitled Team') AS name
+      FROM captain_team_memberships m
+      JOIN teams t ON t.id=m.team_id
+      LEFT JOIN team_states ts ON ts.team_id=t.id
+      WHERE m.captain_user_id=${user.id} AND m.active=true AND t.active=true
+      ORDER BY t.created_at,t.slug
+    `;
+
+    // A successful captain login also counts as access for any roster identity that
+    // matches this captain inside a team they are actually allowed to manage.
     const playerRows = await sql`
-      SELECT p->>'name' AS name
-      FROM team_state ts
+      SELECT ts.team_id,p->>'name' AS name
+      FROM captain_team_memberships m
+      JOIN team_states ts ON ts.team_id=m.team_id
       CROSS JOIN LATERAL jsonb_array_elements(COALESCE(ts.state->'players','[]'::jsonb)) p
-      WHERE ts.id=1
+      WHERE m.captain_user_id=${user.id}
+        AND m.active=true
         AND (
           lower(COALESCE(p->>'name',''))=lower(${user.display_name})
           OR lower(COALESCE(p->>'fullName',''))=lower(${user.display_name})
         )
-      LIMIT 1
     `;
-    const playerName = playerRows[0] && playerRows[0].name;
-    if (playerName) {
-      const currentRows = await sql`SELECT state->'appAccess'->${playerName} AS access FROM team_state WHERE id=1 LIMIT 1`;
+    for (const row of playerRows) {
+      const currentRows = await sql`SELECT state->'appAccess'->${row.name} AS access FROM team_states WHERE team_id=${row.team_id} LIMIT 1`;
       const current = (currentRows[0] && currentRows[0].access) || {};
       const now = new Date().toISOString();
       const next = {
         ...current,
-        playerName,
+        playerName: row.name,
         browserSeenAt: current.browserSeenAt || now,
         lastSeenAt: now,
         captainLoginAt: now,
@@ -48,19 +58,23 @@ module.exports = async function handler(req, res) {
       };
       const payload = JSON.stringify(next);
       await sql`
-        UPDATE team_state
+        UPDATE team_states
         SET state=jsonb_set(
           state,
           '{appAccess}',
-          COALESCE(state->'appAccess','{}'::jsonb) || jsonb_build_object(${playerName},${payload}::jsonb),
+          COALESCE(state->'appAccess','{}'::jsonb) || jsonb_build_object(${row.name},${payload}::jsonb),
           true
         ),updated_at=now()
-        WHERE id=1
+        WHERE team_id=${row.team_id}
       `;
     }
 
     res.setHeader('Set-Cookie', `bc_captain=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=604800`);
-    return res.status(200).json({ ok:true, user:{ email:user.email, displayName:user.display_name } });
+    return res.status(200).json({
+      ok:true,
+      user:{ email:user.email, displayName:user.display_name },
+      teams:teams.map(t=>({slug:t.slug,name:t.name,role:t.role}))
+    });
   } catch (error) {
     const status = error.code === 'DATABASE_NOT_CONFIGURED' ? 503 : 500;
     return res.status(status).json({ error: error.message || 'Login failed' });

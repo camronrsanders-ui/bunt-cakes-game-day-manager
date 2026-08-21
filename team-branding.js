@@ -5,18 +5,21 @@
   const $id=id=>document.getElementById(id);
   let lastKey='';
 
+  function teamSlug(){return window.__teamSlug||'those-dirty-bunt-cakes'}
   function cfg(){const t={...DEFAULT_TEAM,...((typeof state!=='undefined'&&state&&state.team)||{})};const v={...DEFAULT_VIS,...((typeof state!=='undefined'&&state&&state.playerVisibility)||{})};return{t,v}}
   function logoSrc(t){return t.logoDataUrl||t.logoUrl||'/generic-team-icon.svg'}
   function applyColors(t){document.documentElement.style.setProperty('--a',t.primaryColor||'#15803d');document.documentElement.style.setProperty('--bg',t.accentColor||'#f7fff8');const theme=document.querySelector('meta[name="theme-color"]');if(theme)theme.content=t.primaryColor||'#15803d'}
   function applyHeader(t){
-    const name=t.name||'Your Team',short=t.shortName||name;
+    const name=t.name||'Your Team',short=t.shortName||name,slug=teamSlug();
     document.title=name+' Game Day';
     const h=document.querySelector('.brand h1');if(h)h.textContent=name;
     const sub=document.querySelector('.brand .muted');if(sub)sub.textContent=[t.organization,t.sport,t.location].filter(Boolean).join(' • ')||'Live Team View';
-    document.querySelectorAll('.brand-logo').forEach(img=>{img.src=logoSrc(t);img.alt=name+' logo'});
+    document.querySelectorAll('.brand-logo,.install-logo').forEach(img=>{img.src=logoSrc(t);img.alt=name+' logo'});
+    const installTitle=$id('installTitle');if(installTitle)installTitle.textContent=`Put ${short} on your Home Screen`;
     const firstScore=document.querySelector('#home .grid.g3 .card .muted');if(firstScore)firstScore.textContent=short;
-    const manifest=document.querySelector('link[rel="manifest"]');if(manifest)manifest.href='/api/team-state?manifest=1';
-    const touch=document.querySelector('link[rel="apple-touch-icon"]');if(touch)touch.href='/api/team-state?logo=1';
+    const manifest=document.querySelector('link[rel="manifest"]');if(manifest)manifest.href=`/api/team-state?team=${encodeURIComponent(slug)}&manifest=1`;
+    const touch=document.querySelector('link[rel="apple-touch-icon"]');if(touch)touch.href=`/api/team-state?team=${encodeURIComponent(slug)}&logo=1`;
+    document.querySelectorAll('.reminder-actions a').forEach((a,i)=>{a.href=i===0?`webcal://${location.host}/calendar/${slug}.ics`:`/calendar/${slug}.ics`});
   }
   function applyChat(t){
     const links=document.querySelectorAll('.chat-btn');links.forEach(a=>{if(t.chatUrl){a.href=t.chatUrl;a.style.display='';a.textContent='Open Team Chat'}else a.style.display='none'});
@@ -56,7 +59,7 @@
   }
   function applyAll(force=false){
     if(typeof state==='undefined'||!state)return;
-    const {t,v}=cfg(),key=JSON.stringify({t,v,r:state.resources||[],u:state.updatedAt||''});if(!force&&key===lastKey)return;lastKey=key;
+    const {t,v}=cfg(),key=JSON.stringify({t,v,r:state.resources||[]});if(!force&&key===lastKey)return;lastKey=key;
     applyColors(t);applyHeader(t);applyChat(t);applyAnnouncement(t);applyReminderCard(t);applyResources(t,v);applyVisibility(v);overrideArrivalMath();
     if(typeof renderNext==='function')renderNext();if(typeof renderEvents==='function')renderEvents();
   }

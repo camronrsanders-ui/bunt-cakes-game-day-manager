@@ -4,6 +4,12 @@
     { "source": "/apple-touch-icon.png", "destination": "/logo.svg", "permanent": false }
   ],
   "rewrites": [
+    { "source": "/start", "destination": "/start.html" },
+    { "source": "/team/:team", "destination": "/api/team-reminders-page?team=:team" },
+    { "source": "/team/:team/", "destination": "/api/team-reminders-page?team=:team" },
+    { "source": "/captain/:team", "destination": "/api/captain-field-page?team=:team" },
+    { "source": "/captain/:team/", "destination": "/api/captain-field-page?team=:team" },
+    { "source": "/calendar/:team.ics", "destination": "/api/calendar?team=:team" },
     { "source": "/team", "destination": "/api/team-reminders-page" },
     { "source": "/team/", "destination": "/api/team-reminders-page" },
     { "source": "/captain", "destination": "/api/captain-field-page" },
