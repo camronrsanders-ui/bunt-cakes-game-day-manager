@@ -15,9 +15,13 @@
         const url=new URL(raw,location.origin);
         if(url.origin===location.origin&&['/api/team-state','/api/captains','/api/calendar','/api/session'].includes(url.pathname)&&!url.searchParams.has('team')){
           url.searchParams.set('team',slug);
-          if(typeof input==='string') input=url.pathname+url.search+url.hash;
-          else input=new Request(url.href,input);
         }
+        if(url.origin===location.origin&&url.pathname==='/api/team-state'&&location.pathname.startsWith('/team/')&&!url.searchParams.has('player')){
+          const player=query.get('player')||localStorage.getItem(window.__teamStorageKey('playerName'))||'';
+          if(player)url.searchParams.set('player',player);
+        }
+        if(typeof input==='string') input=url.pathname+url.search+url.hash;
+        else input=new Request(url.href,input);
       }
     }catch(e){}
     return nativeFetch(input,init);
