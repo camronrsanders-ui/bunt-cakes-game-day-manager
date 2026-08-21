@@ -77,7 +77,7 @@
     const status=await pushState(),isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
     if(!status.supported){text.textContent='This browser does not support web push reminders.';btn.textContent='Notifications unavailable';btn.disabled=true;return}
     if(isIOS&&!status.standalone){text.textContent='On iPhone: add this app to your Home Screen, then OPEN THE NEW ICON. The notification permission button appears there.';btn.textContent='Show Home Screen Setup';btn.disabled=false;return}
-    if(status.subscribed&&status.permission==='granted'){text.textContent='Thursday push reminders are ON for this phone.';btn.textContent='✓ Thursday Notifications On';btn.disabled=true;const reg=await registration(),sub=await reg.pushManager.getSubscription();if(sub)await postSubscription(sub);return}
+    if(status.subscribed&&status.permission==='granted'){text.textContent='Thursday push reminders are ON for this phone.';btn.textContent='✓ Thursday Notifications On';btn.disabled=true;return}
     if(status.permission==='denied'){text.textContent='Notifications are blocked for this app. Re-enable them in your phone settings, then reopen the app.';btn.textContent='Notifications Blocked';btn.disabled=true;return}
     text.textContent='One tap will ask your phone for permission, then Thursday reminders will be enabled.';btn.textContent='Turn On Thursday Notifications';btn.disabled=false;
   }
