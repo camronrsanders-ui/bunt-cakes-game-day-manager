@@ -202,7 +202,7 @@ module.exports = async function handler(req, res) {
         if(!ATTENDANCE.has(status))return res.status(400).json({error:'Answer Yes, No, or Not sure'});
         const games=(state.events||[]).filter(e=>e&&e.type==='Game'&&e.date===gameDate);if(!games.length)return res.status(400).json({error:'No game is scheduled for that date'});
         const answer={status,respondedAt:new Date().toISOString()},payload=JSON.stringify(answer);
-        await sql`UPDATE team_states SET state=jsonb_set(state,'{availability}',COALESCE(state->'availability','{}'::jsonb)||jsonb_build_object(${gameDate},COALESCE(state->'availability'->${gameDate},'{}'::jsonb)||jsonb_build_object(${playerName},${payload}::jsonb)),true),updated_at=now() WHERE team_id=${row.id}`;
+        await sql`UPDATE team_states SET state=jsonb_set(state,'{availability}',COALESCE(state->'availability','{}'::jsonb)||jsonb_build_object(${gameDate}::text,COALESCE(state->'availability'->(${gameDate}::text),'{}'::jsonb)||jsonb_build_object(${playerName}::text,${payload}::jsonb)),true),updated_at=now() WHERE team_id=${row.id}`;
         return res.status(200).json({ok:true,gameDate,playerName,status,respondedAt:answer.respondedAt});
       }
 
