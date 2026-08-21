@@ -99,9 +99,10 @@
     ['data-bunt-field-rotation','/team-field-rotation.js?v=8'],
     ['data-bunt-team-usability','/team-usability.js?v=2'],
     ['data-bunt-preferred-names','/preferred-names.js?v=2'],
-    ['data-bunt-attendance','/team-attendance.js?v=3'],
+    ['data-bunt-attendance','/team-attendance.js?v=4'],
     ['data-bunt-access-checkin','/team-access-checkin.js?v=3'],
-    ['data-team-branding','/team-branding.js?v=3']
+    ['data-team-branding','/team-branding.js?v=3'],
+    ['data-team-onboarding','/team-onboarding.js?v=1']
   ];
   helpers.forEach(([attr,src])=>{
     if(document.querySelector('script['+attr+']'))return;
