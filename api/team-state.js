@@ -156,7 +156,7 @@ async function sendAttendanceReminderForTeam(sql, row) {
   await sql`
     UPDATE team_states SET state = jsonb_set(
       jsonb_set(state, '{_pushSubscriptions}', ${cleanedPayload}::jsonb, true),
-      '{_pushReminderLog}', COALESCE(state->'_pushReminderLog', '{}'::jsonb) || jsonb_build_object(${gameDate}, ${logPayload}::jsonb), true
+      '{_pushReminderLog}', COALESCE(state->'_pushReminderLog', '{}'::jsonb) || jsonb_build_object(${gameDate}::text, ${logPayload}::jsonb), true
     ), updated_at = now() WHERE team_id = ${row.id}
   `;
   return { slug:row.slug,ok:true,gameDate,sent,failed,games:games.length };
@@ -246,7 +246,7 @@ module.exports = async function handler(req, res) {
         list=list.filter(x=>x&&x.subscription&&x.subscription.endpoint!==sub.endpoint);
         list.push({subscription:sub,updatedAt:new Date().toISOString()});list=list.slice(-3);
         const payload=JSON.stringify(list);
-        await sql`UPDATE team_states SET state=jsonb_set(state,'{_pushSubscriptions}',COALESCE(state->'_pushSubscriptions','{}'::jsonb)||jsonb_build_object(${playerName},${payload}::jsonb),true),updated_at=now() WHERE team_id=${row.id}`;
+        await sql`UPDATE team_states SET state=jsonb_set(state,'{_pushSubscriptions}',COALESCE(state->'_pushSubscriptions','{}'::jsonb)||jsonb_build_object(${playerName}::text,${payload}::jsonb),true),updated_at=now() WHERE team_id=${row.id}`;
         return res.status(200).json({ok:true,remindersEnabled:true});
       }
 
@@ -264,7 +264,7 @@ module.exports = async function handler(req, res) {
       const now=new Date().toISOString();const current=(state.appAccess&&state.appAccess[playerName])||{};
       const next={...current,playerName,browserSeenAt:current.browserSeenAt||now,lastSeenAt:now,...(accessStatus==='installed'?{installedAt:current.installedAt||now}:{})};
       const payload=JSON.stringify(next);
-      await sql`UPDATE team_states SET state=jsonb_set(state,'{appAccess}',COALESCE(state->'appAccess','{}'::jsonb)||jsonb_build_object(${playerName},${payload}::jsonb),true),updated_at=now() WHERE team_id=${row.id}`;
+      await sql`UPDATE team_states SET state=jsonb_set(state,'{appAccess}',COALESCE(state->'appAccess','{}'::jsonb)||jsonb_build_object(${playerName}::text,${payload}::jsonb),true),updated_at=now() WHERE team_id=${row.id}`;
       return res.status(200).json({ok:true,accessStatus});
     }
 
