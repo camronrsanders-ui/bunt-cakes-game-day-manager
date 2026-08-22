@@ -6,9 +6,17 @@
 
   let busy=false;
   let lastVersion='';
+  let missingTeam=false;
 
   function liveInning(){
     return Number((state&&state.gameInning)||(state&&state.fieldInning)||1);
+  }
+
+  function showMissingTeam(message){
+    missingTeam=true;
+    const text=String(message||'Team was not found').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    document.title='Team not found';
+    document.body.innerHTML='<main style="max-width:560px;margin:12vh auto;padding:20px;font-family:system-ui,-apple-system,sans-serif;color:#1f2937"><div style="background:#fff;border:1px solid #d1d5db;border-radius:22px;padding:24px;text-align:center;box-shadow:0 12px 35px rgba(15,23,42,.08)"><img src="/generic-team-icon.svg" alt="Game Day" style="width:88px;height:88px"><h1 style="margin:.6rem 0 .35rem">Team not found</h1><p style="color:#6b7280;margin:.2rem 0 1.2rem">'+text+'. The team link may be incorrect or the team may have been removed.</p><a href="/start" style="display:inline-block;text-decoration:none;background:#15803d;color:#fff;font-weight:800;padding:12px 16px;border-radius:12px">Go to Team Game Day</a></div></main>';
   }
 
   if(typeof renderLineup==='function'){
@@ -33,7 +41,7 @@
   }
 
   async function refreshLiveTeam(manual=false){
-    if(busy)return;
+    if(busy||missingTeam)return;
     busy=true;
     if(manual){
       btn.disabled=true;
@@ -47,6 +55,7 @@
         headers:{'Cache-Control':'no-cache, no-store, must-revalidate','Pragma':'no-cache'}
       });
       const j=await r.json();
+      if(r.status===404){showMissingTeam(j.error);return;}
       if(!r.ok)throw new Error(j.error||'Could not refresh live team data');
 
       const version=String(j.updatedAt||'');
@@ -68,7 +77,7 @@
       }
     }finally{
       busy=false;
-      if(manual){btn.disabled=false;btn.textContent='Refresh';}
+      if(manual&&!missingTeam){btn.disabled=false;btn.textContent='Refresh';}
     }
   }
 
