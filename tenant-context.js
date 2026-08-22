@@ -18,7 +18,7 @@
   if(!document.querySelector('link[data-redesign-qa-fixes]')){
     const fixes=document.createElement('link');
     fixes.rel='stylesheet';
-    fixes.href='/redesign-qa-fixes.css?v=1';
+    fixes.href='/redesign-qa-fixes.css?v=2';
     fixes.dataset.redesignQaFixes='1';
     document.head.appendChild(fixes);
   }
