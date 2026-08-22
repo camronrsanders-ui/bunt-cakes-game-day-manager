@@ -1,0 +1,128 @@
+/* QA repair: the redesign is visual-only. Do not hide, reorder, rename, or replace app controls. */
+
+/* Keep every original navigation control available. */
+.tabs button,
+.tabs button[data-tab],
+.tabs .premium-overflow-tab{
+  display:inline-flex!important;
+  align-items:center;
+  justify-content:center;
+  flex:0 0 auto!important;
+}
+#premiumMoreNav,
+#premiumAttendanceNav,
+#premiumMoreSheet{
+  display:none!important;
+}
+
+/* Mobile navigation stays the original horizontally scrollable tab strip.
+   This avoids covering content or making captain tools appear missing. */
+@media(max-width:700px){
+  .app{padding-bottom:80px!important;}
+  .tabs{
+    position:sticky!important;
+    top:0!important;
+    bottom:auto!important;
+    left:auto!important;
+    right:auto!important;
+    display:flex!important;
+    justify-content:flex-start!important;
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+    margin:8px 0 12px!important;
+    padding:6px!important;
+    border-radius:16px!important;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+  .tabs::-webkit-scrollbar{display:none;}
+  .tabs button,
+  .tabs button[data-tab]{
+    min-width:max-content!important;
+    min-height:44px!important;
+    padding:9px 13px!important;
+    font-size:.84rem!important;
+  }
+}
+
+/* The global cream card skin must never erase the Kicking Deck's dark hero. */
+.kick-hero,
+.team-kick-hero{
+  background:linear-gradient(135deg,#052e16,#166534)!important;
+  color:#fff!important;
+  border:0!important;
+}
+.kick-hero .kick-next,
+.kick-hero .kick-third,
+.team-kick-hero .team-kick-card:not(.now){
+  background:rgba(255,255,255,.12)!important;
+  color:#fff!important;
+  border-color:rgba(255,255,255,.24)!important;
+}
+.kick-hero .kick-now,
+.team-kick-hero .team-kick-card.now{
+  background:#fff!important;
+  color:#14532d!important;
+  border-color:#fff!important;
+}
+.kick-hero .kick-back,
+.kick-hero .kick-reset{
+  background:rgba(255,255,255,.10)!important;
+  color:#fff!important;
+  border-color:rgba(255,255,255,.28)!important;
+}
+.kick-hero .kick-advance{
+  background:#fff!important;
+  color:#14532d!important;
+  border-color:#fff!important;
+}
+.team-kick-hero .my-kick-status{
+  background:rgba(255,255,255,.13)!important;
+  color:#fff!important;
+  border-color:rgba(255,255,255,.20)!important;
+}
+.kick-hero .kick-eyebrow,
+.kick-hero .kick-title,
+.kick-hero .kick-label,
+.kick-hero .kick-count-note,
+.team-kick-hero .team-kick-eyebrow,
+.team-kick-hero .team-kick-label{
+  color:inherit!important;
+}
+.kick-hero .kick-now .kick-label,
+.kick-hero .kick-now .kick-name,
+.team-kick-hero .team-kick-card.now .team-kick-label,
+.team-kick-hero .team-kick-card.now .team-kick-name{
+  color:#14532d!important;
+}
+
+/* Keep component-level status colors readable against the cream visual system. */
+.kick-order-card,
+.kick-queue{
+  background:#fffaf0!important;
+  color:#17211b!important;
+}
+.kick-order-row.current,
+.kick-queue-row.current{
+  background:#e8f4e9!important;
+}
+.kick-order-row.next,
+.kick-queue-row.next{
+  background:#f3f7df!important;
+}
+
+/* Preserve function-generated field surfaces instead of flattening them into generic cards. */
+.rotation-field{
+  background:linear-gradient(#dff4df 0 44%,#95cb75 44% 100%)!important;
+}
+.my-field{
+  background:linear-gradient(#173f2d 0 44%,#245f3c 44% 100%)!important;
+}
+
+/* Remove artifacts from the behavior-changing redesign scripts if a page was restored from memory/cache. */
+.premium-section-heading,
+#premiumPlayerPosition,
+#premiumCaptainQuickActions,
+#premiumScheduleFilters{
+  display:none!important;
+}
