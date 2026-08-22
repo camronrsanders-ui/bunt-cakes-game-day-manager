@@ -15,6 +15,13 @@
     theme.dataset.premiumTeamTheme='1';
     document.head.appendChild(theme);
   }
+  if(!document.querySelector('script[data-premium-team-ui]')){
+    const ui=document.createElement('script');
+    ui.src='/premium-ui.js?v=1';
+    ui.defer=true;
+    ui.dataset.premiumTeamUi='1';
+    document.head.appendChild(ui);
+  }
   document.documentElement.dataset.teamSlug=slug;
   document.documentElement.classList.add('premium-team-ui');
 
