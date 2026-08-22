@@ -1,4 +1,7 @@
 (()=>{
+  if(!document.querySelector('link[data-premium-dashboard-style]')){
+    const style=document.createElement('link');style.rel='stylesheet';style.href='/premium-dashboard.css?v=1';style.dataset.premiumDashboardStyle='1';document.head.appendChild(style);
+  }
   const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   const storageKey=name=>window.__teamStorageKey?window.__teamStorageKey(name):'teamgameday:'+name;
   let currentScheduleFilter='all';
