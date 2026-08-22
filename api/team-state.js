@@ -3,6 +3,7 @@ const { getSql } = require('./_db');
 const { DEFAULT_TEAM_SLUG, requestedTeamSlug, getTeam, getCaptainTeam, requireTeamCaptain } = require('./_auth');
 
 const ATTENDANCE = new Set(['yes', 'no', 'not_sure']);
+const FIELD_POSITIONS = ['Pitcher','Catcher','First Base','Second Base','Third Base','Shortstop','Left Field','Left Center Field','Center Field','Right Center Field','Right Field'];
 const DEFAULT_TEAM = {
   name: '', shortName: '', organization: '', sport: 'Kickball', location: '',
   primaryColor: '#15803d', accentColor: '#f7fff8', logoDataUrl: '', logoUrl: '',
@@ -258,6 +259,33 @@ module.exports = async function handler(req, res) {
         const answer={status,respondedAt:new Date().toISOString()},payload=JSON.stringify(answer);
         await sql`UPDATE team_states SET state=jsonb_set(state,'{availability}',COALESCE(state->'availability','{}'::jsonb)||jsonb_build_object(${gameDate}::text,COALESCE(state->'availability'->(${gameDate}::text),'{}'::jsonb)||jsonb_build_object(${playerName}::text,${payload}::jsonb)),true),updated_at=now() WHERE team_id=${row.id}`;
         return res.status(200).json({ok:true,gameDate,playerName,status,respondedAt:answer.respondedAt});
+      }
+
+      if(action==='field-position'){
+        const requested=String(req.body&&req.body.position||'').trim();
+        if(requested!=='Rest'&&!FIELD_POSITIONS.includes(requested))return res.status(400).json({error:'Choose a valid field position or Rest'});
+        const inning=Math.min(7,Math.max(1,Number(state.gameInning)||1));
+        const inningKey=String(inning);
+        const currentInning={...((state.innings&&state.innings[inningKey])||{})};
+        const previousPosition=FIELD_POSITIONS.find(pos=>currentInning[pos]===playerName)||'';
+        const target=requested==='Rest'?'':requested;
+        const occupiedBy=target&&currentInning[target]&&currentInning[target]!==playerName?currentInning[target]:'';
+        if(occupiedBy&&!previousPosition)return res.status(409).json({error:`${target} is currently assigned to ${occupiedBy}. Choose an open position because you are not currently fielding.`});
+        FIELD_POSITIONS.forEach(pos=>{if(currentInning[pos]===playerName)currentInning[pos]='';});
+        let swappedWith='';
+        if(target){
+          if(occupiedBy&&previousPosition){currentInning[previousPosition]=occupiedBy;swappedWith=occupiedBy;}
+          currentInning[target]=playerName;
+        }
+        const payload=JSON.stringify(currentInning);
+        const rows=await sql`
+          UPDATE team_states
+          SET state=jsonb_set(state,ARRAY['innings',${inningKey}]::text[],${payload}::jsonb,true),updated_at=now()
+          WHERE team_id=${row.id} AND updated_at=${row.updated_at}
+          RETURNING updated_at
+        `;
+        if(!rows.length)return res.status(409).json({error:'The lineup changed while you were editing. Refresh and choose your position again.'});
+        return res.status(200).json({ok:true,action:'field-position',playerName,inning,previousPosition,position:target||'Rest',swappedWith,inningState:currentInning,updatedAt:rows[0].updated_at});
       }
 
       const accessStatus=req.body&&req.body.accessStatus==='installed'?'installed':'browser';
