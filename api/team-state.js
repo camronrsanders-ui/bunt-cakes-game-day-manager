@@ -300,16 +300,40 @@ module.exports = async function handler(req, res) {
       const user=await requireTeamCaptain(req,res,teamSlug);if(!user)return;
       const next=req.body&&req.body.state;
       if(!next||typeof next!=='object'||Array.isArray(next))return res.status(400).json({error:'A valid state object is required'});
+      const expectedUpdatedAt=String(req.body&&req.body.expectedUpdatedAt||'').trim();
+      if(expectedUpdatedAt&&Number.isNaN(Date.parse(expectedUpdatedAt)))return res.status(400).json({error:'The expected team-state version is invalid'});
       const payload=JSON.stringify(next);if(payload.length>1000000)return res.status(413).json({error:'Team state is too large'});
-      const rows=await sql`
-        UPDATE team_states SET state=${payload}::jsonb||jsonb_build_object(
-          'appAccess',COALESCE(state->'appAccess','{}'::jsonb),
-          'availability',COALESCE(state->'availability','{}'::jsonb),
-          '_pushConfig',COALESCE(state->'_pushConfig','{}'::jsonb),
-          '_pushSubscriptions',COALESCE(state->'_pushSubscriptions','{}'::jsonb),
-          '_pushReminderLog',COALESCE(state->'_pushReminderLog','{}'::jsonb)
-        ),updated_at=now() WHERE team_id=${row.id} RETURNING updated_at
-      `;
+      let rows;
+      if(expectedUpdatedAt){
+        rows=await sql`
+          UPDATE team_states SET state=${payload}::jsonb||jsonb_build_object(
+            'appAccess',COALESCE(state->'appAccess','{}'::jsonb),
+            'availability',COALESCE(state->'availability','{}'::jsonb),
+            '_pushConfig',COALESCE(state->'_pushConfig','{}'::jsonb),
+            '_pushSubscriptions',COALESCE(state->'_pushSubscriptions','{}'::jsonb),
+            '_pushReminderLog',COALESCE(state->'_pushReminderLog','{}'::jsonb)
+          ),updated_at=now()
+          WHERE team_id=${row.id} AND updated_at=${expectedUpdatedAt}::timestamptz
+          RETURNING updated_at
+        `;
+        if(!rows.length){
+          const current=await loadState(sql,teamSlug);
+          return res.status(409).json({
+            error:'Team state changed while you were editing',conflict:true,
+            state:captainState(current&&current.state||{}),updatedAt:current&&current.updated_at
+          });
+        }
+      }else{
+        rows=await sql`
+          UPDATE team_states SET state=${payload}::jsonb||jsonb_build_object(
+            'appAccess',COALESCE(state->'appAccess','{}'::jsonb),
+            'availability',COALESCE(state->'availability','{}'::jsonb),
+            '_pushConfig',COALESCE(state->'_pushConfig','{}'::jsonb),
+            '_pushSubscriptions',COALESCE(state->'_pushSubscriptions','{}'::jsonb),
+            '_pushReminderLog',COALESCE(state->'_pushReminderLog','{}'::jsonb)
+          ),updated_at=now() WHERE team_id=${row.id} RETURNING updated_at
+        `;
+      }
       return res.status(200).json({ok:true,updatedAt:rows[0]&&rows[0].updated_at,updatedBy:user.display_name,teamSlug});
     }
 
