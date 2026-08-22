@@ -1,0 +1,20 @@
+@media(max-width:700px){
+  .tabs .premium-overflow-tab{display:none!important}
+  .tabs{justify-content:space-between!important;overflow:visible!important}
+  .tabs>button:not(.premium-overflow-tab){min-width:0!important;flex:1 1 20%!important;padding:7px 5px!important}
+  .premium-more-nav,.premium-attendance-nav{border:0!important;background:transparent!important;color:#5e665e!important;display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:50px!important;font-weight:800!important;box-shadow:none!important}
+  .premium-more-nav.on,.premium-attendance-nav.on{background:var(--premium-green)!important;color:#fffaf0!important;box-shadow:0 3px 10px rgba(7,61,44,.18)!important}
+  .premium-more-dots,.premium-more-check{display:grid;place-items:center;height:21px;line-height:1;font-size:1rem;font-weight:950;letter-spacing:1px}
+  .premium-more-sheet{position:fixed;inset:0;z-index:10050;pointer-events:none;opacity:0;transition:opacity .18s ease}
+  .premium-more-sheet.open{opacity:1;pointer-events:auto}
+  .premium-more-backdrop{position:absolute;inset:0;background:rgba(7,27,19,.56);backdrop-filter:blur(4px)}
+  .premium-more-panel{position:absolute;left:8px;right:8px;bottom:8px;max-height:min(74vh,620px);overflow:auto;background:#fffaf0;border:1px solid #cdbb90;border-radius:22px;padding:10px 14px 18px;box-shadow:0 25px 70px rgba(0,0,0,.32);transform:translateY(20px);transition:transform .18s ease}
+  .premium-more-sheet.open .premium-more-panel{transform:translateY(0)}
+  .premium-more-handle{width:44px;height:5px;border-radius:999px;background:#c8bdac;margin:0 auto 11px}
+  .premium-more-panel h2{margin:.05rem 0;color:var(--premium-green);font-size:1.55rem}
+  .premium-more-close{width:42px;height:42px;border-radius:50%!important;padding:0!important;font-size:1.55rem!important;line-height:1!important}
+  .premium-more-list{display:grid;gap:8px;margin-top:11px}
+  .premium-more-item{display:flex!important;align-items:center;justify-content:space-between;width:100%;padding:14px!important;background:#fffdf7!important;border:1px solid #d8ceb9!important;text-align:left!important;box-shadow:none!important}
+  .premium-more-item strong{color:var(--premium-green);font-size:1rem}.premium-more-item span{color:#8b6d1d;font-size:.8rem;font-weight:800}
+}
+@media(min-width:701px){.premium-more-nav,.premium-attendance-nav{display:none!important}}
