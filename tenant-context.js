@@ -7,17 +7,20 @@
   window.__teamPath={team:`/team/${slug}`,captain:`/captain/${slug}`,calendar:`/calendar/${slug}.ics`};
   window.__teamStorageKey=(name)=>`teamgameday:${slug}:${name}`;
 
+  // Design-only skin. Do not inject scripts that reorder, rename, hide, or add controls.
   if(!document.querySelector('link[data-premium-team-theme]')){
-    const theme=document.createElement('link');theme.rel='stylesheet';theme.href='/premium-theme.css?v=1';theme.dataset.premiumTeamTheme='1';document.head.appendChild(theme);
+    const theme=document.createElement('link');
+    theme.rel='stylesheet';
+    theme.href='/premium-theme.css?v=2';
+    theme.dataset.premiumTeamTheme='1';
+    document.head.appendChild(theme);
   }
-  if(!document.querySelector('script[data-premium-team-ui]')){
-    const ui=document.createElement('script');ui.src='/premium-ui.js?v=1';ui.defer=true;ui.dataset.premiumTeamUi='1';document.head.appendChild(ui);
-  }
-  if(!document.querySelector('script[data-premium-dashboard]')){
-    const dash=document.createElement('script');dash.src='/premium-dashboard.js?v=1';dash.defer=true;dash.dataset.premiumDashboard='1';document.head.appendChild(dash);
-  }
-  if(!document.querySelector('script[data-premium-mobile-nav]')){
-    const nav=document.createElement('script');nav.src='/premium-mobile-nav.js?v=1';nav.defer=true;nav.dataset.premiumMobileNav='1';document.head.appendChild(nav);
+  if(!document.querySelector('link[data-redesign-qa-fixes]')){
+    const fixes=document.createElement('link');
+    fixes.rel='stylesheet';
+    fixes.href='/redesign-qa-fixes.css?v=1';
+    fixes.dataset.redesignQaFixes='1';
+    document.head.appendChild(fixes);
   }
   document.documentElement.dataset.teamSlug=slug;
   document.documentElement.classList.add('premium-team-ui');
@@ -30,9 +33,11 @@
         const url=new URL(raw,location.origin);
         if(url.origin===location.origin&&['/api/team-state','/api/captains','/api/calendar','/api/session'].includes(url.pathname)&&!url.searchParams.has('team'))url.searchParams.set('team',slug);
         if(url.origin===location.origin&&url.pathname==='/api/team-state'&&location.pathname.startsWith('/team/')&&!url.searchParams.has('player')){
-          const player=query.get('player')||localStorage.getItem(window.__teamStorageKey('playerName'))||'';if(player)url.searchParams.set('player',player);
+          const player=query.get('player')||localStorage.getItem(window.__teamStorageKey('playerName'))||'';
+          if(player)url.searchParams.set('player',player);
         }
-        if(typeof input==='string') input=url.pathname+url.search+url.hash;else input=new Request(url.href,input);
+        if(typeof input==='string')input=url.pathname+url.search+url.hash;
+        else input=new Request(url.href,input);
       }
     }catch(e){}
     return nativeFetch(input,init);
