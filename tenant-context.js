@@ -22,6 +22,13 @@
     ui.dataset.premiumTeamUi='1';
     document.head.appendChild(ui);
   }
+  if(!document.querySelector('script[data-premium-dashboard]')){
+    const dash=document.createElement('script');
+    dash.src='/premium-dashboard.js?v=1';
+    dash.defer=true;
+    dash.dataset.premiumDashboard='1';
+    document.head.appendChild(dash);
+  }
   document.documentElement.dataset.teamSlug=slug;
   document.documentElement.classList.add('premium-team-ui');
 
