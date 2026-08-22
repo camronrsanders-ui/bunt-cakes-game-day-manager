@@ -4,11 +4,13 @@
     const style=document.createElement('style');
     style.id=STYLE_ID;
     style.textContent=`
-      .tabs{flex-wrap:wrap;overflow:visible;position:static}
-      .tabs button{flex:1 1 120px;min-height:48px;font-weight:800;font-size:.96rem;white-space:normal;line-height:1.15}
+      .tabs{display:flex!important;flex-wrap:nowrap!important;overflow-x:auto!important;overflow-y:hidden!important;position:sticky!important;top:0!important;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+      .tabs::-webkit-scrollbar{display:none}
+      .tabs button{flex:0 0 auto!important;width:auto!important;min-height:44px!important;padding:9px 13px!important;font-weight:800;font-size:.92rem;white-space:nowrap!important;line-height:1.15}
       .card{line-height:1.4}
       .card strong{line-height:1.25}
       button,.chat-btn,.reminder-btn{min-height:48px;font-size:1rem}
+      .tabs button{min-height:44px!important}
       .team-current-inning{border:2px solid #86efac;background:#f0fdf4}
       .team-record-card{display:flex;justify-content:space-between;align-items:center;gap:12px;border:2px solid #bbf7d0;background:#f7fff8}
       .team-record-big{font-size:1.55rem;font-weight:900;color:#166534;white-space:nowrap}
@@ -17,8 +19,8 @@
       @media(max-width:650px){
         body{font-size:17px}
         .app{padding-left:10px;padding-right:10px}
-        .tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:4px 0 10px}
-        .tabs button{width:100%;min-height:50px}
+        .tabs{display:flex!important;grid-template-columns:none!important;flex-wrap:nowrap!important;overflow-x:auto!important;overflow-y:hidden!important;gap:7px!important;margin:4px 0 10px!important;padding:6px!important}
+        .tabs button{flex:0 0 auto!important;width:auto!important;min-width:max-content!important;min-height:44px!important;padding:9px 13px!important;font-size:.88rem!important;white-space:nowrap!important}
         .card{padding:15px}
         .muted{font-size:.94rem}
         .brand{width:100%}
@@ -92,7 +94,6 @@
       mountRecord();
     }
     if('serviceWorker' in navigator){navigator.serviceWorker.register('/service-worker.js').catch(()=>{});}
-    // Shared state refreshes every few seconds; keep summary-only UI in step without adding more controls.
     setInterval(refreshSimpleUi,3000);
   }
 
