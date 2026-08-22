@@ -1,0 +1,106 @@
+/* Screen-by-screen premium layout refinements */
+.premium-section-heading{
+  margin:2px 2px -2px;
+  color:var(--premium-green);
+  font-family:"Arial Narrow","Avenir Next Condensed",sans-serif;
+  font-size:.78rem;font-weight:950;letter-spacing:.15em;text-transform:uppercase;
+}
+.premium-kicker{display:block;color:#9a7211;font-size:.7rem;font-weight:950;letter-spacing:.13em;text-transform:uppercase;margin-bottom:3px}
+
+/* Player home now follows the approved game-day flow: game → RSVP → rotation → live state. */
+.premium-next-game{
+  border-top:0!important;
+  border-left:5px solid var(--premium-gold)!important;
+  background:linear-gradient(120deg,#fffaf0 0%,#fffdf8 65%,#f3ead4 100%)!important;
+  box-shadow:var(--premium-shadow)!important;
+  padding:17px!important;
+}
+.premium-next-game:before{color:#9a7211!important;}
+.premium-next-game h2{font-size:clamp(1.35rem,4vw,1.9rem);color:var(--premium-green);line-height:1.05}
+.premium-rsvp-card{order:2}
+.premium-next-rotation{
+  position:relative;overflow:hidden;
+  background:linear-gradient(135deg,var(--premium-green) 0%,#0c563b 100%)!important;
+  color:#fffaf0!important;
+  border:1px solid #b99028!important;
+  box-shadow:0 10px 25px rgba(7,61,44,.18)!important;
+}
+.premium-next-rotation:after{content:"";position:absolute;right:-25px;bottom:-42px;width:130px;height:100px;opacity:.13;transform:rotate(-15deg);background:repeating-linear-gradient(135deg,#f0c246 0 4px,transparent 4px 12px)}
+.premium-next-rotation .muted{color:#e8deca!important}.premium-next-rotation strong{color:#fff7df}.premium-next-rotation h3{color:#f1c84c}
+.premium-live-strip{grid-template-columns:repeat(3,minmax(0,1fr))!important;}
+.premium-live-strip>.card{padding:12px!important;box-shadow:none!important;border:1px solid #d9cfbc!important;border-top:3px solid var(--premium-green)!important;}
+.premium-live-strip>.card .muted{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;font-weight:850}
+.premium-live-strip .big{font-size:1.8rem!important;margin-top:2px}
+.premium-game-reminders{border-left:4px solid #4c785d!important;border-top:0!important;background:linear-gradient(135deg,#f5f8ef,#fffaf0)!important;}
+.premium-team-chat{border-left:4px solid var(--premium-green)!important;}
+.premium-lineup-preview{margin-top:2px;}
+.premium-lineup-preview>strong{color:var(--premium-green);font-size:1.12rem}
+
+/* Player lineup personalized hero */
+.premium-player-position{
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  background:linear-gradient(120deg,#fffaf0 0%,#edf4e9 100%)!important;
+  border:1px solid #c9b474!important;
+  box-shadow:var(--premium-shadow)!important;
+}
+.premium-player-position h2{margin:.1rem 0;font-size:1.8rem;color:var(--premium-green);text-transform:uppercase}
+.premium-inning-orb{
+  width:66px;height:66px;flex:0 0 66px;display:grid;place-items:center;border-radius:16px;
+  background:var(--premium-green);color:#fffaf0;font-size:2rem;font-weight:950;
+  box-shadow:inset 0 0 0 2px rgba(214,163,35,.42),0 6px 14px rgba(7,61,44,.18)
+}
+
+/* Schedule segment control from approved concept */
+.premium-schedule-filters{
+  display:flex;gap:5px;padding:5px;margin:0 0 2px;
+  background:#ebe3d4;border:1px solid #d5c8ae;border-radius:14px;overflow:auto;
+}
+.premium-schedule-filters button{flex:1;min-width:78px;border:0!important;background:transparent!important;box-shadow:none!important;color:#596159!important;padding:9px 11px!important;min-height:40px!important}
+.premium-schedule-filters button.on{background:var(--premium-green)!important;color:#fffaf0!important;box-shadow:0 3px 8px rgba(7,61,44,.16)!important}
+
+/* Captain dashboard */
+.premium-captain-scoreboard{
+  padding:5px;border-radius:20px;
+  background:linear-gradient(135deg,#082f23,#0d563c)!important;
+  border:1px solid #bb922a;
+  box-shadow:var(--premium-shadow)!important;
+}
+.premium-captain-scoreboard>.card{
+  border:0!important;background:rgba(255,250,240,.97)!important;box-shadow:none!important;
+}
+.premium-captain-scoreboard .big{font-size:2.4rem!important}
+.premium-captain-actions{border-top:4px solid var(--premium-gold)!important;background:linear-gradient(145deg,#fffaf0,#f6f0e3)!important;}
+.premium-captain-actions h2{margin:.1rem 0;color:var(--premium-green);font-size:1.55rem}
+.premium-action-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:11px}
+.premium-action-grid button{
+  display:grid;grid-template-columns:28px 1fr;grid-template-rows:auto auto;text-align:left;align-items:center;column-gap:7px;
+  background:#fffdf7!important;border:1px solid #d8ceb9!important;padding:11px!important;min-height:74px!important;
+}
+.premium-action-grid button:first-letter{color:var(--premium-gold)}
+.premium-action-grid strong{color:var(--premium-green);font-size:.95rem;line-height:1.1}
+.premium-action-grid span{grid-column:2;color:#77786f;font-size:.72rem;line-height:1.2}
+.premium-captain-attendance{border-color:#c9b474!important;background:linear-gradient(145deg,#fffaf0,#eef5eb)!important;box-shadow:var(--premium-shadow)!important}
+.premium-captain-attendance .cap-att-stat{background:#fffdf7!important;border-color:#d9cfbc!important;}
+.premium-captain-attendance .cap-att-stat strong{color:var(--premium-green)}
+.premium-captain-attendance .cap-att-row,.premium-captain-attendance .cap-vote{background:#fffdf7!important;border-color:#ddd2bd!important;}
+.premium-count-strip>.card{border-top:3px solid #c6a54c!important;background:#fffaf0!important;}
+
+/* Captain schedule classes use different class names from player schedule. */
+.schedule-event-row{border-top:1px solid #e9dfcd!important;background:#fffaf0}
+.schedule-time{color:#1c2d23!important;font-weight:900!important}
+.schedule-title{color:#1d2b21;font-weight:850!important}
+.schedule-chip{border:1px solid currentColor;font-weight:900!important;letter-spacing:.035em}
+.schedule-game{color:#17633f!important;background:#e8f4e9!important}.schedule-off{color:#a86508!important;background:#fff0cf!important}.schedule-league{color:#315f8f!important;background:#eaf1f8!important}.schedule-tour{color:#704c88!important;background:#f1eafa!important}
+.schedule-assign{background:#fff1d0!important;border:1px solid #e3c57f!important}
+
+@media(max-width:700px){
+  .premium-next-game{padding:14px!important}.premium-next-game h2{font-size:1.45rem}
+  .premium-live-strip{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+  .premium-live-strip>.card{padding:10px 8px!important}.premium-live-strip .big{font-size:1.55rem!important}
+  .premium-action-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .premium-player-position h2{font-size:1.55rem}.premium-inning-orb{width:58px;height:58px;flex-basis:58px;font-size:1.7rem}
+}
+@media(max-width:390px){
+  .premium-live-strip>.card .muted{font-size:.62rem}.premium-live-strip .big{font-size:1.4rem!important}
+  .premium-action-grid button{padding:9px!important;min-height:68px!important}
+}
