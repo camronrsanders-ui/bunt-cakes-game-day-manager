@@ -106,7 +106,8 @@
 
   const helpers=[
     ['data-bunt-field-rotation','/team-field-rotation.js?v=8'],
-    ['data-bunt-team-usability','/team-usability.js?v=2'],
+    ['data-bunt-team-usability','/team-usability.js?v=3'],
+    ['data-team-officiating-view','/team-officiating-view.js?v=1'],
     ['data-bunt-preferred-names','/preferred-names.js?v=2'],
     ['data-bunt-attendance','/team-attendance.js?v=4'],
     ['data-bunt-access-checkin','/team-access-checkin.js?v=3'],
