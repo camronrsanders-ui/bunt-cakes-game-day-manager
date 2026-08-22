@@ -7,6 +7,17 @@
   window.__teamPath={team:`/team/${slug}`,captain:`/captain/${slug}`,calendar:`/calendar/${slug}.ics`};
   window.__teamStorageKey=(name)=>`teamgameday:${slug}:${name}`;
 
+  // Shared premium visual layer. Team-specific branding can still override --a / colors at runtime.
+  if(!document.querySelector('link[data-premium-team-theme]')){
+    const theme=document.createElement('link');
+    theme.rel='stylesheet';
+    theme.href='/premium-theme.css?v=1';
+    theme.dataset.premiumTeamTheme='1';
+    document.head.appendChild(theme);
+  }
+  document.documentElement.dataset.teamSlug=slug;
+  document.documentElement.classList.add('premium-team-ui');
+
   const nativeFetch=window.fetch.bind(window);
   window.fetch=function(input,init){
     try{
