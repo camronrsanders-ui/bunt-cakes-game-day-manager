@@ -1,0 +1,267 @@
+/* Premium flyer-inspired Team Game Day visual system.
+   Keeps all existing app behavior intact and skins player + captain views. */
+:root{
+  --premium-green:#073d2c;
+  --premium-green-2:#0d563c;
+  --premium-green-soft:#e8f2ea;
+  --premium-cream:#f5efe2;
+  --premium-paper:#fffaf0;
+  --premium-ink:#17211b;
+  --premium-muted:#6f756d;
+  --premium-gold:#d6a323;
+  --premium-gold-soft:#fbefbd;
+  --premium-red:#b7392f;
+  --premium-shadow:0 10px 28px rgba(35,42,34,.10);
+  --premium-shadow-soft:0 4px 14px rgba(35,42,34,.08);
+  --premium-radius:18px;
+  --premium-radius-sm:12px;
+  --a:var(--premium-green-2);
+  --bg:var(--premium-cream);
+  --c:var(--premium-paper);
+  --l:#d8d0bf;
+  --m:var(--premium-muted);
+  --game:var(--premium-green-2);
+  --off:#aa6812;
+  --league:#315f8f;
+  --tour:#704c88;
+}
+
+html{background:var(--premium-cream);}
+body{
+  color:var(--premium-ink)!important;
+  background:
+    radial-gradient(circle at 12% -8%,rgba(214,163,35,.12),transparent 31%),
+    radial-gradient(circle at 95% 0%,rgba(7,61,44,.09),transparent 26%),
+    linear-gradient(180deg,#faf5e9 0%,var(--premium-cream) 44%,#f2eadb 100%)!important;
+  min-height:100vh;
+  font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;
+}
+body:before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;opacity:.22;
+  background-image:radial-gradient(rgba(66,53,30,.18) .6px,transparent .7px);
+  background-size:8px 8px;
+  mask-image:linear-gradient(to bottom,#000,transparent 42%);
+}
+
+.app{max-width:1040px!important;padding:18px 16px 96px!important;}
+
+/* Athletic headings without requiring an external font download. */
+h1,h2,h3,.day-date,.schedule-section-title,.event-title,.big,
+.card>strong,.attendance-badge{
+  font-family:"Arial Narrow","Avenir Next Condensed","Roboto Condensed",Inter,sans-serif;
+  letter-spacing:.01em;
+}
+h1{font-weight:900!important;letter-spacing:.02em!important;}
+h2,h3{font-weight:850;}
+.muted{color:var(--premium-muted)!important;}
+
+/* Branded top shell */
+.app>.row.wrap:first-child,
+#manager>.row.wrap:first-child{
+  position:relative;overflow:hidden;
+  border-radius:24px;
+  padding:16px 17px;
+  background:
+    radial-gradient(circle at 82% 16%,rgba(214,163,35,.28),transparent 20%),
+    linear-gradient(135deg,var(--premium-green) 0%,#0a4934 62%,#0d5c40 100%);
+  color:#fff9e9;
+  border:1px solid rgba(214,163,35,.65);
+  box-shadow:0 16px 34px rgba(7,61,44,.20);
+  margin-bottom:12px;
+}
+.app>.row.wrap:first-child:after,
+#manager>.row.wrap:first-child:after{
+  content:"";position:absolute;right:-35px;bottom:-55px;width:175px;height:120px;
+  transform:rotate(-13deg);opacity:.14;
+  background:repeating-linear-gradient(135deg,var(--premium-gold) 0 4px,transparent 4px 12px);
+}
+.app>.row.wrap:first-child .muted,
+#manager>.row.wrap:first-child .muted{color:#e7dfcd!important;}
+.app>.row.wrap:first-child h1,
+#manager>.row.wrap:first-child h1{color:#fffaf0;font-size:clamp(1.55rem,4.4vw,2.25rem)!important;line-height:.98!important;text-transform:uppercase;}
+.brand{gap:14px!important;position:relative;z-index:1;}
+.brand-logo{width:92px!important;height:92px!important;filter:drop-shadow(0 7px 12px rgba(0,0,0,.32))!important;}
+#who,.app>.row.wrap:first-child .pill{background:rgba(255,250,240,.10);border-color:rgba(255,250,240,.26);color:#fffaf0;}
+#logout,.app>.row.wrap:first-child button:not(.primary){background:#fffaf0;color:var(--premium-green);border-color:#fffaf0;font-weight:800;}
+.app>.row.wrap:first-child .chat-btn{background:var(--premium-gold)!important;color:#1d2b21!important;border:1px solid #f4d466!important;}
+
+/* Live/save strips */
+#updated,#saveStatus{font-weight:750;}
+#saveStatus{padding:8px 4px 2px!important;color:#4d5e51!important;}
+.ok{color:#157347!important}.warn{color:#98620f!important}
+
+/* Cards */
+.card,
+.day-group,
+.install-sheet,
+.team-onboard-sheet{
+  background:rgba(255,250,240,.96)!important;
+  border:1px solid #ddd3c0!important;
+  border-radius:var(--premium-radius)!important;
+  box-shadow:var(--premium-shadow-soft);
+}
+.card{padding:15px!important;}
+.card:hover{border-color:#d2c4a8;}
+.stack{gap:12px!important;}
+.grid{gap:11px!important;}
+
+/* Buttons / controls */
+button,.reminder-btn,.chat-btn{
+  border-radius:12px!important;
+  font-weight:750;
+  transition:transform .12s ease,box-shadow .12s ease,filter .12s ease;
+}
+button:active,.reminder-btn:active,.chat-btn:active{transform:translateY(1px) scale(.995);}
+.primary,.reminder-btn,.chat-btn,.attendance-notify button{
+  background:linear-gradient(180deg,#126142 0%,var(--premium-green-2) 100%)!important;
+  border-color:#0c4b35!important;
+  color:#fff!important;
+  box-shadow:0 4px 10px rgba(7,61,44,.15);
+}
+button:not(.primary){background:#fffdf6;border-color:#d8d0bf;color:#203127;}
+input,select,textarea{
+  background:#fffdf8!important;color:var(--premium-ink)!important;border:1px solid #d8cfbc!important;border-radius:12px!important;
+  box-shadow:inset 0 1px 1px rgba(31,41,35,.04);
+}
+input:focus,select:focus,textarea:focus{outline:3px solid rgba(214,163,35,.18);border-color:#b6912f!important;}
+
+/* App navigation */
+.tabs{
+  background:rgba(250,245,233,.93)!important;
+  border:1px solid #ddd3c0;
+  border-radius:16px;
+  padding:6px!important;
+  gap:5px!important;
+  box-shadow:0 8px 20px rgba(31,41,35,.08);
+  backdrop-filter:blur(14px);
+}
+.tabs button{
+  border:0!important;background:transparent!important;color:#5e665e!important;
+  min-height:42px!important;padding:9px 13px!important;font-size:.92rem;font-weight:800!important;
+}
+.tabs .on{background:var(--premium-green)!important;color:#fffaf0!important;box-shadow:0 3px 10px rgba(7,61,44,.18);}
+
+/* Dashboard score/state cards */
+#home>.grid.g3>.card,#dashboard>.grid.g3>.card{
+  border-top:4px solid var(--premium-green)!important;
+  background:linear-gradient(180deg,#fffdf7,#faf5e8)!important;
+}
+.big{font-size:2.35rem!important;color:var(--premium-green)!important;line-height:1;}
+#teamScore.big,#oppScore.big,#inning.big{font-variant-numeric:tabular-nums;}
+
+/* Player next game / live cards */
+.event{border-left:0!important;border-top:4px solid var(--premium-gold)!important;}
+#next{position:relative;overflow:hidden;}
+#next:before{content:"NEXT UP";display:inline-block;margin-bottom:5px;color:var(--premium-green);font-size:.73rem;font-weight:950;letter-spacing:.12em;}
+#next>.muted:first-child{display:none;}
+.arrival{color:var(--premium-green)!important;background:var(--premium-green-soft);border-radius:9px;padding:7px 9px;display:inline-block;margin-top:8px!important;}
+
+/* Weekly RSVP */
+.attendance-card{
+  background:linear-gradient(145deg,#fffaf0 0%,#f2f7ee 100%)!important;
+  border:2px solid #a9c9ad!important;
+  box-shadow:var(--premium-shadow)!important;
+}
+.attendance-card h2{font-size:1.65rem;margin:.18rem 0!important;color:var(--premium-green)!important;}
+.attendance-badge{background:var(--premium-green)!important;color:#fff9e9!important;letter-spacing:.08em!important;}
+.attendance-games{background:#fffdf7!important;border-color:#d9ceb9!important;}
+.attendance-answer button{background:#fffdf7!important;border:1px solid #d9ceb9!important;min-height:52px!important;}
+.attendance-answer button.on{background:var(--premium-green)!important;border-color:var(--premium-green)!important;color:white!important;}
+.attendance-answer button.no.on{background:var(--premium-red)!important;border-color:var(--premium-red)!important;}
+.attendance-answer button.maybe.on{background:var(--premium-gold)!important;border-color:#bd8b0d!important;color:#222!important;}
+.attendance-notify{background:#fffaf0!important;border-color:#e0d2b2!important;}
+
+/* Schedule */
+.schedule-stat{background:#fffdf7!important;border-color:#ded3bf!important;border-radius:12px!important;}
+.schedule-stat strong{color:var(--premium-green);font-size:1.35rem!important;}
+.schedule-section-title{color:var(--premium-green)!important;font-size:.82rem!important;letter-spacing:.13em!important;}
+.day-group{overflow:hidden;box-shadow:var(--premium-shadow-soft)!important;}
+.day-head{background:linear-gradient(90deg,#e7eee5,#f5eedf)!important;border-bottom:1px solid #d8cdb9!important;}
+.day-date{color:var(--premium-green);text-transform:uppercase;letter-spacing:.045em;}
+.event-row{border-top-color:#e9dfcd!important;}
+.event-time{font-size:1rem!important;color:#1d2b21;}
+.event-title{font-size:1.02rem;}
+.type-chip{border:1px solid currentColor;font-weight:900!important;letter-spacing:.045em;}
+.type-game{color:#17633f!important;background:#e8f4e9!important;}
+.type-officiating{color:#a86508!important;background:#fff0cf!important;}
+.type-league{color:#315f8f!important;background:#eaf1f8!important;}
+.type-tournament{color:#704c88!important;background:#f1eafa!important;}
+.official-box{background:#fff1d0!important;border:1px solid #e8cb8b;}
+
+/* Lineup */
+#lineup>.card:first-child,#pods>.card:first-child,#kicking>.card:first-child,#officials>.card:first-child,#resources>.card:first-child{
+  background:linear-gradient(100deg,var(--premium-green),#0b5038)!important;
+  color:#fffaf0!important;border-color:#1a684d!important;
+}
+#lineup>.card:first-child .muted,#pods>.card:first-child .muted,#officials>.card:first-child .muted,#resources>.card:first-child .muted{color:#e7dfcd!important;}
+#positions>.card,#homeLineup>.card{border-left:4px solid #b6cbb6!important;}
+#positions>.card strong,#homeLineup>.card strong{font-size:1.06rem;color:var(--premium-green);}
+
+/* Rotation field / player cards */
+.my-rotation-hero{border-color:#c5aa62!important;background:linear-gradient(140deg,#fffaf0,#edf5ec)!important;}
+.my-field{
+  border:2px solid #b88b24!important;
+  background:linear-gradient(#173f2d 0 44%,#245f3c 44% 100%)!important;
+  box-shadow:inset 0 0 44px rgba(0,0,0,.22),0 8px 20px rgba(7,61,44,.14)!important;
+}
+.my-field:before{background:#a7773d!important;border-color:#ead9ae!important;}
+.my-field-slot{background:#fffaf0!important;border:1px solid #d6b85e!important;box-shadow:0 3px 9px rgba(0,0,0,.18)!important;}
+.my-field-slot.me{background:var(--premium-gold-soft)!important;border-color:var(--premium-gold)!important;box-shadow:0 0 0 2px rgba(214,163,35,.25),0 4px 11px rgba(0,0,0,.2)!important;}
+.my-now,.my-next{background:#fffaf0!important;border-color:#d9ceb9!important;}
+.my-now strong,.my-next strong{color:var(--premium-green)!important;}
+.my-inning-row.current{background:var(--premium-gold-soft);color:#46350b!important;border-radius:9px;padding-left:7px;padding-right:7px;}
+
+/* Kicking list */
+#kickList>.card{border-left:4px solid var(--premium-green)!important;}
+#kickList>.card strong{color:var(--premium-green);}
+
+/* Resources */
+.resource{background:linear-gradient(145deg,#fffdf8,#f5efe1)!important;}
+.resource .go{color:var(--premium-green)!important;}
+.resource:hover{transform:translateY(-2px)!important;box-shadow:var(--premium-shadow)!important;}
+
+/* Captain-specific polish */
+.login{max-width:480px!important;margin:7vh auto!important;border-top:5px solid var(--premium-green)!important;box-shadow:var(--premium-shadow)!important;}
+#manager section>.card:first-child strong{font-size:1.08rem;}
+#players>.card,#events>.card,#captainList>.card{box-shadow:var(--premium-shadow-soft)!important;}
+#dashboard .card label,#lineup .card label{font-weight:800;color:#344039;}
+.danger{color:#a22b24!important;}
+button.danger,.danger button{border-color:#d8aaa6!important;background:#fff4f2!important;color:#9a2722!important;}
+
+/* Onboarding */
+.install-overlay,.team-onboard-overlay{background:rgba(8,25,18,.82)!important;backdrop-filter:blur(7px);}
+.install-sheet,.team-onboard-sheet{border:1px solid rgba(214,163,35,.55)!important;box-shadow:0 26px 75px rgba(0,0,0,.35)!important;}
+.install-note,.team-onboard-callout{background:#eff6eb!important;border-color:#b4d2b4!important;}
+.install-step b,.team-onboard-step b{background:var(--premium-green)!important;}
+
+/* Mobile: transform horizontal tabs into a premium app bottom bar. */
+@media(max-width:700px){
+  .app{padding:12px 10px 112px!important;}
+  .app>.row.wrap:first-child,#manager>.row.wrap:first-child{border-radius:20px;padding:14px;}
+  .brand-logo{width:74px!important;height:74px!important;}
+  .tabs{
+    position:fixed!important;left:8px;right:8px;bottom:8px;top:auto!important;z-index:60!important;
+    border-radius:18px!important;padding:6px!important;overflow-x:auto!important;
+    background:rgba(255,250,240,.96)!important;
+    box-shadow:0 13px 32px rgba(16,33,24,.23)!important;
+    border:1px solid #cfbf9d!important;
+    scrollbar-width:none;
+  }
+  .tabs::-webkit-scrollbar{display:none;}
+  .tabs button{flex:1 0 auto;min-width:82px;min-height:50px!important;padding:8px 10px!important;font-size:.78rem!important;}
+  .tabs .on{background:var(--premium-green)!important;}
+  .g2,.g3{gap:9px!important;}
+  .card{padding:13px!important;border-radius:15px!important;}
+  .attendance-card h2{font-size:1.45rem!important;}
+  .day-head{padding:11px 12px!important;}
+}
+
+@media(max-width:430px){
+  .app>.row.wrap:first-child{align-items:flex-start!important;}
+  .app>.row.wrap:first-child>div:last-child{width:100%;display:flex;gap:7px;align-items:center;flex-wrap:wrap;}
+  .app>.row.wrap:first-child .chat-btn{width:auto!important;flex:1;}
+  .schedule-summary{grid-template-columns:repeat(3,minmax(0,1fr))!important;}
+  .schedule-stat{padding:8px!important;}
+  .schedule-stat span{font-size:.72rem;}
+  .event-row{grid-template-columns:74px minmax(0,1fr)!important;}
+}
