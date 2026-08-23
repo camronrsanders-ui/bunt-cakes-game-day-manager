@@ -4,9 +4,12 @@
   const error=document.getElementById('error');
   if(!btn)return;
 
-  let busy=false;
   let lastVersion='';
   let missingTeam=false;
+  let activeController=null;
+  let activeRequest=0;
+  let lastSuccessfulCheck=null;
+  let resetButtonTimer=null;
 
   function liveInning(){
     return Number((state&&state.gameInning)||(state&&state.fieldInning)||1);
@@ -34,24 +37,52 @@
     };
   }
 
-  function showLiveTime(serverTime,prefix='Live'){
+  function timeLabel(value){
+    return new Date(value).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',second:'2-digit',hour12:true});
+  }
+
+  function showLiveCheck(serverUpdatedAt,prefix='Live'){
     if(!updated)return;
-    if(!serverTime){updated.textContent=prefix;return;}
-    updated.textContent=prefix+' • '+new Date(serverTime).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',second:'2-digit',hour12:true});
+    lastSuccessfulCheck=new Date();
+    updated.textContent=prefix+' • '+timeLabel(lastSuccessfulCheck);
+    if(serverUpdatedAt){
+      updated.title='Team data last changed '+new Date(serverUpdatedAt).toLocaleString();
+      updated.dataset.serverUpdatedAt=String(serverUpdatedAt);
+    }
+  }
+
+  function showManualStart(){
+    clearTimeout(resetButtonTimer);
+    btn.disabled=true;
+    btn.textContent='Refreshing…';
+    if(updated)updated.textContent='Checking live data…';
+  }
+
+  function showManualDone(){
+    btn.disabled=false;
+    btn.textContent='Updated ✓';
+    clearTimeout(resetButtonTimer);
+    resetButtonTimer=setTimeout(()=>{if(!missingTeam){btn.textContent='Refresh';btn.disabled=false;}},700);
   }
 
   async function refreshLiveTeam(manual=false){
-    if(busy||missingTeam)return;
-    busy=true;
-    if(manual){
-      btn.disabled=true;
-      btn.textContent='Refreshing…';
-      if(updated)updated.textContent='Refreshing…';
+    if(missingTeam)return;
+
+    // A manual tap always wins. Abort a background check instead of ignoring the tap.
+    if(activeController){
+      if(!manual)return;
+      try{activeController.abort();}catch(_){}
     }
+
+    const controller=new AbortController();
+    const requestId=++activeRequest;
+    activeController=controller;
+    if(manual)showManualStart();
 
     try{
       const r=await fetch('/api/team-state?fresh='+Date.now(),{
         cache:'no-store',
+        signal:controller.signal,
         headers:{'Cache-Control':'no-cache, no-store, must-revalidate','Pragma':'no-cache'}
       });
       const j=await r.json();
@@ -59,7 +90,8 @@
       if(!r.ok)throw new Error(j.error||'Could not refresh live team data');
 
       const version=String(j.updatedAt||'');
-      if(manual||version!==lastVersion){
+      const changed=!lastVersion||version!==lastVersion;
+      if(changed){
         state=j.state||{};
         const n=Number(state.gameInning||state.fieldInning||1);
         state.gameInning=n;
@@ -69,25 +101,30 @@
         lastVersion=version;
       }
       if(error)error.classList.add('hidden');
-      showLiveTime(j.updatedAt,manual?'Refreshed':'Live');
+      showLiveCheck(j.updatedAt,manual?'Refreshed':'Live');
+      if(manual)showManualDone();
     }catch(e){
+      if(e&&e.name==='AbortError')return;
       if(manual){
         if(error){error.textContent=e.message||'Could not refresh live team data';error.classList.remove('hidden');}
         if(updated)updated.textContent='Refresh failed';
+        btn.disabled=false;
+        btn.textContent='Try again';
       }
     }finally{
-      busy=false;
-      if(manual&&!missingTeam){btn.disabled=false;btn.textContent='Refresh';}
+      if(requestId===activeRequest)activeController=null;
     }
   }
 
   btn.onclick=()=>refreshLiveTeam(true);
   window.teamGameDayRefresh=()=>refreshLiveTeam(true);
   window.buntCakesRefresh=window.teamGameDayRefresh;
-  setInterval(()=>{if(!document.hidden)refreshLiveTeam(false)},3000);
+
+  // One lightweight live loop owns player refreshes. No competing legacy reload loop.
+  setInterval(()=>{if(!document.hidden)refreshLiveTeam(false)},2000);
   window.addEventListener('focus',()=>refreshLiveTeam(false));
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshLiveTeam(false)});
-  setTimeout(()=>refreshLiveTeam(false),250);
+  setTimeout(()=>refreshLiveTeam(false),100);
 })();
 
 (()=>{
