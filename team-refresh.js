@@ -68,7 +68,6 @@
   async function refreshLiveTeam(manual=false){
     if(missingTeam)return;
 
-    // A manual tap always wins. Abort a background check instead of ignoring the tap.
     if(activeController){
       if(!manual)return;
       try{activeController.abort();}catch(_){}
@@ -120,7 +119,6 @@
   window.teamGameDayRefresh=()=>refreshLiveTeam(true);
   window.buntCakesRefresh=window.teamGameDayRefresh;
 
-  // One lightweight live loop owns player refreshes. No competing legacy reload loop.
   setInterval(()=>{if(!document.hidden)refreshLiveTeam(false)},2000);
   window.addEventListener('focus',()=>refreshLiveTeam(false));
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshLiveTeam(false)});
@@ -150,7 +148,7 @@
     ['data-bunt-attendance','/team-attendance.js?v=4'],
     ['data-bunt-access-checkin','/team-access-checkin.js?v=3'],
     ['data-team-branding','/team-branding.js?v=3'],
-    ['data-team-onboarding','/team-onboarding.js?v=1']
+    ['data-team-onboarding','/team-onboarding.js?v=2']
   ];
   helpers.forEach(([attr,src])=>{
     if(document.querySelector('script['+attr+']'))return;
