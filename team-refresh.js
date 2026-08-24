@@ -150,7 +150,7 @@
     ['data-bunt-attendance','/team-attendance.js?v=4'],
     ['data-bunt-access-checkin','/team-access-checkin.js?v=3'],
     ['data-team-branding','/team-branding.js?v=3'],
-    ['data-team-onboarding','/team-onboarding.js?v=1']
+    ['data-team-onboarding','/team-onboarding.js?v=2']
   ];
   helpers.forEach(([attr,src])=>{
     if(document.querySelector('script['+attr+']'))return;
