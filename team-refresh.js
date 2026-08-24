@@ -67,35 +67,25 @@
 
   async function refreshLiveTeam(manual=false){
     if(missingTeam)return;
-
-    // A manual tap always wins. Abort a background check instead of ignoring the tap.
     if(activeController){
       if(!manual)return;
       try{activeController.abort();}catch(_){}
     }
-
     const controller=new AbortController();
     const requestId=++activeRequest;
     activeController=controller;
     if(manual)showManualStart();
-
     try{
-      const r=await fetch('/api/team-state?fresh='+Date.now(),{
-        cache:'no-store',
-        signal:controller.signal,
-        headers:{'Cache-Control':'no-cache, no-store, must-revalidate','Pragma':'no-cache'}
-      });
+      const r=await fetch('/api/team-state?fresh='+Date.now(),{cache:'no-store',signal:controller.signal,headers:{'Cache-Control':'no-cache, no-store, must-revalidate','Pragma':'no-cache'}});
       const j=await r.json();
       if(r.status===404){showMissingTeam(j.error);return;}
       if(!r.ok)throw new Error(j.error||'Could not refresh live team data');
-
       const version=String(j.updatedAt||'');
       const changed=!lastVersion||version!==lastVersion;
       if(changed){
         state=j.state||{};
         const n=Number(state.gameInning||state.fieldInning||1);
-        state.gameInning=n;
-        state.fieldInning=n;
+        state.gameInning=n;state.fieldInning=n;
         if(typeof render==='function')render();
         window.dispatchEvent(new Event('buntpreferrednamesrefresh'));
         lastVersion=version;
@@ -107,20 +97,14 @@
       if(e&&e.name==='AbortError')return;
       if(manual){
         if(error){error.textContent=e.message||'Could not refresh live team data';error.classList.remove('hidden');}
-        if(updated)updated.textContent='Refresh failed';
-        btn.disabled=false;
-        btn.textContent='Try again';
+        if(updated)updated.textContent='Refresh failed';btn.disabled=false;btn.textContent='Try again';
       }
-    }finally{
-      if(requestId===activeRequest)activeController=null;
-    }
+    }finally{if(requestId===activeRequest)activeController=null;}
   }
 
   btn.onclick=()=>refreshLiveTeam(true);
   window.teamGameDayRefresh=()=>refreshLiveTeam(true);
   window.buntCakesRefresh=window.teamGameDayRefresh;
-
-  // One lightweight live loop owns player refreshes. No competing legacy reload loop.
   setInterval(()=>{if(!document.hidden)refreshLiveTeam(false)},2000);
   window.addEventListener('focus',()=>refreshLiveTeam(false));
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshLiveTeam(false)});
@@ -135,28 +119,19 @@
     const resources=document.getElementById('resources');
     if(resources)resources.innerHTML='<div class="card"><strong>Team Resources</strong><div class="muted">Links selected by your captain.</div></div><div class="card muted">No resources have been added yet.</div>';
   }
-
-  const tab=document.querySelector('[data-tab="pods"]');
-  if(tab)tab.textContent='My Rotation';
-  const section=document.getElementById('pods');
-  if(section)section.innerHTML='<div class="card"><strong>Loading My Rotation…</strong><div class="muted">Getting the live inning and your seven-inning plan.</div></div>';
-
+  const tab=document.querySelector('[data-tab="pods"]');if(tab)tab.textContent='My Rotation';
+  const section=document.getElementById('pods');if(section)section.innerHTML='<div class="card"><strong>Loading My Rotation…</strong><div class="muted">Getting the live inning and your seven-inning plan.</div></div>';
   const helpers=[
     ['data-bunt-field-rotation','/team-field-rotation.js?v=8'],
     ['data-bunt-team-usability','/team-usability.js?v=3'],
     ['data-team-position-editor','/team-position-editor.js?v=1'],
     ['data-team-officiating-view','/team-officiating-view.js?v=1'],
+    ['data-team-role-badges','/team-role-badges.js?v=1'],
     ['data-bunt-preferred-names','/preferred-names.js?v=2'],
     ['data-bunt-attendance','/team-attendance.js?v=4'],
     ['data-bunt-access-checkin','/team-access-checkin.js?v=3'],
     ['data-team-branding','/team-branding.js?v=3'],
     ['data-team-onboarding','/team-onboarding.js?v=2']
   ];
-  helpers.forEach(([attr,src])=>{
-    if(document.querySelector('script['+attr+']'))return;
-    const script=document.createElement('script');
-    script.src=src;
-    script.setAttribute(attr,'1');
-    document.head.appendChild(script);
-  });
+  helpers.forEach(([attr,src])=>{if(document.querySelector('script['+attr+']'))return;const script=document.createElement('script');script.src=src;script.setAttribute(attr,'1');document.head.appendChild(script);});
 })();
