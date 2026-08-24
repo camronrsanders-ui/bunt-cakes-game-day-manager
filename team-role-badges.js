@@ -1,7 +1,11 @@
 (()=>{
   const esc=v=>String(v??'').replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
   function rolesOf(p){return Array.isArray(p?.roles)?p.roles:String(p?.role||'').split(/\s*(?:\/|,|•|\|)\s*/).filter(Boolean);}
-  function firstAidNames(){return new Set((typeof state!=='undefined'&&state?.players||[]).filter(p=>p.firstAidVolunteer===true||rolesOf(p).includes('First Aid')).map(p=>p.name));}
+  function firstAidNames(){
+    const names=new Set((typeof state!=='undefined'&&state?.players||[]).filter(p=>p.firstAidVolunteer===true||rolesOf(p).includes('First Aid')).map(p=>p.name));
+    if((window.__teamSlug||'those-dirty-bunt-cakes')==='those-dirty-bunt-cakes') ['Ashton','Bryan','PJ'].forEach(n=>names.add(n));
+    return names;
+  }
   function decorate(){
     if(typeof state==='undefined'||!state)return;
     const names=firstAidNames();if(!names.size)return;
@@ -17,7 +21,7 @@
       });
     });
   }
-  const style=document.createElement('style');style.textContent='.first-aid-ribbon{display:inline-block;font-size:.9em;vertical-align:baseline;filter:saturate(1.15);margin-left:2px}.role-first-aid{color:#be185d;background:#fce7f3;border-color:#f9a8d4}';document.head.appendChild(style);
+  const style=document.createElement('style');style.textContent='.first-aid-ribbon{display:inline-block;font-size:.9em;vertical-align:baseline;margin-left:2px}.role-first-aid{color:#be185d;background:#fce7f3;border-color:#f9a8d4}';document.head.appendChild(style);
   let queued=false;const schedule=()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;decorate();});};
   new MutationObserver(schedule).observe(document.documentElement,{childList:true,subtree:true});
   window.addEventListener('buntpreferrednamesrefresh',schedule);window.addEventListener('pageshow',schedule);setInterval(schedule,2500);schedule();
