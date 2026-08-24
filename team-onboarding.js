@@ -8,14 +8,48 @@
   function addStyles(){
     if(document.getElementById('team-onboarding-style'))return;
     const style=document.createElement('style');style.id='team-onboarding-style';style.textContent=`
-      .team-onboard-overlay{position:fixed;inset:0;z-index:10020;background:rgba(15,23,42,.82);display:flex;align-items:flex-end;justify-content:center;padding:16px}
-      .team-onboard-sheet{width:min(620px,100%);background:#fff;border-radius:24px;padding:22px;box-shadow:0 24px 70px rgba(0,0,0,.35);max-height:92vh;overflow:auto}
-      .team-onboard-icon{width:86px;height:86px;display:block;margin:0 auto 8px;object-fit:contain}.team-onboard-sheet h2{text-align:center;margin:.3rem 0}.team-onboard-center{text-align:center}.team-onboard-callout{background:#f0fdf4;border:2px solid #86efac;border-radius:16px;padding:13px;margin:14px 0}.team-onboard-actions{display:grid;gap:9px;margin-top:14px}.team-onboard-actions button{width:100%;min-height:50px;font-weight:900}.team-onboard-primary{background:var(--a,#15803d)!important;color:#fff!important;border-color:var(--a,#15803d)!important}.team-onboard-secondary{background:#fff!important;color:#4b5563!important}.team-onboard-step{display:grid;grid-template-columns:34px 1fr;gap:10px;margin:12px 0;align-items:start}.team-onboard-step b{display:grid;place-items:center;width:30px;height:30px;border-radius:999px;background:var(--a,#15803d);color:#fff}@media(min-width:650px){.team-onboard-overlay{align-items:center}}
+      .team-onboard-overlay{position:fixed;inset:0;z-index:10020;background:rgba(15,23,42,.82);display:flex;align-items:flex-end;justify-content:center;padding:16px;overflow:hidden}
+      .team-onboard-sheet{width:min(620px,100%);background:#fff;border-radius:24px;padding:22px;box-shadow:0 24px 70px rgba(0,0,0,.35);max-height:min(92dvh,760px);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+      .team-onboard-icon{width:86px;height:86px;display:block;margin:0 auto 8px;object-fit:contain}.team-onboard-sheet h2{text-align:center;margin:.3rem 0}.team-onboard-center{text-align:center}.team-onboard-callout{background:#f0fdf4;border:2px solid #86efac;border-radius:16px;padding:13px;margin:14px 0}.team-onboard-actions{display:grid;gap:9px;margin-top:14px}.team-onboard-actions button{width:100%;min-height:50px;font-weight:900}.team-onboard-primary{background:var(--a,#15803d)!important;color:#fff!important;border-color:var(--a,#15803d)!important}.team-onboard-secondary{background:#fff!important;color:#4b5563!important}.team-onboard-step{display:grid;grid-template-columns:34px 1fr;gap:10px;margin:12px 0;align-items:start}.team-onboard-step b{display:grid;place-items:center;width:30px;height:30px;border-radius:999px;background:var(--a,#15803d);color:#fff}
+      .install-player-picker{margin-top:9px;border:1px solid #d1d5db;border-radius:14px;background:#fff;overflow:hidden}.install-player-picker-head{padding:10px 12px;font-size:.82rem;font-weight:800;color:#6b7280;background:#f9fafb;border-bottom:1px solid #e5e7eb}.install-player-list{max-height:min(38dvh,320px);overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:6px}.install-player-choice{display:flex!important;align-items:center!important;justify-content:space-between!important;width:100%!important;min-height:48px!important;text-align:left!important;padding:10px 12px!important;margin:0!important;border:0!important;border-radius:10px!important;background:#fff!important;color:#1f2937!important;font-weight:700!important}.install-player-choice+.install-player-choice{border-top:1px solid #f1f5f9!important}.install-player-choice.selected{background:#ecfdf3!important;color:#166534!important}.install-player-choice.selected:after{content:'✓';font-weight:900}.install-select-picker-hidden{position:absolute!important;opacity:0!important;pointer-events:none!important;width:1px!important;height:1px!important;margin:0!important;padding:0!important}
+      @media(max-width:520px){.team-onboard-overlay{padding:0;align-items:stretch}.team-onboard-sheet{width:100%;max-height:100dvh;height:100dvh;border-radius:0;padding:calc(16px + env(safe-area-inset-top)) 16px calc(18px + env(safe-area-inset-bottom));}.install-sheet{max-height:100dvh!important;height:100dvh!important;width:100%!important;border-radius:0!important;padding:calc(16px + env(safe-area-inset-top)) 16px calc(18px + env(safe-area-inset-bottom))!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch!important;overscroll-behavior:contain!important}.install-overlay{padding:0!important;align-items:stretch!important;overflow:hidden!important}.install-player-list{max-height:42dvh}}
+      @media(min-width:650px){.team-onboard-overlay{align-items:center}}
     `;document.head.appendChild(style);
   }
 
   function logo(){return document.querySelector('.brand-logo')?.src||document.querySelector('.install-logo')?.src||'/generic-team-icon.svg'}
   function teamName(){return document.querySelector('.brand h1')?.textContent?.trim()||'Your Team'}
+
+  function syncPlayerChoice(list,select){
+    const value=select?.value||selectedPlayer();
+    list?.querySelectorAll('.install-player-choice').forEach(btn=>btn.classList.toggle('selected',btn.dataset.player===value));
+  }
+
+  function repairNamePicker(){
+    addStyles();
+    const select=document.getElementById('installPlayer');
+    const step=select?.closest('.install-step');
+    if(!select||!step||document.getElementById('installPlayerPicker'))return !!select;
+    const picker=document.createElement('div');picker.id='installPlayerPicker';picker.className='install-player-picker';
+    picker.innerHTML='<div class="install-player-picker-head">Tap your name — scroll inside this list</div><div class="install-player-list"></div>';
+    select.insertAdjacentElement('afterend',picker);
+    select.classList.add('install-select-picker-hidden');
+    const list=picker.querySelector('.install-player-list');
+    const build=()=>{
+      const opts=[...select.options].filter(o=>o.value);
+      if(!opts.length)return;
+      list.innerHTML=opts.map(o=>'<button type="button" class="install-player-choice" data-player="'+String(o.value).replace(/"/g,'&quot;')+'">'+o.textContent+'</button>').join('');
+      list.querySelectorAll('.install-player-choice').forEach(btn=>btn.onclick=()=>{
+        select.value=btn.dataset.player;
+        select.dispatchEvent(new Event('change',{bubbles:true}));
+        syncPlayerChoice(list,select);
+      });
+      syncPlayerChoice(list,select);
+    };
+    build();
+    const observer=new MutationObserver(build);observer.observe(select,{childList:true});
+    return true;
+  }
 
   function showAfterInstall(){
     addStyles();
@@ -29,7 +63,7 @@
 
   function showInstallGuide(){
     const overlay=document.getElementById('installOverlay');
-    if(overlay){overlay.classList.remove('install-hidden');overlay.scrollTop=0;return}
+    if(overlay){overlay.classList.remove('install-hidden');overlay.scrollTop=0;repairNamePicker();return}
     if(isIOS)alert('Tap Share in Safari → Add to Home Screen. Then open the new team icon to enable notifications.');
   }
   window.teamGameDayShowInstallGuide=showInstallGuide;
@@ -52,6 +86,8 @@
   }
 
   function repairExistingInstallFlow(){
+    addStyles();
+    repairNamePicker();
     const done=document.getElementById('installDoneButton');
     if(!done)return false;
     done.textContent=isIOS?'I added it — show me the next step':'I installed it — show me the next step';
@@ -69,9 +105,10 @@
   }
 
   function install(){
-    let count=0;const timer=setInterval(()=>{if(repairExistingInstallFlow()||count++>50)clearInterval(timer)},100);
+    addStyles();
+    let count=0;const timer=setInterval(()=>{if(repairExistingInstallFlow()||count++>80)clearInterval(timer)},100);
     if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',showPushPromptIfNeeded,{once:true});else setTimeout(showPushPromptIfNeeded,300);
-    window.addEventListener('pageshow',()=>setTimeout(showPushPromptIfNeeded,250));
+    window.addEventListener('pageshow',()=>setTimeout(()=>{repairNamePicker();showPushPromptIfNeeded()},250));
   }
   install();
 })();
