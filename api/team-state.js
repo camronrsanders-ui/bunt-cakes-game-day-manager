@@ -217,6 +217,7 @@ function sendLogo(res, row) {
   const fallback = typeof team.logoUrl === 'string' && team.logoUrl.startsWith('/') ? team.logoUrl : '/generic-team-icon.svg';
   res.setHeader('Cache-Control', 'no-store');return res.redirect(307, fallback);
 }
+
 module.exports = async function handler(req, res) {
   try {
     const sql = getSql();
