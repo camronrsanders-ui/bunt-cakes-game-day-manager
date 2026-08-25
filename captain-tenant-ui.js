@@ -1,6 +1,7 @@
 (()=>{
   const FOUNDER='those-dirty-bunt-cakes';
   const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  const safeExternalUrl=value=>{const raw=String(value||'').trim();if(!raw)return'';try{const parsed=new URL(raw);return parsed.protocol==='https:'||parsed.protocol==='http:'?parsed.href:''}catch(_){return''}};
   const current=()=>window.__teamSlug||FOUNDER;
   const tz=()=>Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC';
   let session=null;
@@ -22,8 +23,8 @@
   }
 
   function renderCaptainResources(){
-    const section=document.getElementById('resources');if(!section||typeof state==='undefined'||!state)return;const list=Array.isArray(state.resources)?state.resources.filter(r=>r&&r.title&&r.url):[];
-    section.innerHTML='<div class="card row wrap"><div><strong>Team Resources</strong><div class="muted">These are the same links players see. Edit them in Team Settings.</div></div><button id="editResourcesSettings" type="button">Edit resources</button></div><div class="grid g2">'+(list.length?list.map(r=>`<a class="card" style="text-decoration:none;color:inherit" target="_blank" rel="noopener" href="${esc(r.url)}"><strong>${esc(r.title)}</strong><div class="muted">${esc(r.description||'Open resource')}</div></a>`).join(''):'<div class="card muted">No team resources have been added yet.</div>')+'</div>';
+    const section=document.getElementById('resources');if(!section||typeof state==='undefined'||!state)return;const list=Array.isArray(state.resources)?state.resources.filter(r=>r&&r.title&&r.url).map(r=>({...r,safeUrl:safeExternalUrl(r.url)})).filter(r=>r.safeUrl):[];
+    section.innerHTML='<div class="card row wrap"><div><strong>Team Resources</strong><div class="muted">These are the same links players see. Edit them in Team Settings.</div></div><button id="editResourcesSettings" type="button">Edit resources</button></div><div class="grid g2">'+(list.length?list.map(r=>`<a class="card" style="text-decoration:none;color:inherit" target="_blank" rel="noopener" href="${esc(r.safeUrl)}"><strong>${esc(r.title)}</strong><div class="muted">${esc(r.description||'Open resource')}</div></a>`).join(''):'<div class="card muted">No team resources have been added yet.</div>')+'</div>';
     const edit=document.getElementById('editResourcesSettings');if(edit)edit.onclick=()=>{const b=document.querySelector('[data-tab="team-settings"]');if(b)b.click()};
   }
 
