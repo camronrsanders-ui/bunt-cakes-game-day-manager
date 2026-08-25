@@ -17,6 +17,7 @@
     let conflictRetries=0;
     let lastServerVersion='';
     let lastSyncedState=null;
+    let scrollBusyUntil=0;
     const bootState=JSON.parse(JSON.stringify(state||{}));
     const status=document.getElementById('saveStatus');
 
@@ -28,7 +29,12 @@
     const show=(html)=>{if(status)status.innerHTML=html};
     const whenLabel=value=>value?new Date(value).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',second:'2-digit',hour12:true}):'now';
 
+    function markScrollBusy(){
+      scrollBusyUntil=Date.now()+900;
+    }
+
     function interactionBusy(){
+      if(Date.now()<scrollBusyUntil)return true;
       try{
         if(typeof window.__buntCaptainInteractionBusy==='function')return !!window.__buntCaptainInteractionBusy();
       }catch(_){}
@@ -119,10 +125,23 @@
       return api('/api/team-state?fresh='+Date.now());
     }
 
+    function restoreScrollPosition(x,y){
+      requestAnimationFrame(()=>{
+        requestAnimationFrame(()=>{
+          if(Math.abs((window.scrollY||0)-y)>1||Math.abs((window.scrollX||0)-x)>1){
+            window.scrollTo(x,y);
+          }
+        });
+      });
+    }
+
     function renderSharedNow(){
+      const scrollX=window.scrollX||0;
+      const scrollY=window.scrollY||0;
       if(typeof render==='function')render();
       if(typeof renderCaptainField==='function')renderCaptainField();
       window.dispatchEvent(new Event('buntpreferrednamesrefresh'));
+      restoreScrollPosition(scrollX,scrollY);
     }
 
     function scheduleDeferredRender(){
@@ -320,6 +339,10 @@
       const live=Number(state.gameInning)||1;
       if(editor!==live)setLiveInning(editor);
     }
+
+    window.addEventListener('scroll',markScrollBusy,{passive:true});
+    document.addEventListener('touchmove',markScrollBusy,{passive:true});
+    document.addEventListener('wheel',markScrollBusy,{passive:true});
 
     ensurePrime();
     setTimeout(()=>repairOldMismatch(),100);
