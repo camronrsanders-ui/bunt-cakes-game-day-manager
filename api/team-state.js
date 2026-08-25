@@ -217,7 +217,6 @@ function sendLogo(res, row) {
   const fallback = typeof team.logoUrl === 'string' && team.logoUrl.startsWith('/') ? team.logoUrl : '/generic-team-icon.svg';
   res.setHeader('Cache-Control', 'no-store');return res.redirect(307, fallback);
 }
-
 module.exports = async function handler(req, res) {
   try {
     const sql = getSql();
@@ -460,6 +459,7 @@ module.exports = async function handler(req, res) {
         if(!player||typeof player!=='object'||Array.isArray(player))return res.status(400).json({error:'Every roster player must be an object'});
         const rawId=typeof player.id==='string'?player.id.trim():'';
         if(!rawId)return res.status(400).json({error:'Every roster player must have a stable player ID'});
+        if(player.id!==rawId)return res.status(400).json({error:'Player IDs must not have surrounding whitespace'});
         if(seenPlayerIds.has(rawId))return res.status(400).json({error:'Player IDs must be unique within the team'});
         seenPlayerIds.add(rawId);
       }
