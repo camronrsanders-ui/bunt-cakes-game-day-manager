@@ -13,6 +13,8 @@
     let saving=false;
     let pending=null;
     let retryTimer=null;
+    let deferredRenderTimer=null;
+    let conflictRetries=0;
     let lastServerVersion='';
     let lastSyncedState=null;
     const bootState=JSON.parse(JSON.stringify(state||{}));
@@ -24,6 +26,14 @@
     const isObject=v=>v&&typeof v==='object'&&!Array.isArray(v);
     const show=(html)=>{if(status)status.innerHTML=html};
     const whenLabel=value=>value?new Date(value).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',second:'2-digit',hour12:true}):'now';
+
+    function interactionBusy(){
+      try{
+        if(typeof window.__buntCaptainInteractionBusy==='function'&&window.__buntCaptainInteractionBusy())return true;
+      }catch(_){}
+      const active=document.activeElement;
+      return !!(active&&/^(INPUT|SELECT|TEXTAREA)$/.test(active.tagName));
+    }
 
     function mergeLocalChanges(base,local,remote){
       if(Array.isArray(local)||Array.isArray(base)||Array.isArray(remote))return same(local,base)?clone(remote):clone(local);
@@ -48,10 +58,25 @@
       return api('/api/team-state?fresh='+Date.now());
     }
 
-    function renderShared(){
+    function renderSharedNow(){
       if(typeof render==='function')render();
       if(typeof renderCaptainField==='function')renderCaptainField();
       window.dispatchEvent(new Event('buntpreferrednamesrefresh'));
+    }
+
+    function renderShared(){
+      if(interactionBusy()){
+        clearTimeout(deferredRenderTimer);
+        deferredRenderTimer=setTimeout(()=>{
+          deferredRenderTimer=null;
+          if(!interactionBusy())renderSharedNow();
+        },850);
+        return false;
+      }
+      clearTimeout(deferredRenderTimer);
+      deferredRenderTimer=null;
+      renderSharedNow();
+      return true;
     }
 
     let primePromise=null;
@@ -115,8 +140,12 @@
               pending=clone(merged);
               renderShared();
               show('Syncing your change with a recent player update…');
-              continue;
+              conflictRetries=Math.min(conflictRetries+1,5);
+              const delay=Math.min(1600,250*Math.pow(2,conflictRetries-1));
+              retryTimer=setTimeout(drain,delay);
+              break;
             }
+            conflictRetries=0;
             lastServerVersion=String(r.updatedAt||lastServerVersion);
             lastSyncedState=clone(payload);
             show('<span class="ok">Saved live</span> • players updating • '+whenLabel(r.updatedAt));
@@ -150,9 +179,7 @@
     window.__buntCaptainLiveSyncBusy=()=>saving||!!pending;
 
     async function syncExternalChanges(){
-      if(!state||saving||pending||document.hidden)return;
-      const active=document.activeElement;
-      if(active&&/^(INPUT|SELECT|TEXTAREA)$/.test(active.tagName))return;
+      if(!state||saving||pending||document.hidden||interactionBusy())return;
       try{
         const r=await sharedState();
         const version=String(r.updatedAt||'');
