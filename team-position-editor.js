@@ -3,12 +3,9 @@
   const STYLE_ID='team-position-editor-style';
   let saving=false;
 
-  function storageKey(name){
-    return window.__teamStorageKey?window.__teamStorageKey(name):'teamgameday:'+name;
-  }
-  function playerName(){
-    const query=new URLSearchParams(location.search).get('player')||'';
-    return query||localStorage.getItem(storageKey('playerName'))||'';
+  function authenticatedName(){
+    const access=typeof state!=='undefined'&&state&&state.playerAccess;
+    return access&&access.paired===true?String(access.playerName||'').trim():'';
   }
   function liveInning(){return Math.min(7,Math.max(1,Number(state&&state.gameInning)||1));}
   function currentPosition(name,inning){
@@ -53,17 +50,9 @@
     if(typeof state==='undefined'||!state)return;
     const section=document.getElementById('lineup');
     if(!section)return;
-    const name=playerName();
+    const name=authenticatedName();
     let card=document.getElementById('teamPositionEditor');
-    if(!name){
-      if(card)card.remove();
-      return;
-    }
-    const roster=(state.players||[]).some(p=>p&&p.name===name);
-    if(!roster){if(card)card.remove();return;}
     ensureStyle();
-    const inning=liveInning();
-    const current=currentPosition(name,inning);
     if(!card){
       card=document.createElement('div');
       card.id='teamPositionEditor';
@@ -71,6 +60,14 @@
       const first=section.querySelector('.card');
       if(first)first.insertAdjacentElement('afterend',card);else section.prepend(card);
     }
+    if(!name){
+      card.innerHTML='<div class="position-editor-kicker">MY LIVE FIELD POSITION</div><strong>Player access required</strong><div class="position-editor-note">Player access is required to change your live field position. Ask your captain for a new setup link.</div>';
+      return;
+    }
+    const roster=(state.players||[]).some(p=>p&&p.name===name);
+    if(!roster){card.innerHTML='<div class="position-editor-kicker">MY LIVE FIELD POSITION</div><strong>Player access required</strong><div class="position-editor-note">Your paired player is no longer on this roster. Ask your captain for a new setup link.</div>';return;}
+    const inning=liveInning();
+    const current=currentPosition(name,inning);
     card.innerHTML='<div class="position-editor-top"><div><div class="position-editor-kicker">MY LIVE FIELD POSITION</div><div><strong>'+escapeHtml(name)+'</strong> • Inning '+inning+'</div><div class="position-editor-current">'+escapeHtml(current||'Rest / not fielding')+'</div></div><span class="pill">Updates both views</span></div><label><span class="muted">Change my position</span><select id="teamPositionSelect" '+(saving?'disabled':'')+'>'+optionHtml(name,inning,current)+'</select></label><div id="teamPositionStatus" class="position-editor-status muted">Choose an open spot, or choose an occupied spot to swap positions.</div><div class="position-editor-note">Only your live-inning assignment changes. The captain sees the same lineup automatically.</div>';
     const select=document.getElementById('teamPositionSelect');
     if(select)select.onchange=()=>changePosition(select.value);
@@ -78,7 +75,8 @@
 
   async function changePosition(position){
     if(saving)return;
-    const name=playerName();
+    const name=authenticatedName();
+    if(!name){mount();return;}
     const inning=liveInning();
     const current=currentPosition(name,inning);
     const target=position==='Rest'?'':position;
@@ -126,6 +124,7 @@
   const wait=setInterval(()=>{
     if(typeof state!=='undefined'&&state&&document.getElementById('lineup')){clearInterval(wait);mount();}
   },200);
+  window.addEventListener('teamplayeraccesschange',mount);
   window.addEventListener('buntpreferrednamesrefresh',mount);
   window.addEventListener('pageshow',mount);
   window.addEventListener('focus',mount);

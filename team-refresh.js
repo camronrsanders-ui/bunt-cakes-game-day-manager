@@ -15,6 +15,35 @@
     return Number((state&&state.gameInning)||(state&&state.fieldInning)||1);
   }
 
+  function playerAccess(value){
+    const access=value&&typeof value==='object'?value:{};
+    return access.paired===true?{
+      paired:true,
+      playerId:String(access.playerId||''),
+      playerName:String(access.playerName||''),
+      fullName:String(access.fullName||'')
+    }:{paired:false};
+  }
+
+  function accessSignature(value){
+    const access=playerAccess(value);
+    return access.paired?[access.playerId,access.playerName,access.fullName].join('|'):'unpaired';
+  }
+
+  function canonicalizePlayer(access){
+    if(!access||access.paired!==true)return;
+    const name=String(access.playerName||'').trim();
+    if(!name)return;
+    const storageKey=window.__teamStorageKey?window.__teamStorageKey('playerName'):'teamgameday:playerName';
+    try{localStorage.setItem(storageKey,name);}catch(_){}
+    try{
+      const url=new URL(location.href);
+      if(url.searchParams.get('player')===name)return;
+      url.searchParams.set('player',name);
+      history.replaceState(history.state,'',url.pathname+url.search+url.hash);
+    }catch(_){}
+  }
+
   function showMissingTeam(message){
     missingTeam=true;
     const text=String(message||'Team was not found').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -81,16 +110,26 @@
       const j=await r.json();
       if(r.status===404){showMissingTeam(j.error);return;}
       if(!r.ok)throw new Error(j.error||'Could not refresh live team data');
+      const incoming=j.state||{};
+      const nextAccess=playerAccess(incoming.playerAccess);
+      const previousAccess=accessSignature(state&&state.playerAccess);
+      const accessChanged=previousAccess!==accessSignature(nextAccess);
       const version=String(j.updatedAt||'');
       const changed=!lastVersion||version!==lastVersion;
       if(changed){
-        state=j.state||{};
+        state=incoming;
+        state.playerAccess=nextAccess;
         const n=Number(state.gameInning||state.fieldInning||1);
         state.gameInning=n;state.fieldInning=n;
+        canonicalizePlayer(nextAccess);
         if(typeof render==='function')render();
         window.dispatchEvent(new Event('buntpreferrednamesrefresh'));
         lastVersion=version;
+      }else if(state){
+        state.playerAccess=nextAccess;
+        canonicalizePlayer(nextAccess);
       }
+      if(accessChanged)window.dispatchEvent(new Event('teamplayeraccesschange'));
       if(error)error.classList.add('hidden');
       showLiveCheck(j.updatedAt,manual?'Refreshed':'Live');
       if(manual)showManualDone();
@@ -125,14 +164,14 @@
   const helpers=[
     ['data-bunt-field-rotation','/team-field-rotation.js?v=8'],
     ['data-bunt-team-usability','/team-usability.js?v=3'],
-    ['data-team-position-editor','/team-position-editor.js?v=1'],
+    ['data-team-position-editor','/team-position-editor.js?v=2'],
     ['data-team-officiating-view','/team-officiating-view.js?v=1'],
     ['data-team-role-badges','/team-role-badges.js?v=1'],
     ['data-bunt-preferred-names','/preferred-names.js?v=2'],
-    ['data-bunt-attendance','/team-attendance.js?v=4'],
-    ['data-bunt-access-checkin','/team-access-checkin.js?v=3'],
+    ['data-bunt-attendance','/team-attendance.js?v=5'],
+    ['data-bunt-access-checkin','/team-access-checkin.js?v=4'],
     ['data-team-branding','/team-branding.js?v=3'],
-    ['data-team-onboarding','/team-onboarding.js?v=2']
+    ['data-team-onboarding','/team-onboarding.js?v=3']
   ];
   helpers.forEach(([attr,src])=>{if(document.querySelector('script['+attr+']'))return;const script=document.createElement('script');script.src=src;script.setAttribute(attr,'1');document.head.appendChild(script);});
 })();
