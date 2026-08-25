@@ -16,6 +16,63 @@ function hashToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
+function hashPlayerToken(rawToken) {
+  return crypto.createHash('sha256').update(String(rawToken || '')).digest('hex');
+}
+
+function playerCookieName(teamId) {
+  const id = String(teamId || '').replace(/-/g, '');
+  return `bc_player_${id}`;
+}
+
+function readPlayerCookie(req, teamId) {
+  const name = playerCookieName(teamId);
+  const cookieHeader = String(req && req.headers && req.headers.cookie || '');
+  if (!cookieHeader) return '';
+  for (const part of cookieHeader.split(';')) {
+    const idx = part.indexOf('=');
+    if (idx === -1) continue;
+    const key = part.slice(0, idx).trim();
+    const value = part.slice(idx + 1).trim();
+    if (key === name && value) return value;
+  }
+  return '';
+}
+
+function setPlayerCookie(res, teamId, rawDeviceToken) {
+  const cookieName = playerCookieName(teamId);
+  const value = encodeURIComponent(String(rawDeviceToken || ''));
+  res.setHeader('Set-Cookie', `${cookieName}=${value}; Path=/api/team-state; HttpOnly; Secure; SameSite=Lax; Max-Age=31536000`);
+}
+
+async function resolveAuthenticatedPlayer(req, teamRow, state) {
+  if (!teamRow || !teamRow.id) return null;
+  const rawToken = readPlayerCookie(req, teamRow.id);
+  if (!/^[A-Za-z0-9_-]{43}$/.test(rawToken)) return null;
+  const tokenHash = hashPlayerToken(rawToken);
+  const sql = getSql();
+  const rows = await sql`
+    SELECT player_id
+    FROM player_device_sessions
+    WHERE token_hash = ${tokenHash}
+      AND team_id = ${teamRow.id}
+      AND revoked_at IS NULL
+      AND expires_at > now()
+    LIMIT 1
+  `;
+  const session = rows[0];
+  if (!session) return null;
+  const player = Array.isArray(state && state.players)
+    ? state.players.find(p => p && String(p.id || '') === String(session.player_id || ''))
+    : null;
+  if (!player) return null;
+  return {
+    playerId: String(player.id || ''),
+    playerName: String(player.name || ''),
+    fullName: String(player.fullName || '')
+  };
+}
+
 function normalizeTeamSlug(value) {
   const raw = String(value || '').trim().toLowerCase();
   return /^[a-z0-9][a-z0-9-]{2,63}$/.test(raw) ? raw : '';
@@ -129,6 +186,11 @@ module.exports = {
   DEFAULT_TEAM_SLUG,
   parseCookies,
   hashToken,
+  hashPlayerToken,
+  playerCookieName,
+  readPlayerCookie,
+  setPlayerCookie,
+  resolveAuthenticatedPlayer,
   normalizeTeamSlug,
   requestedTeamSlug,
   getCaptain,
