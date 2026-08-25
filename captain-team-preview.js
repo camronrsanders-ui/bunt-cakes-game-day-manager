@@ -1,5 +1,6 @@
 (()=>{
   const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  const safeExternalUrl=value=>{const raw=String(value||'').trim();if(!raw)return'';try{const parsed=new URL(raw);return parsed.protocol==='https:'||parsed.protocol==='http:'?parsed.href:''}catch(_){return''}};
   function currentTeam(s){return{primaryColor:'#15803d',accentColor:'#f7fff8',name:'',shortName:'',logoDataUrl:'',logoUrl:'',leagueAppsEnabled:false,...((s&&s.team)||{})}}
   function apply(s){
     const t=currentTeam(s),name=t.name||'Team Game Day';
@@ -11,8 +12,8 @@
     const sync=document.getElementById('sync');if(sync){const card=sync.closest('.card');if(card)card.style.display=t.leagueAppsEnabled?'':'none'}
     const section=document.getElementById('resources');
     if(section&&Array.isArray(s&&s.resources)){
-      const items=s.resources.filter(r=>r&&r.title&&r.url);
-      section.innerHTML='<div class="card"><strong>Team Resources</strong><div class="muted">This is the same resource list players see.</div></div><div class="grid g2">'+(items.length?items.map(r=>`<a class="card resource" target="_blank" rel="noopener" href="${esc(r.url)}"><strong>${esc(r.title)}</strong><div class="muted">${esc(r.description||'Open team resource')}</div></a>`).join(''):'<div class="card muted">No resources added yet. Add them in Team Settings.</div>')+'</div>';
+      const items=s.resources.filter(r=>r&&r.title&&r.url).map(r=>({...r,safeUrl:safeExternalUrl(r.url)})).filter(r=>r.safeUrl);
+      section.innerHTML='<div class="card"><strong>Team Resources</strong><div class="muted">This is the same resource list players see.</div></div><div class="grid g2">'+(items.length?items.map(r=>`<a class="card resource" target="_blank" rel="noopener" href="${esc(r.safeUrl)}"><strong>${esc(r.title)}</strong><div class="muted">${esc(r.description||'Open team resource')}</div></a>`).join(''):'<div class="card muted">No resources added yet. Add them in Team Settings.</div>')+'</div>';
     }
   }
   async function publicBrand(){try{const r=await fetch('/api/team-state?fresh='+Date.now(),{cache:'no-store'}),j=await r.json();if(r.ok)apply(j.state||{})}catch(e){apply({})}}
