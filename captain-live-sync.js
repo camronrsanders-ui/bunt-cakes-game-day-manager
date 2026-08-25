@@ -23,6 +23,7 @@
 
     const snapshot=()=>JSON.parse(JSON.stringify(state||{}));
     const clone=v=>JSON.parse(JSON.stringify(v==null?{}:v));
+    const deepCopy=v=>v===undefined?undefined:JSON.parse(JSON.stringify(v));
     const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
     const isObject=v=>v&&typeof v==='object'&&!Array.isArray(v);
     const entityCollections=new Set(['players','events','pods']);
@@ -119,6 +120,46 @@
         }
       }
       return out;
+    }
+
+    function reconcileInPlace(target,source,path=''){
+      if(Array.isArray(target)&&Array.isArray(source)){
+        const collection=String(path||'').split('.').pop();
+        if(entityCollections.has(collection)){
+          const byKey=new Map(target.map(item=>[entityKey(item,collection),item]));
+          const next=source.map(item=>{
+            const key=entityKey(item,collection);
+            const existing=key?byKey.get(key):null;
+            if(existing&&isObject(existing)&&isObject(item)){
+              reconcileInPlace(existing,item,path+'[]');
+              return existing;
+            }
+            return deepCopy(item);
+          });
+          target.splice(0,target.length,...next);
+          return target;
+        }
+        target.splice(0,target.length,...source.map(deepCopy));
+        return target;
+      }
+      if(isObject(target)&&isObject(source)){
+        for(const key of Object.keys(target)){
+          if(!Object.prototype.hasOwnProperty.call(source,key))delete target[key];
+        }
+        for(const [key,value] of Object.entries(source)){
+          const childPath=path?path+'.'+key:key;
+          const current=target[key];
+          if(Array.isArray(current)&&Array.isArray(value)){
+            reconcileInPlace(current,value,childPath);
+          }else if(isObject(current)&&isObject(value)){
+            reconcileInPlace(current,value,childPath);
+          }else{
+            target[key]=deepCopy(value);
+          }
+        }
+        return target;
+      }
+      return deepCopy(source);
     }
 
     async function sharedState(){
@@ -224,8 +265,8 @@
               const merged=mergeLocalChanges(base,payload,remote);
               lastServerVersion=String(r.updatedAt||'');
               lastSyncedState=clone(remote);
-              state=clone(merged);
-              pending=clone(merged);
+              reconcileInPlace(state,merged);
+              pending=snapshot();
               show('Syncing your change with a recent player update…');
               conflictRetries=Math.min(conflictRetries+1,5);
               const delay=Math.min(1600,250*Math.pow(2,conflictRetries-1));
