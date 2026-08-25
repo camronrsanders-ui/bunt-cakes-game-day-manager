@@ -173,5 +173,5 @@
     ['data-team-branding','/team-branding.js?v=3'],
     ['data-team-onboarding','/team-onboarding.js?v=3']
   ];
-  helpers.forEach(([attr,src])=>{if(document.querySelector('script['+attr+']'))return;const script=document.createElement('script');script.src=src;script.setAttribute(attr,'1');document.head.appendChild(script);});
+  helpers.forEach(([attr,src])=>{if(document.querySelector('script['+attr+']'))return;const script=document.createElement('script');script.async=false;script.src=src;script.setAttribute(attr,'1');document.head.appendChild(script);});
 })();

@@ -42,7 +42,7 @@ module.exports = async function handler(req, res) {
     );
     html = html.replace("['home','schedule','lineup','kicking','officials','resources']","['home','schedule','lineup','pods','kicking','officials','resources']");
     html = html.replace('load();setInterval(load,20000);', 'load();');
-    html = html.replace('</body>', '<script src="/team-refresh.js?v=9"></script><script src="/team-kicking.js?v=1"></script></body>');
+    html = html.replace('</body>', '<script src="/team-refresh.js?v=10"></script><script src="/team-kicking.js?v=1"></script></body>');
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store, max-age=0');

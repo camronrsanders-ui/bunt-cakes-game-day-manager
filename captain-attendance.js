@@ -114,6 +114,14 @@
     }catch(e){alert(e.message||'Could not save availability')}finally{saving=false}
   }
 
+  function sharedStateSafe(){
+    try{
+      if(typeof window.__buntCaptainLiveSyncBusy==='function'&&window.__buntCaptainLiveSyncBusy())return false;
+      if(typeof window.__buntCaptainInteractionBusy==='function'&&window.__buntCaptainInteractionBusy())return false;
+    }catch(_){}
+    return true;
+  }
+
   async function pull(){
     try{
       const [stateRes,captainRes,sessionRes]=await Promise.all([
@@ -122,7 +130,10 @@
         fetch('/api/session',{cache:'no-store',credentials:'include'})
       ]);
       const stateJson=await stateRes.json(),captainJson=await captainRes.json(),sessionJson=await sessionRes.json();
-      if(stateRes.ok&&state){state.availability=stateJson.state?.availability||{};state.team=stateJson.state?.team||state.team;state.captainPlayerLinks=stateJson.state?.captainPlayerLinks||{}}
+      if(stateRes.ok&&state&&sharedStateSafe()){
+        state.availability=stateJson.state?.availability||{};
+        state.captainPlayerLinks=stateJson.state?.captainPlayerLinks||{};
+      }
       if(captainRes.ok)captains=captainJson.captains||[];
       if(sessionRes.ok)session=sessionJson;
       render();

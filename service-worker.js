@@ -26,6 +26,30 @@ async function networkFirst(request){
   }
 }
 
+async function fastNavigation(request,event){
+  const cache=await caches.open(CACHE);
+  const cached=(await cache.match(request))||(await cache.match(request,{ignoreSearch:true}));
+  if(!cached)return networkFirst(request);
+
+  const network=fetch(request,{cache:'no-store'}).then(async response=>{
+    if(response&&response.ok){
+      await cache.put(request,response.clone());
+      return response;
+    }
+    return cached;
+  }).catch(()=>cached);
+
+  if(event&&typeof event.waitUntil==='function'){
+    event.waitUntil(network.then(()=>undefined).catch(()=>undefined));
+  }
+
+  const quickFallback=new Promise(resolve=>{
+    setTimeout(()=>resolve(cached),350);
+  });
+
+  return Promise.race([network,quickFallback]);
+}
+
 self.addEventListener('push',event=>{
   let data={};
   try{data=event.data?event.data.json():{}}catch(e){data={body:event.data?event.data.text():''}}
@@ -63,9 +87,9 @@ self.addEventListener('fetch',event=>{
 
   if(request.mode==='navigate'){
     event.respondWith((async()=>{
-      try{return await networkFirst(request)}catch(error){
+      try{return await fastNavigation(request,event)}catch(error){
         const cache=await caches.open(CACHE);
-        const exact=await cache.match(request);
+        const exact=(await cache.match(request))||(await cache.match(request,{ignoreSearch:true}));
         if(exact)return exact;
         return new Response('The team app is offline. Reconnect and reopen it.',{status:503,headers:{'Content-Type':'text/plain; charset=utf-8'}});
       }
