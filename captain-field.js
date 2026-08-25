@@ -69,14 +69,21 @@
     const inning = Number(state.fieldInning || state.gameInning || 1);
     const lineup = currentLineup();
     if (badge) badge.textContent = `Inning ${inning}`;
-    field.innerHTML = '';
+    field.textContent = '';
     Object.entries(COORDS).forEach(([position, [left, top]]) => {
       const player = lineup[position] || '';
       const node = document.createElement('div');
       node.className = `field-player${player ? '' : ' unassigned'}`;
       node.style.left = `${left}%`;
       node.style.top = `${top}%`;
-      node.innerHTML = `<span class="field-position-name">${position}</span><span class="field-person-name">${player || 'Unassigned'}</span>`;
+      const positionSpan = document.createElement('span');
+      positionSpan.className = 'field-position-name';
+      positionSpan.textContent = position;
+      const personSpan = document.createElement('span');
+      personSpan.className = 'field-person-name';
+      personSpan.textContent = player || 'Unassigned';
+      node.appendChild(positionSpan);
+      node.appendChild(personSpan);
       field.appendChild(node);
     });
   }
