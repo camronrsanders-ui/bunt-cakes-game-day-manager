@@ -69,11 +69,12 @@
 
   function currentLineup(){
     if(typeof state==='undefined'||!state)return;
+    const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
     const n=Number(state.gameInning||state.fieldInning)||1;
     const inn=state.innings?.[n]||{};
     const label=document.getElementById('lineupLabel');
     if(label)label.textContent='Current game inning '+n;
-    const html=POS.map(p=>'<div class="card"><div class="muted">'+p+'</div><strong>'+(inn[p]||'Unassigned')+'</strong></div>').join('');
+    const html=POS.map(p=>'<div class="card"><div class="muted">'+escapeHtml(p)+'</div><strong>'+escapeHtml(inn[p]||'Unassigned')+'</strong></div>').join('');
     const positions=document.getElementById('positions');
     const homeLineup=document.getElementById('homeLineup');
     if(positions)positions.innerHTML=html;
