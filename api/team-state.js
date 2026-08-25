@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const webpush = require('web-push');
 const { getSql } = require('./_db');
-const { DEFAULT_TEAM_SLUG, requestedTeamSlug, getTeam, getCaptainTeam, requireTeamCaptain, hashPlayerToken, setPlayerCookie } = require('./_auth');
+const { DEFAULT_TEAM_SLUG, requestedTeamSlug, getTeam, getCaptainTeam, requireTeamCaptain, hashPlayerToken, setPlayerCookie, resolveAuthenticatedPlayer } = require('./_auth');
 
 const ATTENDANCE = new Set(['yes', 'no', 'not_sure']);
 const FIELD_POSITIONS = ['Pitcher','Catcher','First Base','Second Base','Third Base','Shortstop','Left Field','Left Center Field','Center Field','Right Center Field','Right Field'];
@@ -284,10 +284,22 @@ module.exports = async function handler(req, res) {
       if (String(req.query && req.query.manifest || '') === '1') return sendManifest(res,row);
       if (String(req.query && req.query.logo || '') === '1') return sendLogo(res,row);
       const captain = await getCaptainTeam(req, teamSlug);
-      const requestedPlayer = String(req.query && req.query.player || '').trim().slice(0,80);
+      let responseState;
+      if(captain){
+        responseState=captainState(row.state);
+      }else{
+        const authenticatedPlayer=await resolveAuthenticatedPlayer(req,row,row.state||{});
+        responseState=publicState(row.state,authenticatedPlayer?authenticatedPlayer.playerName:'');
+        responseState.playerAccess=authenticatedPlayer?{
+          paired:true,
+          playerId:authenticatedPlayer.playerId,
+          playerName:authenticatedPlayer.playerName,
+          fullName:authenticatedPlayer.fullName
+        }:{paired:false};
+      }
       res.setHeader('Cache-Control', 'no-store');
       return res.status(200).json({
-        state: captain ? captainState(row.state) : publicState(row.state, requestedPlayer),
+        state:responseState,
         updatedAt:row.updated_at,teamSlug:row.slug,plan:row.plan,billingStatus:row.billing_status
       });
     }
@@ -434,9 +446,13 @@ module.exports = async function handler(req, res) {
         });
       }
 
-      const playerName=String(req.body&&req.body.playerName||'').trim().slice(0,80);
-      const player=(state.players||[]).find(p=>p&&p.name===playerName);
-      if(!player) return res.status(404).json({error:'Player was not found on the roster'});
+      const authenticatedPlayer=await resolveAuthenticatedPlayer(req,row,state);
+      if(!authenticatedPlayer)return res.status(401).json({
+        error:'Your player access needs to be set up again. Ask your captain for a new setup link.',
+        playerAccessRequired:true
+      });
+      const playerId=authenticatedPlayer.playerId;
+      const playerName=authenticatedPlayer.playerName;
 
       if(action==='subscribe'){
         const sub=req.body&&req.body.subscription;
@@ -485,7 +501,7 @@ module.exports = async function handler(req, res) {
           RETURNING updated_at
         `;
         if(!rows.length)return res.status(409).json({error:'The lineup changed while you were editing. Refresh and choose your position again.'});
-        return res.status(200).json({ok:true,action:'field-position',playerName,inning,previousPosition,position:target||'Rest',swappedWith,inningState:currentInning,updatedAt:rows[0].updated_at});
+        return res.status(200).json({ok:true,action:'field-position',playerName,playerId,inning,previousPosition,position:target||'Rest',swappedWith,inningState:currentInning,updatedAt:rows[0].updated_at});
       }
 
       const accessStatus=req.body&&req.body.accessStatus==='installed'?'installed':'browser';
@@ -493,7 +509,7 @@ module.exports = async function handler(req, res) {
       const next={...current,playerName,browserSeenAt:current.browserSeenAt||now,lastSeenAt:now,...(accessStatus==='installed'?{installedAt:current.installedAt||now}:{})};
       const payload=JSON.stringify(next);
       await sql`UPDATE team_states SET state=jsonb_set(state,'{appAccess}',COALESCE(state->'appAccess','{}'::jsonb)||jsonb_build_object(${playerName}::text,${payload}::jsonb),true),updated_at=now() WHERE team_id=${row.id}`;
-      return res.status(200).json({ok:true,accessStatus});
+      return res.status(200).json({ok:true,accessStatus,playerId,playerName});
     }
 
     if (req.method === 'PUT') {
