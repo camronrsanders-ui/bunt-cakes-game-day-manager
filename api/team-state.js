@@ -1,6 +1,7 @@
+const crypto = require('crypto');
 const webpush = require('web-push');
 const { getSql } = require('./_db');
-const { DEFAULT_TEAM_SLUG, requestedTeamSlug, getTeam, getCaptainTeam, requireTeamCaptain } = require('./_auth');
+const { DEFAULT_TEAM_SLUG, requestedTeamSlug, getTeam, getCaptainTeam, requireTeamCaptain, hashPlayerToken, setPlayerCookie } = require('./_auth');
 
 const ATTENDANCE = new Set(['yes', 'no', 'not_sure']);
 const FIELD_POSITIONS = ['Pitcher','Catcher','First Base','Second Base','Third Base','Shortstop','Left Field','Left Center Field','Center Field','Right Center Field','Right Field'];
@@ -245,10 +246,143 @@ module.exports = async function handler(req, res) {
 
     if (req.method === 'POST') {
       const state=row.state||{};
+      const action=String(req.body&&req.body.action||'access');
+
+      if(action==='create-player-invite'){
+        const user=await requireTeamCaptain(req,res,teamSlug);if(!user)return;
+        const playerId=String(req.body&&req.body.playerId||'').trim().slice(0,120);
+        if(!playerId)return res.status(400).json({error:'A player ID is required'});
+        const player=(state.players||[]).find(p=>p&&String(p.id||'')===playerId);
+        if(!player)return res.status(404).json({error:'Player was not found on the roster'});
+        const rawInviteToken=crypto.randomBytes(32).toString('base64url');
+        const inviteHash=hashPlayerToken(rawInviteToken);
+        const inviteRows=await sql`
+          WITH revoked AS (
+            UPDATE player_pairing_invites
+            SET revoked_at=now()
+            WHERE team_id=${row.id}
+              AND player_id=${playerId}
+              AND used_at IS NULL
+              AND revoked_at IS NULL
+            RETURNING 1
+          ),
+          gate AS (
+            SELECT count(*) AS revoked_count FROM revoked
+          ),
+          created AS (
+            INSERT INTO player_pairing_invites (
+              token_hash,team_id,player_id,created_by_captain_user_id,
+              created_at,expires_at,used_at,revoked_at
+            )
+            SELECT ${inviteHash},${row.id},${playerId},${user.id},now(),now()+interval '7 days',NULL,NULL
+            FROM gate
+            RETURNING expires_at
+          )
+          SELECT expires_at FROM created
+        `;
+        const inviteRow=inviteRows[0];
+        if(!inviteRow)return res.status(500).json({error:'Could not create player setup link'});
+        return res.status(200).json({
+          ok:true,
+          playerId,
+          playerName:player.name||'',
+          inviteUrl:`/team/${encodeURIComponent(row.slug)}#pair=${rawInviteToken}`,
+          expiresAt:inviteRow.expires_at
+        });
+      }
+
+      if(action==='pair-player'){
+        const rawInviteToken=String(req.body&&req.body.inviteToken||'').trim();
+        if(!/^[A-Za-z0-9_-]{43}$/.test(rawInviteToken))return res.status(400).json({error:'This player setup link is invalid or expired'});
+        const inviteHash=hashPlayerToken(rawInviteToken);
+        const rawDeviceToken=crypto.randomBytes(32).toString('base64url');
+        const deviceHash=hashPlayerToken(rawDeviceToken);
+        const pairedRows=await sql`
+          WITH consumed AS (
+            UPDATE player_pairing_invites
+            SET used_at=now()
+            WHERE token_hash=${inviteHash}
+              AND team_id=${row.id}
+              AND used_at IS NULL
+              AND revoked_at IS NULL
+              AND expires_at>now()
+              AND EXISTS (
+                SELECT 1
+                FROM team_states ts
+                WHERE ts.team_id=${row.id}
+                  AND EXISTS (
+                    SELECT 1
+                    FROM jsonb_array_elements(COALESCE(ts.state->'players','[]'::jsonb)) AS p
+                    WHERE p->>'id'=player_pairing_invites.player_id
+                  )
+              )
+            RETURNING team_id,player_id
+          ),
+          created AS (
+            INSERT INTO player_device_sessions (
+              token_hash,team_id,player_id,created_at,last_seen_at,expires_at,revoked_at
+            )
+            SELECT ${deviceHash},consumed.team_id,consumed.player_id,now(),now(),now()+interval '365 days',NULL
+            FROM consumed
+            RETURNING team_id,player_id
+          )
+          SELECT player_id FROM created
+        `;
+        const paired=pairedRows[0];
+        if(!paired)return res.status(401).json({error:'This player setup link is invalid or expired'});
+        const player=(state.players||[]).find(p=>p&&String(p.id||'')===String(paired.player_id||''));
+        if(!player)return res.status(401).json({error:'This player setup link is invalid or expired'});
+        setPlayerCookie(res,row.id,rawDeviceToken);
+        return res.status(200).json({
+          ok:true,
+          paired:true,
+          playerId:String(player.id||''),
+          playerName:String(player.name||''),
+          fullName:String(player.fullName||'')
+        });
+      }
+
+      if(action==='reset-player-access'){
+        const user=await requireTeamCaptain(req,res,teamSlug);if(!user)return;
+        const playerId=String(req.body&&req.body.playerId||'').trim().slice(0,120);
+        if(!playerId)return res.status(400).json({error:'A player ID is required'});
+        const player=(state.players||[]).find(p=>p&&String(p.id||'')===playerId);
+        if(!player)return res.status(404).json({error:'Player was not found on the roster'});
+        const resetRows=await sql`
+          WITH sessions AS (
+            UPDATE player_device_sessions
+            SET revoked_at=now()
+            WHERE team_id=${row.id}
+              AND player_id=${playerId}
+              AND revoked_at IS NULL
+              AND expires_at>now()
+            RETURNING 1
+          ),
+          invites AS (
+            UPDATE player_pairing_invites
+            SET revoked_at=now()
+            WHERE team_id=${row.id}
+              AND player_id=${playerId}
+              AND used_at IS NULL
+              AND revoked_at IS NULL
+            RETURNING 1
+          )
+          SELECT
+            (SELECT count(*) FROM sessions) AS revoked_sessions,
+            (SELECT count(*) FROM invites) AS revoked_invites
+        `;
+        const counts=resetRows[0]||{};
+        return res.status(200).json({
+          ok:true,
+          playerId,
+          revokedSessions:Number(counts.revoked_sessions||0),
+          revokedInvites:Number(counts.revoked_invites||0)
+        });
+      }
+
       const playerName=String(req.body&&req.body.playerName||'').trim().slice(0,80);
       const player=(state.players||[]).find(p=>p&&p.name===playerName);
       if(!player) return res.status(404).json({error:'Player was not found on the roster'});
-      const action=String(req.body&&req.body.action||'access');
 
       if(action==='subscribe'){
         const sub=req.body&&req.body.subscription;
@@ -319,6 +453,16 @@ module.exports = async function handler(req, res) {
       for(const resource of nextResources){
         const resourceUrl=resource&&typeof resource.url==='string'?resource.url.trim():'';
         if(resourceUrl&&!isSafeExternalUrl(resourceUrl))return res.status(400).json({error:'Resource links must start with https:// or http://'});
+      }
+      if(!Array.isArray(next.players))return res.status(400).json({error:'A valid roster array is required'});
+      const seenPlayerIds=new Set();
+      for(const player of next.players){
+        if(!player||typeof player!=='object'||Array.isArray(player))return res.status(400).json({error:'Every roster player must be an object'});
+        const rawId=typeof player.id==='string'?player.id.trim():'';
+        if(!rawId)return res.status(400).json({error:'Every roster player must have a stable player ID'});
+        if(player.id!==rawId)return res.status(400).json({error:'Player IDs must not have surrounding whitespace'});
+        if(seenPlayerIds.has(rawId))return res.status(400).json({error:'Player IDs must be unique within the team'});
+        seenPlayerIds.add(rawId);
       }
       const expectedUpdatedAt=String(req.body&&req.body.expectedUpdatedAt||'').trim();
       if(expectedUpdatedAt&&Number.isNaN(Date.parse(expectedUpdatedAt)))return res.status(400).json({error:'The expected team-state version is invalid'});
