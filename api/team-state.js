@@ -230,6 +230,54 @@ module.exports = async function handler(req, res) {
     if(!row) return res.status(404).json({error:'Team was not found'});
 
     if (req.method === 'GET') {
+      if (String(req.query && req.query.playerAccess || '') === '1') {
+        const user=await requireTeamCaptain(req,res,teamSlug);if(!user)return;
+        const accessRows=await sql`
+          WITH roster AS (
+            SELECT DISTINCT p->>'id' AS player_id
+            FROM team_states ts
+            CROSS JOIN LATERAL jsonb_array_elements(COALESCE(ts.state->'players','[]'::jsonb)) AS p
+            WHERE ts.team_id=${row.id}
+              AND COALESCE(p->>'id','')<>''
+          ),
+          sessions AS (
+            SELECT player_id,count(*)::int AS active_devices
+            FROM player_device_sessions
+            WHERE team_id=${row.id}
+              AND revoked_at IS NULL
+              AND expires_at>now()
+            GROUP BY player_id
+          ),
+          invites AS (
+            SELECT player_id,max(expires_at) AS invite_expires_at
+            FROM player_pairing_invites
+            WHERE team_id=${row.id}
+              AND used_at IS NULL
+              AND revoked_at IS NULL
+              AND expires_at>now()
+            GROUP BY player_id
+          )
+          SELECT
+            roster.player_id,
+            COALESCE(sessions.active_devices,0)::int AS active_devices,
+            (invites.player_id IS NOT NULL) AS pending_invite,
+            invites.invite_expires_at
+          FROM roster
+          LEFT JOIN sessions ON sessions.player_id=roster.player_id
+          LEFT JOIN invites ON invites.player_id=roster.player_id
+          ORDER BY roster.player_id
+        `;
+        res.setHeader('Cache-Control','no-store');
+        return res.status(200).json({
+          ok:true,
+          players:accessRows.map(item=>({
+            playerId:String(item.player_id||''),
+            activeDevices:Number(item.active_devices||0),
+            pendingInvite:item.pending_invite===true,
+            inviteExpiresAt:item.invite_expires_at||null
+          }))
+        });
+      }
       if (String(req.query && req.query.pushConfig || '') === '1') {
         const config = await ensurePushConfig(sql);res.setHeader('Cache-Control','no-store');return res.status(200).json({publicKey:config.publicKey});
       }
@@ -326,19 +374,25 @@ module.exports = async function handler(req, res) {
             FROM consumed
             RETURNING team_id,player_id
           )
-          SELECT player_id FROM created
+          SELECT
+            created.player_id,
+            COALESCE(p->>'name','') AS player_name,
+            COALESCE(p->>'fullName','') AS full_name
+          FROM created
+          JOIN team_states ts ON ts.team_id=created.team_id
+          CROSS JOIN LATERAL jsonb_array_elements(COALESCE(ts.state->'players','[]'::jsonb)) AS p
+          WHERE p->>'id'=created.player_id
+          LIMIT 1
         `;
         const paired=pairedRows[0];
         if(!paired)return res.status(401).json({error:'This player setup link is invalid or expired'});
-        const player=(state.players||[]).find(p=>p&&String(p.id||'')===String(paired.player_id||''));
-        if(!player)return res.status(401).json({error:'This player setup link is invalid or expired'});
         setPlayerCookie(res,row.id,rawDeviceToken);
         return res.status(200).json({
           ok:true,
           paired:true,
-          playerId:String(player.id||''),
-          playerName:String(player.name||''),
-          fullName:String(player.fullName||'')
+          playerId:String(paired.player_id||''),
+          playerName:String(paired.player_name||''),
+          fullName:String(paired.full_name||'')
         });
       }
 
