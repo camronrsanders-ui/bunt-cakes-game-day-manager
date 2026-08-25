@@ -18,6 +18,7 @@ function teamConfig(state) {
 function isSafeExternalUrl(value) {
   const raw = String(value || '').trim();
   if (!raw) return true;
+  if (!/^https?:\/\//i.test(raw)) return false;
   try {
     const parsed = new URL(raw);
     return parsed.protocol === 'https:' || parsed.protocol === 'http:';
