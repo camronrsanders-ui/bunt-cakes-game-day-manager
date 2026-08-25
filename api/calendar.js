@@ -1,4 +1,5 @@
-const { DEFAULT_TEAM_SLUG, normalizeTeamSlug } = require('./_auth');
+const { getSql } = require('./_db');
+const { DEFAULT_TEAM_SLUG, normalizeTeamSlug, getTeam } = require('./_auth');
 
 function esc(value='') {
   return String(value).replace(/\\/g,'\\\\').replace(/\n/g,'\\n').replace(/,/g,'\\,').replace(/;/g,'\\;');
@@ -27,16 +28,16 @@ function slug(value='team') {
 module.exports = async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).send('Method not allowed');
   try {
-    const proto = req.headers['x-forwarded-proto'] || 'https';
-    const host = req.headers.host;
     const query = req && req.query || {};
     const hasTeam = Object.prototype.hasOwnProperty.call(query, 'team');
     const teamSlug = hasTeam ? normalizeTeamSlug(query.team) : DEFAULT_TEAM_SLUG;
     if (!teamSlug) return res.status(404).send('Team was not found');
-    const r = await fetch(`${proto}://${host}/api/team-state?team=${encodeURIComponent(teamSlug)}&fresh=${Date.now()}`, {headers:{'User-Agent':'TeamGameDayCalendar/1.0'},cache:'no-store'});
-    if (!r.ok) return res.status(r.status===404?404:502).send(r.status===404?'Team was not found':'Could not load team schedule');
-    const data = await r.json();
-    const state = data.state || {};
+
+    const sql = getSql();
+    const row = await getTeam(sql, teamSlug);
+    if (!row) return res.status(404).send('Team was not found');
+
+    const state = row.state || {};
     const team = state.team || {};
     const teamName = team.name || 'Team';
     const shortName = team.shortName || teamName;
@@ -77,6 +78,7 @@ module.exports = async function handler(req, res) {
     res.setHeader('Cache-Control','no-store, max-age=0');
     return res.status(200).send(lines.join('\r\n'));
   } catch (error) {
-    return res.status(500).send('Could not build game calendar');
+    const status=error&&error.code==='DATABASE_NOT_CONFIGURED'?503:500;
+    return res.status(status).send('Could not build game calendar');
   }
 };
