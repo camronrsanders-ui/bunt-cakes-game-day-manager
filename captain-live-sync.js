@@ -226,7 +226,6 @@
               lastSyncedState=clone(remote);
               state=clone(merged);
               pending=clone(merged);
-              renderShared();
               show('Syncing your change with a recent player update…');
               conflictRetries=Math.min(conflictRetries+1,5);
               const delay=Math.min(1600,250*Math.pow(2,conflictRetries-1));
