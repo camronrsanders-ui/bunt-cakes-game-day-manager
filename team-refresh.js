@@ -166,7 +166,7 @@
     ['data-bunt-team-usability','/team-usability.js?v=3'],
     ['data-team-position-editor','/team-position-editor.js?v=2'],
     ['data-team-officiating-view','/team-officiating-view.js?v=1'],
-    ['data-team-role-badges','/team-role-badges.js?v=2'],
+    ['data-team-role-badges','/team-role-badges.js?v=1'],
     ['data-bunt-preferred-names','/preferred-names.js?v=2'],
     ['data-bunt-attendance','/team-attendance.js?v=5'],
     ['data-bunt-access-checkin','/team-access-checkin.js?v=4'],
