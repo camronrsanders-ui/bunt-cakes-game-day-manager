@@ -2,6 +2,7 @@
   const DEFAULT_TEAM={name:'',shortName:'',organization:'',sport:'Kickball',location:'',primaryColor:'#15803d',accentColor:'#f7fff8',logoDataUrl:'',logoUrl:'',chatUrl:'',announcement:'',arrivalMinutes:60,secondReminderMinutes:30,leagueAppsEnabled:false,timeZone:'America/New_York'};
   const DEFAULT_VIS={schedule:true,lineup:true,pods:true,kicking:true,officials:true,resources:true,attendance:true};
   const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  const safeExternalUrl=value=>{const raw=String(value||'').trim();if(!raw||!/^https?:\/\//i.test(raw))return'';try{const parsed=new URL(raw);return parsed.protocol==='https:'||parsed.protocol==='http:'?parsed.href:''}catch(_){return''}};
   const $id=id=>document.getElementById(id);
   let lastKey='';
 
@@ -22,8 +23,9 @@
     document.querySelectorAll('.reminder-actions a').forEach((a,i)=>{a.href=i===0?`webcal://${location.host}/calendar/${slug}.ics`:`/calendar/${slug}.ics`});
   }
   function applyChat(t){
-    const links=document.querySelectorAll('.chat-btn');links.forEach(a=>{if(t.chatUrl){a.href=t.chatUrl;a.style.display='';a.textContent='Open Team Chat'}else a.style.display='none'});
-    document.querySelectorAll('.chat-card').forEach(card=>{card.style.display=t.chatUrl?'':'none';const h=card.querySelector('h2');if(h)h.textContent=(t.shortName||t.name||'Team')+' Chat'});
+    const safeUrl=safeExternalUrl(t.chatUrl);
+    const links=document.querySelectorAll('.chat-btn');links.forEach(a=>{if(safeUrl){a.href=safeUrl;a.style.display='';a.textContent='Open Team Chat'}else{a.removeAttribute('href');a.style.display='none'}});
+    document.querySelectorAll('.chat-card').forEach(card=>{card.style.display=safeUrl?'':'none';const h=card.querySelector('h2');if(h)h.textContent=(t.shortName||t.name||'Team')+' Chat'});
   }
   function applyAnnouncement(t){
     const home=$id('home');if(!home)return;
@@ -42,10 +44,10 @@
     const section=$id('resources');if(!section)return;
     if(v.resources===false)return;
     if(!Array.isArray(state.resources))return;
-    const resources=state.resources.filter(r=>r&&r.title&&r.url);
+    const resources=state.resources.map(r=>r&&r.title?{...r,safeUrl:safeExternalUrl(r.url)}:null).filter(r=>r&&r.safeUrl);
     section.innerHTML='<div class="card"><strong>Team Resources</strong><div class="muted">Links selected by your captain.</div></div><div class="grid g2" id="dynamicResourceGrid"></div>';
     const grid=$id('dynamicResourceGrid');
-    grid.innerHTML=resources.length?resources.map(r=>`<a class="card resource" target="_blank" rel="noopener" href="${esc(r.url)}"><strong>${esc(r.title)}</strong><div class="muted">${esc(r.description||'Open team resource')}</div><div class="go">Open resource ↗</div></a>`).join(''):'<div class="card muted">No resources have been added yet.</div>';
+    grid.innerHTML=resources.length?resources.map(r=>`<a class="card resource" target="_blank" rel="noopener" href="${esc(r.safeUrl)}"><strong>${esc(r.title)}</strong><div class="muted">${esc(r.description||'Open team resource')}</div><div class="go">Open resource ↗</div></a>`).join(''):'<div class="card muted">No resources have been added yet.</div>';
   }
   function applyVisibility(v){
     const map={schedule:'schedule',lineup:'lineup',pods:'pods',kicking:'kicking',officials:'officials',resources:'resources'};
