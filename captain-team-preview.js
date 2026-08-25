@@ -1,6 +1,6 @@
 (()=>{
   const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-  const safeExternalUrl=value=>{const raw=String(value||'').trim();if(!raw)return'';try{const parsed=new URL(raw);return parsed.protocol==='https:'||parsed.protocol==='http:'?parsed.href:''}catch(_){return''}};
+  const safeExternalUrl=value=>{const raw=String(value||'').trim();if(!raw||!/^https?:\/\//i.test(raw))return'';try{const parsed=new URL(raw);return parsed.protocol==='https:'||parsed.protocol==='http:'?parsed.href:''}catch(_){return''}};
   function currentTeam(s){return{primaryColor:'#15803d',accentColor:'#f7fff8',name:'',shortName:'',logoDataUrl:'',logoUrl:'',leagueAppsEnabled:false,...((s&&s.team)||{})}}
   function apply(s){
     const t=currentTeam(s),name=t.name||'Team Game Day';
