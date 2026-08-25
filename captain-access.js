@@ -1,5 +1,6 @@
 (function(){
   const fmt=value=>value?new Date(value).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true}):'';
+  const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 
   async function loadAccess(){
     const host=document.getElementById('access');
@@ -23,8 +24,8 @@
       const confirmed=players.filter(p=>access[p.name]?.installedAt||access[p.name]?.captainLoginAt).length;
       const browserOnly=players.filter(p=>access[p.name]?.browserSeenAt&&!access[p.name]?.installedAt&&!access[p.name]?.captainLoginAt).length;
       const unseen=players.length-confirmed-browserOnly;
-      rows.innerHTML='<div class="grid g3" style="margin-bottom:10px"><div class="card" style="border-color:#86efac"><div class="muted">Access confirmed</div><div class="big">'+confirmed+'</div></div><div class="card" style="border-color:#fde68a"><div class="muted">Browser only</div><div class="big">'+browserOnly+'</div></div><div class="card" style="border-color:#fecaca"><div class="muted">Not seen yet</div><div class="big">'+unseen+'</div></div></div>'+players.map(p=>{const a=access[p.name]||{};const status=a.installedAt?'✅ Home Screen confirmed':a.captainLoginAt?'✅ Captain login confirmed':a.browserSeenAt?'🟡 Browser opened':'❌ Not opened yet';const detail=a.installedAt?'Confirmed '+fmt(a.installedAt):a.captainLoginAt?'Captain login '+fmt(a.captainLoginAt):a.browserSeenAt?'First seen '+fmt(a.browserSeenAt):'No check-in yet';return '<div class="row wrap" style="padding:9px 0;border-top:1px solid var(--l)"><div><strong>'+(p.fullName||p.name)+'</strong><div class="muted">'+detail+'</div></div><span class="pill">'+status+'</span></div>'}).join('');
-    }catch(error){rows.innerHTML='<div class="error">'+error.message+'</div>'}
+      rows.innerHTML='<div class="grid g3" style="margin-bottom:10px"><div class="card" style="border-color:#86efac"><div class="muted">Access confirmed</div><div class="big">'+confirmed+'</div></div><div class="card" style="border-color:#fde68a"><div class="muted">Browser only</div><div class="big">'+browserOnly+'</div></div><div class="card" style="border-color:#fecaca"><div class="muted">Not seen yet</div><div class="big">'+unseen+'</div></div></div>'+players.map(p=>{const a=access[p.name]||{};const status=a.installedAt?'✅ Home Screen confirmed':a.captainLoginAt?'✅ Captain login confirmed':a.browserSeenAt?'🟡 Browser opened':'❌ Not opened yet';const detail=a.installedAt?'Confirmed '+fmt(a.installedAt):a.captainLoginAt?'Captain login '+fmt(a.captainLoginAt):a.browserSeenAt?'First seen '+fmt(a.browserSeenAt):'No check-in yet';return '<div class="row wrap" style="padding:9px 0;border-top:1px solid var(--l)"><div><strong>'+esc(p.fullName||p.name)+'</strong><div class="muted">'+esc(detail)+'</div></div><span class="pill">'+esc(status)+'</span></div>'}).join('');
+    }catch(error){rows.innerHTML='<div class="error">'+esc(error.message||'Could not load team access')+'</div>'}
   }
 
   const timer=setInterval(()=>{if(document.getElementById('access')){clearInterval(timer);loadAccess()}},300);
