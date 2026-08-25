@@ -52,27 +52,31 @@
       const player=(state.players||[]).find(p=>p.name===nameInput.value);
       if(!player)return;
       card.dataset.surveyEnhanced='1';
-      const list=prefs(player),hasSurvey=submitted(player),fieldReady=ready(player);
+      const list=prefs(player);
       const status=document.createElement('div');
-      status.className='survey-status '+(hasSurvey?'complete':'missing');
-      status.innerHTML='<div><strong>'+(hasSurvey?'✅ Survey submitted':'❌ Survey not submitted')+'</strong><div class="muted">'+esc(player.name)+'</div></div><div><strong>'+(fieldReady?'✅ Field guidance ready':'⚠️ Field guidance missing')+'</strong><div class="muted">'+esc(preferenceText(player))+'</div></div>';
+      function refreshStatus(){
+        const hasSurvey=submitted(player),fieldReady=ready(player);
+        status.className='survey-status '+(hasSurvey?'complete':'missing');
+        status.innerHTML='<div><strong>'+(hasSurvey?'✅ Survey submitted':'❌ Survey not submitted')+'</strong><div class="muted">'+esc(player.name)+'</div></div><div><strong>'+(fieldReady?'✅ Field guidance ready':'⚠️ Field guidance missing')+'</strong><div class="muted">'+esc(preferenceText(player))+'</div></div>';
+      }
+      refreshStatus();
       card.prepend(status);
       const details=document.createElement('details');
       details.className='survey-editor';
       details.innerHTML='<summary>Edit survey & fielding preferences</summary><div class="survey-position-grid">'+POS.map(pos=>'<label class="survey-position"><input type="checkbox" value="'+esc(pos)+'" '+(list.includes(pos)?'checked':'')+'>'+esc(pos)+'</label>').join('')+'</div><div class="survey-mode-grid"><label class="survey-mode"><input class="flexibleAnywhere" type="checkbox" '+(isFlexible(player)?'checked':'')+'><div><strong>Flexible / anywhere</strong><span>Player is comfortable being placed at any field position.</span></div></label><label class="survey-mode"><input class="willingElsewhere" type="checkbox" '+(isWilling(player)?'checked':'')+'><div><strong>Willing to play elsewhere</strong><span>Keep listed positions as preferences, but allow another position if the team needs it.</span></div></label></div><div class="survey-note">Survey submission and fielding guidance are separate. Captain-entered preferences do not count as a survey response. Preferences guide the builder, but the captain can always override a field assignment.</div><div class="survey-actions"><button type="button" class="surveyCompleteBtn primary">Mark survey submitted</button><button type="button" class="surveyMissingBtn">Mark survey not submitted</button></div>';
-      function rerender(){queueSave();card.dataset.surveyEnhanced='';renderRoster();}
+      function persist(){queueSave();refreshStatus();}
       details.querySelectorAll('.survey-position input').forEach(cb=>cb.onchange=()=>{
         const checked=new Set([...details.querySelectorAll('.survey-position input:checked')].map(x=>x.value));
         const next=prefs(player).filter(pos=>checked.has(pos));
         POS.forEach(pos=>{if(checked.has(pos)&&!next.includes(pos))next.push(pos);});
         player.preferences=next;
         sync(player,submitted(player)?'survey':'captain');
-        rerender();
+        persist();
       });
-      details.querySelector('.flexibleAnywhere').onchange=e=>{player.flexible=e.target.checked;player.flexibleAnywhere=e.target.checked;sync(player,submitted(player)?'survey':'captain');rerender();};
-      details.querySelector('.willingElsewhere').onchange=e=>{player.willingElsewhere=e.target.checked;player.flexibleElsewhere=e.target.checked;sync(player,submitted(player)?'survey':'captain');rerender();};
-      details.querySelector('.surveyCompleteBtn').onclick=()=>{player.surveySubmitted=true;sync(player,'survey');rerender();};
-      details.querySelector('.surveyMissingBtn').onclick=()=>{player.surveySubmitted=false;sync(player,'captain');rerender();};
+      details.querySelector('.flexibleAnywhere').onchange=e=>{player.flexible=e.target.checked;player.flexibleAnywhere=e.target.checked;sync(player,submitted(player)?'survey':'captain');persist();};
+      details.querySelector('.willingElsewhere').onchange=e=>{player.willingElsewhere=e.target.checked;player.flexibleElsewhere=e.target.checked;sync(player,submitted(player)?'survey':'captain');persist();};
+      details.querySelector('.surveyCompleteBtn').onclick=()=>{player.surveySubmitted=true;sync(player,'survey');persist();};
+      details.querySelector('.surveyMissingBtn').onclick=()=>{player.surveySubmitted=false;sync(player,'captain');persist();};
       card.appendChild(details);
     });
   }
