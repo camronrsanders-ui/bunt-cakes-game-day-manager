@@ -23,9 +23,16 @@ function normalizeTeamSlug(value) {
 
 function requestedTeamSlug(req) {
   const query = req && req.query || {};
-  const fromQuery = normalizeTeamSlug(query.team || query.teamSlug || query.slug);
-  const fromHeader = normalizeTeamSlug(req && req.headers && req.headers['x-team-slug']);
-  return fromQuery || fromHeader || DEFAULT_TEAM_SLUG;
+  for (const key of ['team', 'teamSlug', 'slug']) {
+    if (Object.prototype.hasOwnProperty.call(query, key)) {
+      return normalizeTeamSlug(query[key]);
+    }
+  }
+  const headers = req && req.headers || {};
+  if (Object.prototype.hasOwnProperty.call(headers, 'x-team-slug')) {
+    return normalizeTeamSlug(headers['x-team-slug']);
+  }
+  return DEFAULT_TEAM_SLUG;
 }
 
 async function getCaptain(req) {
@@ -45,8 +52,9 @@ async function getCaptain(req) {
   return rows[0] || null;
 }
 
-async function getTeam(sql, slug) {
-  const safe = normalizeTeamSlug(slug) || DEFAULT_TEAM_SLUG;
+async function getTeam(sql, slug = DEFAULT_TEAM_SLUG) {
+  const safe = normalizeTeamSlug(slug);
+  if (!safe) return null;
   const rows = await sql`
     SELECT t.id, t.slug, t.active, t.plan, t.billing_status,
            ts.state, ts.updated_at
@@ -62,7 +70,8 @@ async function getCaptainTeam(req, slug) {
   const user = await getCaptain(req);
   if (!user) return null;
   const sql = getSql();
-  const safe = normalizeTeamSlug(slug) || requestedTeamSlug(req);
+  const safe = slug === undefined ? requestedTeamSlug(req) : normalizeTeamSlug(slug);
+  if (!safe) return null;
   const rows = await sql`
     SELECT t.id AS team_id, t.slug, t.plan, t.billing_status,
            m.role, u.id, u.email, u.display_name
@@ -106,7 +115,8 @@ function requireCaptain(req, res) {
 }
 
 function requireTeamCaptain(req, res, slug) {
-  return getCaptainTeam(req, slug || requestedTeamSlug(req)).then(user => {
+  const requested = slug === undefined ? requestedTeamSlug(req) : slug;
+  return getCaptainTeam(req, requested).then(user => {
     if (!user) {
       res.status(403).json({ error: 'You do not have captain access to this team' });
       return null;

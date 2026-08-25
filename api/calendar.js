@@ -1,3 +1,5 @@
+const { DEFAULT_TEAM_SLUG, normalizeTeamSlug } = require('./_auth');
+
 function esc(value='') {
   return String(value).replace(/\\/g,'\\\\').replace(/\n/g,'\\n').replace(/,/g,'\\,').replace(/;/g,'\\;');
 }
@@ -27,8 +29,10 @@ module.exports = async function handler(req, res) {
   try {
     const proto = req.headers['x-forwarded-proto'] || 'https';
     const host = req.headers.host;
-    const rawTeam=String(req.query&&req.query.team||'those-dirty-bunt-cakes').toLowerCase();
-    const teamSlug=/^[a-z0-9][a-z0-9-]{2,63}$/.test(rawTeam)?rawTeam:'those-dirty-bunt-cakes';
+    const query = req && req.query || {};
+    const hasTeam = Object.prototype.hasOwnProperty.call(query, 'team');
+    const teamSlug = hasTeam ? normalizeTeamSlug(query.team) : DEFAULT_TEAM_SLUG;
+    if (!teamSlug) return res.status(404).send('Team was not found');
     const r = await fetch(`${proto}://${host}/api/team-state?team=${encodeURIComponent(teamSlug)}&fresh=${Date.now()}`, {headers:{'User-Agent':'TeamGameDayCalendar/1.0'},cache:'no-store'});
     if (!r.ok) return res.status(r.status===404?404:502).send(r.status===404?'Team was not found':'Could not load team schedule');
     const data = await r.json();
