@@ -15,6 +15,17 @@ function teamConfig(state) {
   return { ...DEFAULT_TEAM, ...((state && state.team) || {}) };
 }
 
+function isSafeExternalUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return true;
+  try {
+    const parsed = new URL(raw);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+  } catch (_) {
+    return false;
+  }
+}
+
 function captainState(value) {
   const state = value && typeof value === 'object' ? { ...value } : {};
   delete state._pushConfig;
@@ -300,6 +311,14 @@ module.exports = async function handler(req, res) {
       const user=await requireTeamCaptain(req,res,teamSlug);if(!user)return;
       const next=req.body&&req.body.state;
       if(!next||typeof next!=='object'||Array.isArray(next))return res.status(400).json({error:'A valid state object is required'});
+      const nextTeam=next.team&&typeof next.team==='object'&&!Array.isArray(next.team)?next.team:{};
+      const nextChatUrl=typeof nextTeam.chatUrl==='string'?nextTeam.chatUrl.trim():'';
+      if(nextChatUrl&&!isSafeExternalUrl(nextChatUrl))return res.status(400).json({error:'Team chat link must start with https:// or http://'});
+      const nextResources=Array.isArray(next.resources)?next.resources:[];
+      for(const resource of nextResources){
+        const resourceUrl=resource&&typeof resource.url==='string'?resource.url.trim():'';
+        if(resourceUrl&&!isSafeExternalUrl(resourceUrl))return res.status(400).json({error:'Resource links must start with https:// or http://'});
+      }
       const expectedUpdatedAt=String(req.body&&req.body.expectedUpdatedAt||'').trim();
       if(expectedUpdatedAt&&Number.isNaN(Date.parse(expectedUpdatedAt)))return res.status(400).json({error:'The expected team-state version is invalid'});
       const payload=JSON.stringify(next);if(payload.length>1000000)return res.status(413).json({error:'Team state is too large'});
