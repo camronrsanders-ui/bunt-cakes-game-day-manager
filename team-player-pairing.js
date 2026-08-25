@@ -18,12 +18,22 @@
         box=document.createElement('div');
         box.id='playerPairNotice';
         box.className='card';
-        box.style.marginBottom='10px';
+        box.style.position='fixed';
+        box.style.zIndex='10040';
+        box.style.top='12px';
+        box.style.left='12px';
+        box.style.right='12px';
+        box.style.maxWidth='620px';
+        box.style.margin='0 auto';
+        box.style.boxShadow='0 12px 32px rgba(0,0,0,.22)';
         host.prepend(box);
       }
+      box.dataset.noticeKind=kind;
+      box.setAttribute('role',kind==='success'?'status':'alert');
       box.style.borderColor=kind==='success'?'#86efac':'#fecaca';
       box.style.background=kind==='success'?'#f0fdf4':'#fef2f2';
       box.textContent=message;
+      if(kind==='success')setTimeout(function(){if(box.dataset.noticeKind==='success')box.remove();},6000);
     });
   }
 
