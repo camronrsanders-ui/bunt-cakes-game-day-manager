@@ -26,7 +26,7 @@ async function networkFirst(request){
   }
 }
 
-async function fastNavigation(request){
+async function fastNavigation(request,event){
   const cache=await caches.open(CACHE);
   const cached=(await cache.match(request))||(await cache.match(request,{ignoreSearch:true}));
   if(!cached)return networkFirst(request);
@@ -38,6 +38,10 @@ async function fastNavigation(request){
     }
     return cached;
   }).catch(()=>cached);
+
+  if(event&&typeof event.waitUntil==='function'){
+    event.waitUntil(network.then(()=>undefined).catch(()=>undefined));
+  }
 
   const quickFallback=new Promise(resolve=>{
     setTimeout(()=>resolve(cached),350);
@@ -83,7 +87,7 @@ self.addEventListener('fetch',event=>{
 
   if(request.mode==='navigate'){
     event.respondWith((async()=>{
-      try{return await fastNavigation(request)}catch(error){
+      try{return await fastNavigation(request,event)}catch(error){
         const cache=await caches.open(CACHE);
         const exact=(await cache.match(request))||(await cache.match(request,{ignoreSearch:true}));
         if(exact)return exact;
