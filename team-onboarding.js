@@ -38,11 +38,19 @@
     const build=()=>{
       const opts=[...select.options].filter(o=>o.value);
       if(!opts.length)return;
-      list.innerHTML=opts.map(o=>'<button type="button" class="install-player-choice" data-player="'+String(o.value).replace(/"/g,'&quot;')+'">'+o.textContent+'</button>').join('');
-      list.querySelectorAll('.install-player-choice').forEach(btn=>btn.onclick=()=>{
-        select.value=btn.dataset.player;
-        select.dispatchEvent(new Event('change',{bubbles:true}));
-        syncPlayerChoice(list,select);
+      list.textContent='';
+      opts.forEach(option=>{
+        const button=document.createElement('button');
+        button.type='button';
+        button.className='install-player-choice';
+        button.dataset.player=option.value;
+        button.textContent=option.textContent;
+        button.onclick=()=>{
+          select.value=button.dataset.player;
+          select.dispatchEvent(new Event('change',{bubbles:true}));
+          syncPlayerChoice(list,select);
+        };
+        list.appendChild(button);
       });
       syncPlayerChoice(list,select);
     };
@@ -56,8 +64,12 @@
     let overlay=document.getElementById('teamAfterInstall');
     if(overlay)overlay.remove();
     overlay=document.createElement('div');overlay.id='teamAfterInstall';overlay.className='team-onboard-overlay';
-    overlay.innerHTML=`<div class="team-onboard-sheet"><img class="team-onboard-icon" src="${logo()}" alt="Team logo"><h2>Almost done</h2><div class="team-onboard-center muted">The website cannot open the Home Screen app for you.</div><div class="team-onboard-callout"><strong>Now leave this browser page and open the new ${teamName()} icon from your Home Screen.</strong><div class="muted" style="margin-top:5px">When the app opens, the next screen will ask you to turn on Thursday availability notifications.</div></div><div class="team-onboard-step"><b>1</b><div>Go to your iPhone Home Screen.</div></div><div class="team-onboard-step"><b>2</b><div>Tap the new team app icon.</div></div><div class="team-onboard-step"><b>3</b><div>Tap <strong>Turn On Notifications</strong> and then <strong>Allow</strong>.</div></div><div class="team-onboard-actions"><button id="teamBrowserInstead" class="team-onboard-secondary">Continue in browser instead</button></div></div>`;
+    overlay.innerHTML='<div class="team-onboard-sheet"><img class="team-onboard-icon" alt="Team logo"><h2>Almost done</h2><div class="team-onboard-center muted">The website cannot open the Home Screen app for you.</div><div class="team-onboard-callout"><strong>Now leave this browser page and open the new <span id="teamAfterInstallName"></span> icon from your Home Screen.</strong><div class="muted" style="margin-top:5px">When the app opens, the next screen will ask you to turn on Thursday availability notifications.</div></div><div class="team-onboard-step"><b>1</b><div>Go to your iPhone Home Screen.</div></div><div class="team-onboard-step"><b>2</b><div>Tap the new team app icon.</div></div><div class="team-onboard-step"><b>3</b><div>Tap <strong>Turn On Notifications</strong> and then <strong>Allow</strong>.</div></div><div class="team-onboard-actions"><button id="teamBrowserInstead" class="team-onboard-secondary">Continue in browser instead</button></div></div>';
     document.body.appendChild(overlay);
+    const icon=overlay.querySelector('.team-onboard-icon');
+    if(icon)icon.src=logo();
+    const nameSpan=overlay.querySelector('#teamAfterInstallName');
+    if(nameSpan)nameSpan.textContent=teamName();
     document.getElementById('teamBrowserInstead').onclick=()=>{localStorage.setItem(key('installIntroDismissed'),'1');overlay.remove();const old=document.getElementById('installOverlay');if(old)old.classList.add('install-hidden')};
   }
 

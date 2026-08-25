@@ -6,6 +6,7 @@
     `;document.head.appendChild(style);
   }
 
+  const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   function games(){return (state.events||[]).filter(e=>e.type==='Game').slice().sort((a,b)=>((a.date||'')+(a.time||'')).localeCompare((b.date||'')+(b.time||'')));}
   function eventKey(e){return e?.sourceUid||e?.id||'';}
   function outcome(r){const a=Number(r.teamScore||0),b=Number(r.opponentScore||0);return a>b?'Win':a<b?'Loss':'Tie';}
@@ -21,10 +22,10 @@
     if(!card){card=document.createElement('div');card.id='gameResultsCard';card.className='card results-card';dash.appendChild(card);}
     const all=games();
     const selected=card.querySelector('#resultGame')?.value||defaultGame();
-    card.innerHTML='<div class="results-head"><div><strong>Weekly Game Results</strong><div class="muted">When the game is over, choose it below and save the score shown on the Dashboard.</div></div><div class="results-record">Record '+record()+'</div></div><label style="display:block;margin-top:10px">Game<select id="resultGame">'+(all.length?all.map(e=>'<option value="'+eventKey(e)+'" '+(eventKey(e)===selected?'selected':'')+'>'+e.date+' • '+shortTitle(e)+'</option>').join(''):'<option value="">No scheduled games</option>')+'</select></label><div class="results-actions"><button type="button" id="saveFinalResult" class="primary">Save This Final Score</button><button type="button" id="clearLiveScore">Reset Scoreboard to 0-0</button></div><div id="savedResultsList" style="margin-top:10px"></div>';
+    card.innerHTML='<div class="results-head"><div><strong>Weekly Game Results</strong><div class="muted">When the game is over, choose it below and save the score shown on the Dashboard.</div></div><div class="results-record">Record '+esc(record())+'</div></div><label style="display:block;margin-top:10px">Game<select id="resultGame">'+(all.length?all.map(e=>'<option value="'+esc(eventKey(e))+'" '+(eventKey(e)===selected?'selected':'')+'>'+esc(e.date||'')+' • '+esc(shortTitle(e))+'</option>').join(''):'<option value="">No scheduled games</option>')+'</select></label><div class="results-actions"><button type="button" id="saveFinalResult" class="primary">Save This Final Score</button><button type="button" id="clearLiveScore">Reset Scoreboard to 0-0</button></div><div id="savedResultsList" style="margin-top:10px"></div>';
     const list=card.querySelector('#savedResultsList');
     const rows=state.gameResults.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-    list.innerHTML=rows.length?rows.map(r=>{const o=outcome(r),cls=o==='Win'?'results-win':o==='Loss'?'results-loss':'results-tie';return '<div class="results-row"><div><strong>'+r.date+' • '+(r.title||'Game')+'</strong><div class="muted">'+o+'</div></div><div><span class="results-score '+cls+'">Bunt Cakes '+r.teamScore+' — '+r.opponentScore+'</span> <button type="button" class="result-delete" data-delete-result="'+r.key+'">Delete Result</button></div></div>'}).join(''):'<div class="muted">No final game scores saved yet.</div>';
+    list.innerHTML=rows.length?rows.map(r=>{const o=outcome(r),cls=o==='Win'?'results-win':o==='Loss'?'results-loss':'results-tie';return '<div class="results-row"><div><strong>'+esc(r.date||'')+' • '+esc(r.title||'Game')+'</strong><div class="muted">'+esc(o)+'</div></div><div><span class="results-score '+cls+'">Bunt Cakes '+esc(r.teamScore)+' — '+esc(r.opponentScore)+'</span> <button type="button" class="result-delete" data-delete-result="'+esc(r.key||'')+'">Delete Result</button></div></div>'}).join(''):'<div class="muted">No final game scores saved yet.</div>';
     card.querySelector('#saveFinalResult').disabled=!all.length;
     card.querySelector('#saveFinalResult').onclick=()=>{
       const key=card.querySelector('#resultGame').value;

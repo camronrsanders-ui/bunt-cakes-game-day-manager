@@ -20,18 +20,20 @@
       @media(max-width:650px){.team-kick-stage{grid-template-columns:1fr 1fr}.team-kick-card.now{grid-column:1/-1;min-height:140px}.team-kick-card{min-height:100px}.team-kick-name{font-size:1.2rem}.team-kick-card.now .team-kick-name{font-size:2rem}.kick-queue-row{grid-template-columns:38px minmax(0,1fr) auto;padding:10px}}
     `;document.head.appendChild(style);
   }
+  const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   function identityKey(){return window.__teamStorageKey?window.__teamStorageKey('playerName'):'buntCakesPlayerName';}
   function presentSet(){return new Set((state.players||[]).filter(p=>p.present!==false).map(p=>p.name));}
   function activeOrder(){const present=presentSet();return(state.kickingOrder||[]).filter(n=>present.has(n));}
   function info(){const active=activeOrder();if(!active.length)return{active,current:'',index:-1,next:'',third:''};let current=state.currentKicker;if(!current||!active.includes(current))current=active[0];const index=active.indexOf(current);return{active,current,index,next:active[(index+1)%active.length],third:active[(index+2)%active.length]};}
   function personalStatus(i){
     const mine=new URLSearchParams(location.search).get('player')||localStorage.getItem(identityKey())||'';if(!mine)return'';
-    const idx=i.active.indexOf(mine);if(idx<0)return '<strong>'+mine+':</strong> you are not in the active kicking queue right now.';
+    const safeMine=esc(mine);
+    const idx=i.active.indexOf(mine);if(idx<0)return '<strong>'+safeMine+':</strong> you are not in the active kicking queue right now.';
     const away=(idx-i.index+i.active.length)%i.active.length;
-    if(away===0)return '<strong>'+mine+': you are kicking now.</strong>';
-    if(away===1)return '<strong>'+mine+': you are on deck.</strong> Be ready.';
-    if(away===2)return '<strong>'+mine+': get ready.</strong> You are third up.';
-    return '<strong>'+mine+':</strong> you are '+away+' turns away.';
+    if(away===0)return '<strong>'+safeMine+': you are kicking now.</strong>';
+    if(away===1)return '<strong>'+safeMine+': you are on deck.</strong> Be ready.';
+    if(away===2)return '<strong>'+safeMine+': get ready.</strong> You are third up.';
+    return '<strong>'+safeMine+':</strong> you are '+away+' turns away.';
   }
   function ensureShell(){
     const section=document.getElementById('kicking'),list=document.getElementById('kickList');if(!section||!list)return null;
@@ -42,13 +44,13 @@
   renderKicking=function(){
     if(!state)return;const shell=ensureShell();if(!shell)return;const i=info();
     if(!i.active.length){shell.hero.innerHTML='<div class="team-kick-eyebrow">Kicking Deck</div><h2>No available kickers</h2>';shell.list.innerHTML='';return;}
-    shell.hero.innerHTML=`<div class="team-kick-eyebrow">Live Kicking Deck</div><div class="team-kick-stage"><div class="team-kick-card now"><div class="team-kick-label">Now Kicking</div><div class="team-kick-name">${i.current}</div></div><div class="team-kick-card"><div class="team-kick-label">On Deck</div><div class="team-kick-name">${i.next}</div></div><div class="team-kick-card"><div class="team-kick-label">Get Ready</div><div class="team-kick-name">${i.third}</div></div></div>${personalStatus(i)?'<div class="my-kick-status">'+personalStatus(i)+'</div>':''}`;
+    shell.hero.innerHTML=`<div class="team-kick-eyebrow">Live Kicking Deck</div><div class="team-kick-stage"><div class="team-kick-card now"><div class="team-kick-label">Now Kicking</div><div class="team-kick-name">${esc(i.current)}</div></div><div class="team-kick-card"><div class="team-kick-label">On Deck</div><div class="team-kick-name">${esc(i.next)}</div></div><div class="team-kick-card"><div class="team-kick-label">Get Ready</div><div class="team-kick-name">${esc(i.third)}</div></div></div>${personalStatus(i)?'<div class="my-kick-status">'+personalStatus(i)+'</div>':''}`;
     const present=presentSet();shell.list.className='card kick-queue';shell.list.innerHTML='<div class="kick-queue-head"><strong>Full Kicking Order</strong><div class="muted">The captain controls the live queue.</div></div>';
     (state.kickingOrder||[]).forEach((name,index)=>{
       const activeIndex=i.active.indexOf(name),available=present.has(name),away=available?((activeIndex-i.index+i.active.length)%i.active.length):null;
       const status=!available?'Absent — skipped':name===i.current?'Now kicking':name===i.next?'On deck':name===i.third?'Get ready':away+' turns away';
       const badge=!available?'Skipped':name===i.current?'NOW':name===i.next?'NEXT':name===i.third?'READY':'#'+(index+1);
-      const row=document.createElement('div');row.className='kick-queue-row'+(name===i.current?' current':name===i.next?' next':'')+(!available?' absent':'');row.innerHTML=`<div class="kick-queue-num">${index+1}</div><div><div class="kick-queue-name">${name}</div><div class="kick-queue-status">${status}</div></div><span class="kick-queue-badge">${badge}</span>`;shell.list.appendChild(row);
+      const row=document.createElement('div');row.className='kick-queue-row'+(name===i.current?' current':name===i.next?' next':'')+(!available?' absent':'');row.innerHTML=`<div class="kick-queue-num">${index+1}</div><div><div class="kick-queue-name">${esc(name)}</div><div class="kick-queue-status">${esc(status)}</div></div><span class="kick-queue-badge">${esc(badge)}</span>`;shell.list.appendChild(row);
     });
   };
   const wait=setInterval(()=>{if(typeof state!=='undefined'&&state&&document.getElementById('kicking')){clearInterval(wait);renderKicking();}},250);

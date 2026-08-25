@@ -42,6 +42,8 @@
     document.head.appendChild(style);
   }
 
+  const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+
   function activeOrder(){
     if(!state)return[];
     const present=new Set((state.players||[]).filter(p=>p.present!==false).map(p=>p.name));
@@ -97,9 +99,9 @@
       <div class="kick-eyebrow">Live Kicking Deck</div>
       <div class="kick-title">Keep the line moving</div>
       <div class="kick-stage">
-        <div class="kick-now"><div class="kick-label">Now Kicking</div><div class="kick-name">${info.current}</div></div>
-        <div class="kick-next"><div class="kick-label">On Deck</div><div class="kick-name">${info.next}</div></div>
-        <div class="kick-third"><div class="kick-label">Get Ready</div><div class="kick-name">${info.third}</div></div>
+        <div class="kick-now"><div class="kick-label">Now Kicking</div><div class="kick-name">${esc(info.current)}</div></div>
+        <div class="kick-next"><div class="kick-label">On Deck</div><div class="kick-name">${esc(info.next)}</div></div>
+        <div class="kick-third"><div class="kick-label">Get Ready</div><div class="kick-name">${esc(info.third)}</div></div>
       </div>
       <div class="kick-controls">
         <button type="button" class="kick-back">Previous Kicker</button>
@@ -120,7 +122,7 @@
       const row=document.createElement('div');
       row.className='kick-order-row'+(name===info.current?' current':name===info.next?' next':'')+(!isPresent?' absent':'');
       const status=!isPresent?'Absent — skipped automatically':name===info.current?'Now kicking':name===info.next?'On deck':name===info.third?'Get ready':away===0?'Now':away===1?'Up next':away+' turns away';
-      row.innerHTML=`<div class="kick-number">${i+1}</div><div><div class="kick-player">${name}${isPresent&&away>2?'<span class="kick-away">'+away+' away</span>':''}</div><div class="kick-status">${status}</div></div><div class="kick-mini-actions"><button type="button" class="kick-set" ${!isPresent?'disabled':''}>Make current</button><button type="button" class="kick-up" ${i===0?'disabled':''}>Move up</button><button type="button" class="kick-down" ${i===state.kickingOrder.length-1?'disabled':''}>Move down</button></div>`;
+      row.innerHTML=`<div class="kick-number">${i+1}</div><div><div class="kick-player">${esc(name)}${isPresent&&away>2?'<span class="kick-away">'+away+' away</span>':''}</div><div class="kick-status">${esc(status)}</div></div><div class="kick-mini-actions"><button type="button" class="kick-set" ${!isPresent?'disabled':''}>Make current</button><button type="button" class="kick-up" ${i===0?'disabled':''}>Move up</button><button type="button" class="kick-down" ${i===state.kickingOrder.length-1?'disabled':''}>Move down</button></div>`;
       row.querySelector('.kick-set').onclick=()=>setCurrent(name,true);
       row.querySelector('.kick-up').onclick=()=>moveOrder(i,-1);
       row.querySelector('.kick-down').onclick=()=>moveOrder(i,1);

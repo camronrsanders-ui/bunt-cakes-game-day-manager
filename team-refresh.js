@@ -24,6 +24,7 @@
 
   if(typeof renderLineup==='function'){
     renderLineup=function(){
+      const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
       const n=liveInning();
       const inn=(state&&state.innings&&state.innings[n])||{};
       const positions=['Pitcher','Catcher','First Base','Second Base','Third Base','Shortstop','Left Field','Left Center Field','Center Field','Right Center Field','Right Field'];
@@ -31,7 +32,7 @@
       const positionsBox=document.getElementById('positions');
       const homeBox=document.getElementById('homeLineup');
       if(label)label.textContent='Current game inning '+n;
-      const html=positions.map(p=>'<div class="card"><div class="muted">'+p+'</div><strong>'+(inn[p]||'Unassigned')+'</strong></div>').join('');
+      const html=positions.map(p=>'<div class="card"><div class="muted">'+escapeHtml(p)+'</div><strong>'+escapeHtml(inn[p]||'Unassigned')+'</strong></div>').join('');
       if(positionsBox)positionsBox.innerHTML=html;
       if(homeBox)homeBox.innerHTML=html;
     };
