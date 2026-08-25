@@ -2,7 +2,7 @@
   const DEFAULT_TEAM={name:'',shortName:'',organization:'',sport:'Kickball',location:'',primaryColor:'#15803d',accentColor:'#f7fff8',logoDataUrl:'',logoUrl:'',chatUrl:'',announcement:'',arrivalMinutes:60,secondReminderMinutes:30,leagueAppsEnabled:false,timeZone:'America/New_York'};
   const DEFAULT_VIS={schedule:true,lineup:true,pods:true,kicking:true,officials:true,resources:true,attendance:true};
   const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-  const safeExternalUrl=value=>{const raw=String(value||'').trim();if(!raw)return'';try{const parsed=new URL(raw);return parsed.protocol==='https:'||parsed.protocol==='http:'?parsed.href:''}catch(_){return''}};
+  const safeExternalUrl=value=>{const raw=String(value||'').trim();if(!raw||!/^https?:\/\//i.test(raw))return'';try{const parsed=new URL(raw);return parsed.protocol==='https:'||parsed.protocol==='http:'?parsed.href:''}catch(_){return''}};
   const $id=id=>document.getElementById(id);
   let mounted=false;
 
