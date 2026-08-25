@@ -4,6 +4,10 @@
   const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
 
   function selectedPlayer(){return new URLSearchParams(location.search).get('player')||localStorage.getItem(key('playerName'))||''}
+  function authenticatedPlayer(){
+    const access=typeof state!=='undefined'&&state&&state.playerAccess;
+    return access&&access.paired===true&&String(access.playerName||'').trim()?String(access.playerName).trim():'';
+  }
 
   function addStyles(){
     if(document.getElementById('team-onboarding-style'))return;
@@ -81,13 +85,15 @@
   window.teamGameDayShowInstallGuide=showInstallGuide;
 
   async function showPushPromptIfNeeded(){
-    if(!standalone()||!selectedPlayer())return;
+    const pairedName=authenticatedPlayer();
+    if(!standalone()||!pairedName)return;
     let tries=0;
     while(typeof window.teamGameDayPushState!=='function'&&tries++<60)await new Promise(r=>setTimeout(r,100));
     if(typeof window.teamGameDayPushState!=='function')return;
     const status=await window.teamGameDayPushState();
     if(!status.supported||status.subscribed&&status.permission==='granted'||status.permission==='denied')return;
     if(sessionStorage.getItem(key('pushPromptDismissed')))return;
+    if(document.getElementById('teamPushOnboarding'))return;
     addStyles();
     const overlay=document.createElement('div');overlay.id='teamPushOnboarding';overlay.className='team-onboard-overlay';
     overlay.innerHTML=`<div class="team-onboard-sheet"><img class="team-onboard-icon" src="${logo()}" alt="Team logo"><div class="team-onboard-center muted">ONE LAST SETUP STEP</div><h2>Turn on Thursday reminders</h2><div class="team-onboard-callout"><strong>Get a notification every Thursday when there’s a Sunday game.</strong><div class="muted" style="margin-top:5px">Tap below, then choose <strong>Allow</strong> when your phone asks. This helps captains build the lineup before Sunday.</div></div><div class="team-onboard-actions"><button id="teamEnablePushNow" class="team-onboard-primary">🔔 Turn On Notifications</button><button id="teamPushLater" class="team-onboard-secondary">Not now</button></div><div id="teamPushSetupStatus" class="muted team-onboard-center" style="margin-top:10px"></div></div>`;
@@ -121,6 +127,14 @@
     let count=0;const timer=setInterval(()=>{if(repairExistingInstallFlow()||count++>80)clearInterval(timer)},100);
     if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',showPushPromptIfNeeded,{once:true});else setTimeout(showPushPromptIfNeeded,300);
     window.addEventListener('pageshow',()=>setTimeout(()=>{repairNamePicker();showPushPromptIfNeeded()},250));
+    window.addEventListener('teamplayeraccesschange',()=>{
+      const overlay=document.getElementById('teamPushOnboarding');
+      if(!authenticatedPlayer()){
+        if(overlay)overlay.remove();
+        return;
+      }
+      setTimeout(showPushPromptIfNeeded,0);
+    });
   }
   install();
 })();
