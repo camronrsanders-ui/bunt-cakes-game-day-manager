@@ -1,10 +1,14 @@
+const { DEFAULT_TEAM_SLUG, normalizeTeamSlug } = require('./_auth');
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).send('Method not allowed');
   try {
     const proto = req.headers['x-forwarded-proto'] || 'https';
     const host = req.headers.host;
-    const rawSlug = String(req.query && req.query.team || '').toLowerCase();
-    const teamSlug = /^[a-z0-9][a-z0-9-]{2,63}$/.test(rawSlug) ? rawSlug : 'those-dirty-bunt-cakes';
+    const query = req && req.query || {};
+    const hasTeam = Object.prototype.hasOwnProperty.call(query, 'team');
+    const teamSlug = hasTeam ? normalizeTeamSlug(query.team) : DEFAULT_TEAM_SLUG;
+    if (!teamSlug) return res.status(404).send('Team was not found');
     const upstream = await fetch(`${proto}://${host}/api/team-page`, {headers:{'User-Agent':'TeamGameDayReminderView/1.0'}});
     if (!upstream.ok) return res.status(502).send('Could not load team page');
     let html = await upstream.text();
