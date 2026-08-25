@@ -125,13 +125,21 @@
       window.dispatchEvent(new Event('buntpreferrednamesrefresh'));
     }
 
+    function scheduleDeferredRender(){
+      clearTimeout(deferredRenderTimer);
+      deferredRenderTimer=setTimeout(()=>{
+        deferredRenderTimer=null;
+        if(interactionBusy()){
+          scheduleDeferredRender();
+          return;
+        }
+        renderSharedNow();
+      },500);
+    }
+
     function renderShared(){
       if(interactionBusy()){
-        clearTimeout(deferredRenderTimer);
-        deferredRenderTimer=setTimeout(()=>{
-          deferredRenderTimer=null;
-          if(!interactionBusy())renderSharedNow();
-        },850);
+        scheduleDeferredRender();
         return false;
       }
       clearTimeout(deferredRenderTimer);
