@@ -1,7 +1,7 @@
 (()=>{
   const FOUNDER='those-dirty-bunt-cakes';
   const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-  const safeExternalUrl=value=>{const raw=String(value||'').trim();if(!raw)return'';try{const parsed=new URL(raw);return parsed.protocol==='https:'||parsed.protocol==='http:'?parsed.href:''}catch(_){return''}};
+  const safeExternalUrl=value=>{const raw=String(value||'').trim();if(!raw||!/^https?:\/\//i.test(raw))return'';try{const parsed=new URL(raw);return parsed.protocol==='https:'||parsed.protocol==='http:'?parsed.href:''}catch(_){return''}};
   const current=()=>window.__teamSlug||FOUNDER;
   const tz=()=>Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC';
   let session=null;
