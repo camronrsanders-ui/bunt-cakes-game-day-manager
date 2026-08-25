@@ -17,8 +17,10 @@
   }
 
   window.__buntCaptainInteractionBusy=()=>{
+    if(Date.now()<recentControlUntil)return true;
     const active=document.activeElement;
-    return Date.now()<recentControlUntil||managerControl(active);
+    if(!managerControl(active))return false;
+    return active.tagName!=='SELECT';
   };
 
   document.addEventListener('pointerdown',event=>{
