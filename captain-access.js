@@ -14,18 +14,19 @@
     if(navigator.clipboard&&typeof navigator.clipboard.writeText==='function'){
       try{await navigator.clipboard.writeText(value);return true}catch(_){}
     }
+    let area=null;
     try{
-      const area=document.createElement('textarea');
+      area=document.createElement('textarea');
       area.value=value;
       area.setAttribute('readonly','');
       area.style.position='fixed';
       area.style.opacity='0';
       document.body.appendChild(area);
       area.select();
-      const copied=document.execCommand('copy');
-      area.remove();
-      if(copied)return true;
-    }catch(_){}
+      if(document.execCommand('copy'))return true;
+    }catch(_){}finally{
+      if(area)area.remove();
+    }
     window.prompt('Copy this one-time player setup link:',value);
     return false;
   }
