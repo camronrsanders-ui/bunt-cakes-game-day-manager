@@ -30,7 +30,7 @@
 
     function interactionBusy(){
       try{
-        if(typeof window.__buntCaptainInteractionBusy==='function'&&window.__buntCaptainInteractionBusy())return true;
+        if(typeof window.__buntCaptainInteractionBusy==='function')return !!window.__buntCaptainInteractionBusy();
       }catch(_){}
       const active=document.activeElement;
       return !!(active&&/^(INPUT|SELECT|TEXTAREA)$/.test(active.tagName));
