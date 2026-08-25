@@ -15,6 +15,10 @@
     let retryTimer=null;
     let lastServerVersion='';
     let lastSyncedState=null;
+    let conflictRetries=0;
+    let interactionUntil=0;
+    let deferredRender=false;
+    let deferredRenderTimer=null;
     const bootState=JSON.parse(JSON.stringify(state||{}));
     const status=document.getElementById('saveStatus');
 
@@ -24,6 +28,67 @@
     const isObject=v=>v&&typeof v==='object'&&!Array.isArray(v);
     const show=(html)=>{if(status)status.innerHTML=html};
     const whenLabel=value=>value?new Date(value).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',second:'2-digit',hour12:true}):'now';
+    const editSelector='input,select,textarea,button,[contenteditable="true"],summary';
+
+    function markInteraction(ms=2200){
+      interactionUntil=Math.max(interactionUntil,Date.now()+ms);
+    }
+
+    function activeEditor(){
+      const active=document.activeElement;
+      return !!(active&&active.matches&&active.matches('input,select,textarea,[contenteditable="true"]'));
+    }
+
+    function interactionActive(){
+      return Date.now()<interactionUntil||activeEditor();
+    }
+
+    function renderSharedNow(){
+      if(typeof render==='function')render();
+      if(typeof renderCaptainField==='function')renderCaptainField();
+      window.dispatchEvent(new Event('buntpreferrednamesrefresh'));
+    }
+
+    function flushDeferredRender(){
+      clearTimeout(deferredRenderTimer);
+      deferredRenderTimer=null;
+      if(!deferredRender||interactionActive())return;
+      deferredRender=false;
+      renderSharedNow();
+    }
+
+    function scheduleDeferredRender(){
+      deferredRender=true;
+      clearTimeout(deferredRenderTimer);
+      const wait=Math.max(180,interactionUntil-Date.now()+120);
+      deferredRenderTimer=setTimeout(flushDeferredRender,wait);
+    }
+
+    function renderShared(){
+      if(interactionActive()){
+        scheduleDeferredRender();
+        return false;
+      }
+      deferredRender=false;
+      renderSharedNow();
+      return true;
+    }
+
+    function interactionEvent(e){
+      const target=e&&e.target&&e.target.closest?e.target.closest(editSelector):null;
+      if(!target)return;
+      markInteraction();
+    }
+
+    document.addEventListener('pointerdown',interactionEvent,true);
+    document.addEventListener('touchstart',interactionEvent,{capture:true,passive:true});
+    document.addEventListener('focusin',interactionEvent,true);
+    document.addEventListener('change',e=>{
+      interactionEvent(e);
+      markInteraction(700);
+      setTimeout(flushDeferredRender,850);
+    },true);
+    document.addEventListener('focusout',()=>setTimeout(flushDeferredRender,180),true);
 
     function mergeLocalChanges(base,local,remote){
       if(Array.isArray(local)||Array.isArray(base)||Array.isArray(remote))return same(local,base)?clone(remote):clone(local);
@@ -46,12 +111,6 @@
 
     async function sharedState(){
       return api('/api/team-state?fresh='+Date.now());
-    }
-
-    function renderShared(){
-      if(typeof render==='function')render();
-      if(typeof renderCaptainField==='function')renderCaptainField();
-      window.dispatchEvent(new Event('buntpreferrednamesrefresh'));
     }
 
     let primePromise=null;
@@ -115,8 +174,12 @@
               pending=clone(merged);
               renderShared();
               show('Syncing your change with a recent player update…');
-              continue;
+              conflictRetries=Math.min(conflictRetries+1,5);
+              const delay=Math.min(1600,250*Math.pow(2,conflictRetries-1));
+              retryTimer=setTimeout(drain,delay);
+              break;
             }
+            conflictRetries=0;
             lastServerVersion=String(r.updatedAt||lastServerVersion);
             lastSyncedState=clone(payload);
             show('<span class="ok">Saved live</span> • players updating • '+whenLabel(r.updatedAt));
@@ -150,9 +213,7 @@
     window.__buntCaptainLiveSyncBusy=()=>saving||!!pending;
 
     async function syncExternalChanges(){
-      if(!state||saving||pending||document.hidden)return;
-      const active=document.activeElement;
-      if(active&&/^(INPUT|SELECT|TEXTAREA)$/.test(active.tagName))return;
+      if(!state||saving||pending||document.hidden||interactionActive())return;
       try{
         const r=await sharedState();
         const version=String(r.updatedAt||'');
