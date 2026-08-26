@@ -58,7 +58,7 @@
       <form id="captainInviteForm" class="stack">
         <label>Name <span class="muted">(required for a new account)</span><input id="captainInviteName" autocomplete="name"></label>
         <label>Email<input id="captainInviteEmail" type="email" autocomplete="username" required></label>
-        <label>Password<input id="captainInvitePassword" type="password" autocomplete="current-password" minlength="10" required></label>
+        <label>Password<input id="captainInvitePassword" type="password" autocomplete="current-password" required></label>
         <button id="captainInviteJoin" class="primary" type="submit">Join team as Captain</button>
         <div class="muted">Already have a Captain account? Use its current email and password. New Captains need a name and a password of at least 10 characters.</div>
         <div id="captainInviteMessage" class="muted"></div>
