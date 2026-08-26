@@ -9,6 +9,7 @@ const {
 } = require('./_auth');
 
 const ATTENDANCE = new Set(['yes','no','not_sure']);
+const CAPTAIN_INVITE_PLAYER_ID = '__captain_invite__';
 
 function safeTimeZone(value){
   const zone=String(value||'').trim();
@@ -120,20 +121,26 @@ async function createCaptainInvite(req,res,sql){
   const rawInviteToken=crypto.randomBytes(32).toString('base64url');
   const inviteHash=hashToken(rawInviteToken);
   const rows=await sql`
-    UPDATE team_states
-    SET state=jsonb_set(
-      state,
-      '{_captainInvite}',
-      jsonb_build_object(
-        'tokenHash',${inviteHash}::text,
-        'createdAt',to_jsonb(now()),
-        'expiresAt',to_jsonb(now()+interval '7 days'),
-        'createdByCaptainUserId',${String(user.id)}::text
-      ),
-      true
-    ),updated_at=now()
-    WHERE team_id=${user.team_id}
-    RETURNING state->'_captainInvite'->>'expiresAt' AS expires_at
+    WITH revoked AS (
+      UPDATE player_pairing_invites
+      SET revoked_at=now()
+      WHERE team_id=${user.team_id}
+        AND player_id=${CAPTAIN_INVITE_PLAYER_ID}
+        AND used_at IS NULL
+        AND revoked_at IS NULL
+      RETURNING 1
+    ), gate AS (
+      SELECT count(*) AS revoked_count FROM revoked
+    ), created AS (
+      INSERT INTO player_pairing_invites(
+        token_hash,team_id,player_id,created_by_captain_user_id,
+        created_at,expires_at,used_at,revoked_at
+      )
+      SELECT ${inviteHash},${user.team_id},${CAPTAIN_INVITE_PLAYER_ID},${user.id},now(),now()+interval '7 days',NULL,NULL
+      FROM gate
+      RETURNING expires_at
+    )
+    SELECT expires_at FROM created
   `;
   if(!rows.length)return res.status(500).json({error:'Could not create Captain invite'});
   return res.status(200).json({
@@ -157,11 +164,14 @@ async function acceptCaptainInvite(req,res,sql){
   const teamRows=await sql`
     SELECT t.id,t.slug
     FROM teams t
-    JOIN team_states ts ON ts.team_id=t.id
+    JOIN player_pairing_invites i ON i.team_id=t.id
     WHERE t.slug=${teamSlug}
       AND t.active=true
-      AND ts.state->'_captainInvite'->>'tokenHash'=${inviteHash}
-      AND NULLIF(ts.state->'_captainInvite'->>'expiresAt','')::timestamptz>now()
+      AND i.token_hash=${inviteHash}
+      AND i.player_id=${CAPTAIN_INVITE_PLAYER_ID}
+      AND i.used_at IS NULL
+      AND i.revoked_at IS NULL
+      AND i.expires_at>now()
     LIMIT 1
   `;
   const team=teamRows[0];
@@ -195,11 +205,14 @@ async function acceptCaptainInvite(req,res,sql){
   try{
     joined=await sql`
       WITH consumed AS (
-        UPDATE team_states
-        SET state=state-'_captainInvite',updated_at=now()
-        WHERE team_id=${team.id}
-          AND state->'_captainInvite'->>'tokenHash'=${inviteHash}
-          AND NULLIF(state->'_captainInvite'->>'expiresAt','')::timestamptz>now()
+        UPDATE player_pairing_invites
+        SET used_at=now()
+        WHERE token_hash=${inviteHash}
+          AND team_id=${team.id}
+          AND player_id=${CAPTAIN_INVITE_PLAYER_ID}
+          AND used_at IS NULL
+          AND revoked_at IS NULL
+          AND expires_at>now()
         RETURNING team_id
       ), membership AS (
         INSERT INTO captain_team_memberships(captain_user_id,team_id,role,active)
