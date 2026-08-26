@@ -45,7 +45,7 @@ module.exports = async function handler(req, res) {
         )
     `;
     for (const row of playerRows) {
-      const currentRows = await sql`SELECT state->'appAccess'->${row.name} AS access FROM team_states WHERE team_id=${row.team_id} LIMIT 1`;
+      const currentRows = await sql`SELECT state->'appAccess'->(${row.name}::text) AS access FROM team_states WHERE team_id=${row.team_id} LIMIT 1`;
       const current = (currentRows[0] && currentRows[0].access) || {};
       const now = new Date().toISOString();
       const next = {
@@ -62,7 +62,7 @@ module.exports = async function handler(req, res) {
         SET state=jsonb_set(
           state,
           '{appAccess}',
-          COALESCE(state->'appAccess','{}'::jsonb) || jsonb_build_object(${row.name},${payload}::jsonb),
+          COALESCE(state->'appAccess','{}'::jsonb) || jsonb_build_object(${row.name}::text,${payload}::jsonb),
           true
         ),updated_at=now()
         WHERE team_id=${row.team_id}
