@@ -9,7 +9,7 @@
     {id:'field-pod-second-center',name:'Second Base / Center Field',positions:['Second Base','Center Field']}
   ];
   const POSITION_TO_POD=new Map(POD_DEFS.flatMap(p=>p.positions.map(pos=>[pos.toLowerCase(),p.id])));
-  let mounted=false,podDraft=null,wrapped=false;
+  let mounted=false,podDraft=null,wrapped=false,podSaveNotice='',podSaveWarning=false,podSaveBusy=false;
 
   const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   const clone=v=>JSON.parse(JSON.stringify(v));
@@ -21,7 +21,6 @@
   const source=p=>typeof profile().source==='function'?profile().source(p):(p?.fieldPreferenceSource||'none');
   const firstPref=p=>String(prefs(p)[0]||'').trim();
   const podForPreference=position=>POSITION_TO_POD.get(String(position||'').trim().toLowerCase())||'';
-  const defById=id=>POD_DEFS.find(p=>p.id===id)||null;
   const livePods=()=>Array.isArray(state?.pods)?state.pods:[];
   const configured=()=>POD_DEFS.every(d=>livePods().some(p=>p&&p.id===d.id));
   const preferredPods=()=>configured()?POD_DEFS.map(d=>livePods().find(p=>p.id===d.id)):[];
@@ -50,21 +49,59 @@
     });
   }
 
-  function applyDefaultPods(){
-    const existing=livePods();
+  function showPodNotice(message,warning=false){
+    podSaveNotice=message||'';podSaveWarning=!!warning;
+    renderPodManager();
+  }
+
+  async function persistPodsNow(successMessage){
+    if(podSaveBusy)return false;
+    const desired=clone(livePods());
+    podSaveBusy=true;podSaveNotice='Saving pod assignments…';podSaveWarning=false;renderPodManager();
+    let lastError=null;
+    try{
+      for(let attempt=0;attempt<8;attempt++){
+        const latest=await api('/api/team-state?fresh='+Date.now());
+        const merged=clone(latest.state||{});merged.pods=desired;
+        const response=await fetch('/api/team-state',{
+          method:'PUT',credentials:'include',cache:'no-store',
+          headers:{'Content-Type':'application/json','Cache-Control':'no-cache, no-store, must-revalidate','Pragma':'no-cache'},
+          body:JSON.stringify({state:merged,expectedUpdatedAt:String(latest.updatedAt||'')})
+        });
+        const result=await response.json().catch(()=>({}));
+        if(response.status===409){lastError=new Error(result.error||'Team state changed while saving pods');continue;}
+        if(!response.ok)throw new Error(result.error||`Pod save failed (${response.status})`);
+        podSaveBusy=false;podSaveNotice=successMessage||'Pod assignments saved live.';podSaveWarning=false;
+        const status=document.getElementById('saveStatus');
+        if(status)status.innerHTML='<span class="ok">Saved live</span> • pod assignments updated';
+        renderPodManager();
+        return true;
+      }
+      throw lastError||new Error('Could not save pod assignments after several retries');
+    }catch(error){
+      podSaveBusy=false;podSaveNotice='Pod changes are still on this screen but could not be saved yet: '+(error.message||'save failed');podSaveWarning=true;renderPodManager();
+      return false;
+    }
+  }
+
+  async function applyDefaultPods(){
+    const existing=clone(livePods());
     const message=existing.length&&!configured()
       ?'Replace the current pod setup with the six fixed Game-Day pods? Players will keep their field preferences; first preferences will be used for the initial assignments. Players without a matching first preference will stay unassigned for a Captain to place manually.'
       :'Set up the six fixed Game-Day pods and auto-assign players from their first field preference?';
     if(!confirm(message))return;
     const pods=POD_DEFS.map(d=>({id:d.id,name:d.name,positions:[...d.positions],members:[],podType:'game-day-v1'}));
+    let assigned=0;
     roster().forEach(player=>{
       const id=podForPreference(firstPref(player));
-      const pod=pods.find(x=>x.id===id);if(pod)pod.members.push(player.name);
+      const pod=pods.find(x=>x.id===id);if(pod){pod.members.push(player.name);assigned++;}
     });
-    state.pods=pods;podDraft=null;queueSave();renderPodManager();
+    state.pods=pods;podDraft=null;renderPodManager();
+    const saved=await persistPodsNow(`6-pod setup saved. ${assigned} player${assigned===1?'':'s'} auto-assigned from first preferences.`);
+    if(!saved){state.pods=existing;renderPodManager();}
   }
 
-  function autoAssignUnassigned(){
+  async function autoAssignUnassigned(){
     if(!configured())return applyDefaultPods();
     sanitizePreferredPods();let changed=0;
     roster().forEach(player=>{
@@ -72,14 +109,22 @@
       const id=podForPreference(firstPref(player)),pod=preferredPods().find(x=>x.id===id);
       if(pod){pod.members.push(player.name);changed++;}
     });
-    podDraft=null;if(changed)queueSave();renderPodManager();
+    podDraft=null;
+    if(!changed){
+      const manual=roster().filter(p=>!assignmentFor(p.name)&&!podForPreference(firstPref(p))).map(p=>p.fullName||p.name);
+      showPodNotice(manual.length?`No additional players can be auto-assigned. ${manual.length} player${manual.length===1?'':'s'} have no matching first preference and need a Captain assignment.`:'Everyone with a matching first preference is already assigned.');
+      return;
+    }
+    renderPodManager();
+    await persistPodsNow(`${changed} player${changed===1?'':'s'} auto-assigned and saved live.`);
   }
 
-  function setAssignment(name,id){
+  async function setAssignment(name,id){
     if(!configured())return;
     preferredPods().forEach(p=>{p.members=(p.members||[]).filter(x=>x!==name)});
     const target=preferredPods().find(p=>p.id===id);if(target)target.members.push(name);
-    podDraft=null;queueSave();renderPodManager();
+    podDraft=null;renderPodManager();
+    await persistPodsNow(id?`${name} pod assignment saved live.`:`${name} left for manual assignment.`);
   }
 
   function setPresence(name,present){
@@ -179,9 +224,10 @@
     const players=roster().slice().sort((a,b)=>(a.fullName||a.name).localeCompare(b.fullName||b.name));
     const assigned=players.filter(p=>assignmentFor(p.name)).length,present=players.filter(p=>p.present!==false),unassignedPresent=present.filter(p=>!assignmentFor(p.name));
     const optionsFor=player=>`<option value="">Captain assigns manually</option>${POD_DEFS.map(d=>`<option value="${d.id}" ${assignmentFor(player.name)===d.id?'selected':''}>${esc(d.name)}</option>`).join('')}`;
-    const rows=players.map(player=>{const pref=firstPref(player),src=source(player);return `<div class="pod-player-row ${player.present===false?'absent':''}" data-player="${esc(player.name)}"><div><div class="pod-player-name">${esc(player.fullName||player.name)}</div><div class="pod-player-pref">${pref?`First preference: ${esc(pref)}${src&&src!=='none'?` • ${esc(src)}`:''}`:'No first field preference — manual assignment required'}</div></div><label class="pod-present-toggle"><input class="pod-presence" type="checkbox" ${player.present!==false?'checked':''}> Present today</label><label>Pod<select class="pod-select">${optionsFor(player)}</select></label></div>`;}).join('');
+    const rows=players.map(player=>{const pref=firstPref(player),src=source(player);return `<div class="pod-player-row ${player.present===false?'absent':''}" data-player="${esc(player.name)}"><div><div class="pod-player-name">${esc(player.fullName||player.name)}</div><div class="pod-player-pref">${pref?`First preference: ${esc(pref)}${src&&src!=='none'?` • ${esc(src)}`:''}`:'No first field preference — manual assignment required'}</div></div><label class="pod-present-toggle"><input class="pod-presence" type="checkbox" ${player.present!==false?'checked':''}> Present today</label><label>Pod<select class="pod-select" ${podSaveBusy?'disabled':''}>${optionsFor(player)}</select></label></div>`;}).join('');
     const groups=preferredPods().map((pod,index)=>{const def=POD_DEFS[index],members=(pod.members||[]).map(name=>playerByName(name)).filter(Boolean),here=members.filter(p=>p.present!==false);return `<div class="pod-group"><strong>${esc(def.name)}</strong><div class="muted">${esc(def.positions.join(' + '))} • ${here.length} present / ${members.length} assigned</div><div class="pod-member-line">${members.length?members.map(p=>esc(p.fullName||p.name)).join(', '):'No players assigned'}</div></div>`;}).join('');
-    card.innerHTML=`<div class="pod-manager-head"><div><div class="muted">PERSISTENT TEAM SETUP</div><h3 style="margin:.2rem 0">Game-Day Pods</h3><div class="muted">Assign each player once. On game day, mostly update attendance; the pod builder rotates present players and suggests a borrower when a two-position pod has only one player.</div></div><div class="pod-manager-actions"><button id="autoAssignPods" type="button">Auto-assign unassigned</button><button id="buildPodRotation" class="primary" type="button">Build pod rotation draft</button></div></div><div class="pod-day-summary"><div class="pod-day-stat"><strong>${assigned}/${players.length}</strong><span class="muted">Players assigned</span></div><div class="pod-day-stat"><strong>${present.length}</strong><span class="muted">Present today</span></div><div class="pod-day-stat"><strong>${unassignedPresent.length}</strong><span class="muted">Present need a pod</span></div></div><div class="pod-status ${unassignedPresent.length?'warn':''}">${unassignedPresent.length?`<strong>Captain assignment needed:</strong> ${unassignedPresent.map(p=>esc(p.fullName||p.name)).join(', ')}`:'Every present player has exactly one pod assignment.'}</div><div class="pod-groups">${groups}</div><details style="margin-top:10px" ${unassignedPresent.length?'open':''}><summary><strong>Edit player pod assignments & attendance</strong></summary><div class="pod-assignment-list">${rows}</div></details>${draftHtml()}`;
+    const notice=podSaveNotice?`<div class="pod-status ${podSaveWarning?'warn':''}">${esc(podSaveNotice)}</div>`:'';
+    card.innerHTML=`<div class="pod-manager-head"><div><div class="muted">PERSISTENT TEAM SETUP</div><h3 style="margin:.2rem 0">Game-Day Pods</h3><div class="muted">Assign each player once. On game day, mostly update attendance; the pod builder rotates present players and suggests a borrower when a two-position pod has only one player.</div></div><div class="pod-manager-actions"><button id="autoAssignPods" type="button" ${podSaveBusy?'disabled':''}>${podSaveBusy?'Saving…':'Auto-assign unassigned'}</button><button id="buildPodRotation" class="primary" type="button" ${podSaveBusy?'disabled':''}>Build pod rotation draft</button></div></div>${notice}<div class="pod-day-summary"><div class="pod-day-stat"><strong>${assigned}/${players.length}</strong><span class="muted">Players assigned</span></div><div class="pod-day-stat"><strong>${present.length}</strong><span class="muted">Present today</span></div><div class="pod-day-stat"><strong>${unassignedPresent.length}</strong><span class="muted">Present need a pod</span></div></div><div class="pod-status ${unassignedPresent.length?'warn':''}">${unassignedPresent.length?`<strong>Captain assignment needed:</strong> ${unassignedPresent.map(p=>esc(p.fullName||p.name)).join(', ')}`:'Every present player has exactly one pod assignment.'}</div><div class="pod-groups">${groups}</div><details style="margin-top:10px" ${unassignedPresent.length?'open':''}><summary><strong>Edit player pod assignments & attendance</strong></summary><div class="pod-assignment-list">${rows}</div></details>${draftHtml()}`;
     card.querySelector('#autoAssignPods').onclick=autoAssignUnassigned;
     card.querySelector('#buildPodRotation').onclick=buildPodDraft;
     card.querySelectorAll('.pod-player-row').forEach(row=>{
@@ -194,8 +240,8 @@
   }
 
   function renderLegacy(card){
-    const count=livePods().length;
-    card.innerHTML=`<div class="pod-manager-head"><div><div class="muted">PERSISTENT TEAM SETUP</div><h3 style="margin:.2rem 0">Game-Day Pods</h3><div class="muted">The new rotation uses six fixed position pods and assigns players from their first field preference. Existing player preferences are preserved.</div></div><button id="setupGameDayPods" class="primary" type="button">Apply 6-pod setup</button></div><div class="pod-status warn"><strong>${count?'Existing legacy pod setup detected.':'Pod setup not initialized yet.'}</strong> ${count?`${count} current pod${count===1?'':'s'} will remain untouched until a Captain applies the new setup.`:'No team state changes happen until you apply the setup.'}</div>`;
+    const count=livePods().length,notice=podSaveNotice?`<div class="pod-status ${podSaveWarning?'warn':''}">${esc(podSaveNotice)}</div>`:'';
+    card.innerHTML=`<div class="pod-manager-head"><div><div class="muted">PERSISTENT TEAM SETUP</div><h3 style="margin:.2rem 0">Game-Day Pods</h3><div class="muted">The new rotation uses six fixed position pods and assigns players from their first field preference. Existing player preferences are preserved.</div></div><button id="setupGameDayPods" class="primary" type="button" ${podSaveBusy?'disabled':''}>${podSaveBusy?'Saving…':'Apply 6-pod setup'}</button></div>${notice}<div class="pod-status warn"><strong>${count?'Existing legacy pod setup detected.':'Pod setup not initialized yet.'}</strong> ${count?`${count} current pod${count===1?'':'s'} will remain untouched until a Captain applies the new setup.`:'No team state changes happen until you apply the setup.'}</div>`;
     card.querySelector('#setupGameDayPods').onclick=applyDefaultPods;
   }
 
