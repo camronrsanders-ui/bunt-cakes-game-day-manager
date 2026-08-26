@@ -38,6 +38,14 @@ function passwordParts(password){
   return {salt,hash};
 }
 
+function passwordMatches(password,user){
+  try{
+    const derived=crypto.pbkdf2Sync(String(password),user.password_salt,120000,32,'sha256').toString('hex');
+    const a=Buffer.from(derived,'hex'),b=Buffer.from(String(user.password_hash||''),'hex');
+    return a.length===b.length&&a.length>0&&crypto.timingSafeEqual(a,b);
+  }catch(_){return false;}
+}
+
 function setSessionCookie(res,token){
   res.setHeader('Set-Cookie',`bc_captain=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=604800`);
 }
@@ -106,11 +114,131 @@ async function signup(req,res,sql){
   });
 }
 
+async function createCaptainInvite(req,res,sql){
+  const teamSlug=requestedTeamSlug(req);
+  const user=await requireTeamCaptain(req,res,teamSlug);if(!user)return;
+  const rawInviteToken=crypto.randomBytes(32).toString('base64url');
+  const inviteHash=hashToken(rawInviteToken);
+  const rows=await sql`
+    UPDATE team_states
+    SET state=jsonb_set(
+      state,
+      '{_captainInvite}',
+      jsonb_build_object(
+        'tokenHash',${inviteHash}::text,
+        'createdAt',to_jsonb(now()),
+        'expiresAt',to_jsonb(now()+interval '7 days'),
+        'createdByCaptainUserId',${String(user.id)}::text
+      ),
+      true
+    ),updated_at=now()
+    WHERE team_id=${user.team_id}
+    RETURNING state->'_captainInvite'->>'expiresAt' AS expires_at
+  `;
+  if(!rows.length)return res.status(500).json({error:'Could not create Captain invite'});
+  return res.status(200).json({
+    ok:true,
+    teamSlug,
+    inviteUrl:`/captain/${encodeURIComponent(teamSlug)}#captain-invite=${rawInviteToken}`,
+    expiresAt:rows[0].expires_at
+  });
+}
+
+async function acceptCaptainInvite(req,res,sql){
+  const body=req.body||{};
+  const teamSlug=normalizeTeamSlug(body.teamSlug);
+  const rawInviteToken=String(body.inviteToken||'').trim();
+  const normalizedEmail=String(body.email||'').trim().toLowerCase();
+  const displayName=String(body.displayName||'').trim();
+  const password=String(body.password||'');
+  if(!teamSlug||!/^[A-Za-z0-9_-]{43}$/.test(rawInviteToken))return res.status(400).json({error:'This Captain invite is invalid or expired'});
+  if(!normalizedEmail||!password)return res.status(400).json({error:'Email and password are required'});
+  const inviteHash=hashToken(rawInviteToken);
+  const teamRows=await sql`
+    SELECT t.id,t.slug
+    FROM teams t
+    JOIN team_states ts ON ts.team_id=t.id
+    WHERE t.slug=${teamSlug}
+      AND t.active=true
+      AND ts.state->'_captainInvite'->>'tokenHash'=${inviteHash}
+      AND NULLIF(ts.state->'_captainInvite'->>'expiresAt','')::timestamptz>now()
+    LIMIT 1
+  `;
+  const team=teamRows[0];
+  if(!team)return res.status(401).json({error:'This Captain invite is invalid or expired'});
+
+  const existing=await sql`
+    SELECT id,email,display_name,password_hash,password_salt,active
+    FROM captain_users
+    WHERE lower(email)=lower(${normalizedEmail})
+    LIMIT 1
+  `;
+  let captainId,createdNew=false;
+  if(existing.length){
+    if(!passwordMatches(password,existing[0]))return res.status(401).json({error:'Could not join with that email and password'});
+    captainId=existing[0].id;
+  }else{
+    if(!displayName||password.length<10)return res.status(400).json({error:'New Captains need a name and password of at least 10 characters'});
+    const {salt,hash}=passwordParts(password);
+    const created=await sql`
+      INSERT INTO captain_users(email,display_name,password_hash,password_salt,active)
+      VALUES (${normalizedEmail},${displayName},${hash},${salt},true)
+      RETURNING id
+    `;
+    if(!created.length)return res.status(500).json({error:'Could not create Captain account'});
+    captainId=created[0].id;createdNew=true;
+  }
+
+  const rawSessionToken=crypto.randomBytes(32).toString('base64url');
+  const sessionHash=hashToken(rawSessionToken);
+  let joined;
+  try{
+    joined=await sql`
+      WITH consumed AS (
+        UPDATE team_states
+        SET state=state-'_captainInvite',updated_at=now()
+        WHERE team_id=${team.id}
+          AND state->'_captainInvite'->>'tokenHash'=${inviteHash}
+          AND NULLIF(state->'_captainInvite'->>'expiresAt','')::timestamptz>now()
+        RETURNING team_id
+      ), membership AS (
+        INSERT INTO captain_team_memberships(captain_user_id,team_id,role,active)
+        SELECT ${captainId},consumed.team_id,'captain',true FROM consumed
+        ON CONFLICT(captain_user_id,team_id) DO UPDATE SET
+          active=true,
+          role=CASE WHEN captain_team_memberships.role='owner' THEN 'owner' ELSE 'captain' END
+        RETURNING team_id
+      ), activated AS (
+        UPDATE captain_users
+        SET active=true
+        WHERE id=${captainId} AND EXISTS (SELECT 1 FROM membership)
+        RETURNING id
+      ), new_session AS (
+        INSERT INTO captain_sessions(token_hash,captain_user_id,expires_at)
+        SELECT ${sessionHash},activated.id,now()+interval '7 days' FROM activated
+        RETURNING captain_user_id
+      )
+      SELECT membership.team_id FROM membership JOIN new_session ON true
+    `;
+  }catch(error){
+    if(createdNew)await sql`DELETE FROM captain_users WHERE id=${captainId}`;
+    throw error;
+  }
+  if(!joined.length){
+    if(createdNew)await sql`DELETE FROM captain_users WHERE id=${captainId}`;
+    return res.status(401).json({error:'This Captain invite is invalid or expired'});
+  }
+  setSessionCookie(res,rawSessionToken);
+  return res.status(200).json({ok:true,teamSlug:team.slug,captainUrl:`/captain/${team.slug}`});
+}
+
 module.exports = async function handler(req,res){
   try{
     const sql=getSql();
     const action=String(req.body&&req.body.action||'');
     if(req.method==='POST'&&action==='signup') return signup(req,res,sql);
+    if(req.method==='POST'&&action==='accept-invite') return acceptCaptainInvite(req,res,sql);
+    if(req.method==='POST'&&action==='create-invite') return createCaptainInvite(req,res,sql);
 
     if(req.method==='POST'&&action==='create-team'){
       const account=await getCaptain(req);
