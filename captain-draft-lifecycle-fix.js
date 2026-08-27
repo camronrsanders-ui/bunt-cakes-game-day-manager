@@ -68,6 +68,7 @@
       };
       setTimeout(()=>{
         window.alert=originalAlert;
+        clearLegacyDraft();
         removeLegacyDraftDom();
         stampCurrentDraft();
         if(document.getElementById('neutralPodDraft'))status('New rotation draft created. Nothing is published until you tap Publish.');
@@ -86,6 +87,7 @@
   },true);
 
   const observer=new MutationObserver(()=>{
+    clearLegacyDraft();
     removeLegacyDraftDom();
     stampCurrentDraft();
   });
