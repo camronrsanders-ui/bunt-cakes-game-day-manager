@@ -21,6 +21,12 @@
   const fixedPods=()=>Array.isArray(state?.pods)?POD_DEFS.map(def=>state.pods.find(p=>p&&p.id===def.id)).filter(Boolean):[];
   const configured=()=>fixedPods().length===POD_DEFS.length;
   const playerByName=name=>roster().find(p=>p&&p.name===name);
+  const gameDay=()=>window.BuntGameDayEligibility||{};
+  const isActive=player=>{
+    if(!player?.name)return false;
+    try{if(typeof gameDay().isActive==='function')return !!gameDay().isActive(player.name);}catch(_){}
+    return player.present!==false;
+  };
 
   function blankPods(){return POD_DEFS.map(def=>({id:def.id,name:def.name,positions:[...def.positions],members:[],podType:'game-day-v1'}));}
 
@@ -63,18 +69,19 @@
     if(!configured()){alert('Set up the six Game-Day pods from preferences first.');return;}
     normalizePods();
     const pods=fixedPods(),assigned=new Set(pods.flatMap(p=>p.members||[]));
-    const blanks=roster().filter(p=>p&&p.name&&!assigned.has(p.name)).slice().sort((a,b)=>(a.fullName||a.name).localeCompare(b.fullName||b.name));
+    const activeCount=pod=>(pod.members||[]).map(playerByName).filter(isActive).length;
+    const blanks=roster().filter(p=>p&&p.name&&isActive(p)&&!assigned.has(p.name)).slice().sort((a,b)=>(a.fullName||a.name).localeCompare(b.fullName||b.name));
     blanks.forEach(player=>{
       const target=pods.slice().sort((a,b)=>{
-        const loadA=(a.members||[]).length/Math.max(1,a.positions.length),loadB=(b.members||[]).length/Math.max(1,b.positions.length);
-        return loadA-loadB||(a.members||[]).length-(b.members||[]).length||POD_DEFS.findIndex(x=>x.id===a.id)-POD_DEFS.findIndex(x=>x.id===b.id);
+        const countA=activeCount(a),countB=activeCount(b),loadA=countA/Math.max(1,a.positions.length),loadB=countB/Math.max(1,b.positions.length);
+        return loadA-loadB||countA-countB||POD_DEFS.findIndex(x=>x.id===a.id)-POD_DEFS.findIndex(x=>x.id===b.id);
       })[0];
       target.members.push(player.name);
     });
     podDraft=null;
     if(blanks.length)queueSave();
     renderAll();
-    status(blanks.length?`${blanks.length} unassigned player${blanks.length===1?'':'s'} filled into the least-loaded pods. Existing assignments were preserved.`:'No unassigned players to auto-fill.');
+    status(blanks.length?`${blanks.length} active unassigned player${blanks.length===1?'':'s'} filled into the least-loaded game-day pods. Inactive roster members were ignored.`:'No active unassigned players to auto-fill.');
   }
 
   function setAssignment(name,podId){
@@ -87,7 +94,13 @@
 
   function setPresence(name,present){
     const player=playerByName(name);if(!player)return;
-    player.present=!!present;podDraft=null;queueSave();
+    podDraft=null;
+    if(typeof gameDay().setManualOverride==='function'){
+      gameDay().setManualOverride(name,!!present);
+      setTimeout(renderAll,0);
+      return;
+    }
+    player.present=!!present;queueSave();
     if(typeof renderRoster==='function')renderRoster();
     renderAll();
   }
@@ -117,16 +130,16 @@
   function buildDraft(){
     if(!configured()){alert('Set up the six Game-Day pods first.');return;}
     normalizePods();
-    const present=roster().filter(p=>p&&p.name&&p.present!==false),pods=fixedPods();
+    const present=roster().filter(p=>p&&p.name&&isActive(p)),pods=fixedPods();
     const unassigned=present.filter(p=>!assignmentFor(p.name));
     if(unassigned.length){alert('Assign every present player to a pod first: '+unassigned.map(p=>p.fullName||p.name).join(', '));return;}
-    if(!present.length){alert('No players are marked present.');return;}
+    if(!present.length){alert('No players are active for this game.');return;}
 
     const byName=new Map(roster().map(p=>[p.name,p])),borrowStats=new Map(),innings={},borrows=[];let gaps=0;
     for(let inning=1;inning<=7;inning++){
       const podRosters=new Map();
       POD_DEFS.forEach(def=>{
-        const pod=pods.find(p=>p.id===def.id);podRosters.set(def.id,(pod.members||[]).map(n=>byName.get(n)).filter(p=>p&&p.present!==false));
+        const pod=pods.find(p=>p.id===def.id);podRosters.set(def.id,(pod.members||[]).map(n=>byName.get(n)).filter(isActive));
       });
       const remainingSurplus=new Map(POD_DEFS.map(def=>[def.id,Math.max(0,(podRosters.get(def.id)||[]).length-def.positions.length)]));
       const borrowedOut=new Set(),borrowedIn=new Map(POD_DEFS.map(def=>[def.id,[]]));
@@ -160,7 +173,7 @@
       gaps+=POSITIONS.filter(pos=>!out[pos]).length;innings[inning]=out;
     }
     podDraft={innings,borrows,gaps,createdAt:new Date().toISOString()};renderAll();
-    status('New seven-inning draft created. Nothing is published until you tap Publish rotation.');
+    status('New seven-inning draft created from the active game-day roster. Nothing is published until you tap Publish rotation.');
   }
 
   function publishDraft(){
@@ -192,7 +205,7 @@
     const created=new Date(podDraft.createdAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
     const borrow=podDraft.borrows.length?podDraft.borrows.map(x=>`<div class="pod-borrow"><strong>Inning ${x.inning}: ${esc(x.player)}</strong> — ${esc(x.from)} → ${esc(x.to)}</div>`).join(''):'<div class="muted">No borrowing is needed with the current attendance.</div>';
     const innings=Array.from({length:7},(_,i)=>{const n=i+1,inn=podDraft.innings[n]||{};return `<details><summary>Inning ${n}</summary><div class="pod-inning-preview">${POSITIONS.map(pos=>`<div><strong>${esc(pos)}:</strong> <span class="${inn[pos]?'':'pod-gap'}">${esc(inn[pos]||'Unassigned')}</span></div>`).join('')}</div></details>`;}).join('');
-    return `<div class="pod-draft"><strong>Private balanced rotation draft</strong><div class="muted">Created ${esc(created)} • field preferences are not used for inning rotation • ${podDraft.borrows.length} borrow${podDraft.borrows.length===1?'':'s'} • ${podDraft.gaps} unfilled slot${podDraft.gaps===1?'':'s'}.</div><div style="margin-top:7px">${borrow}</div>${innings}<div class="pod-draft-actions"><button id="publishPodControllerDraft" class="primary" type="button">Publish rotation</button><button id="discardPodControllerDraft" type="button">Delete draft</button></div></div>`;
+    return `<div class="pod-draft"><strong>Private balanced rotation draft</strong><div class="muted">Created ${esc(created)} • active game-day players only • field preferences are not used for inning rotation • ${podDraft.borrows.length} borrow${podDraft.borrows.length===1?'':'s'} • ${podDraft.gaps} unfilled slot${podDraft.gaps===1?'':'s'}.</div><div style="margin-top:7px">${borrow}</div>${innings}<div class="pod-draft-actions"><button id="publishPodControllerDraft" class="primary" type="button">Publish rotation</button><button id="discardPodControllerDraft" type="button">Delete draft</button></div></div>`;
   }
 
   function renderManager(){
@@ -202,17 +215,17 @@
     if(!card){card=document.createElement('div');card.id='gameDayPodManager';card.className='card pod-manager';const hero=section.querySelector('.rotation-hero');if(hero&&hero.nextSibling)section.insertBefore(card,hero.nextSibling);else section.prepend(card);}
 
     if(!configured()){
-      card.innerHTML=`<div class="pod-manager-head"><div><div class="muted">PERSISTENT TEAM SETUP</div><h3 style="margin:.2rem 0">Game-Day Pods</h3><div class="muted">Set up each player from their first saved field preference. Players without a usable first preference stay blank until a Captain assigns them or uses Auto-fill.</div></div><button id="resetPodsFromPreferences" class="primary" type="button">Set up pods from preferences</button></div>`;
+      card.innerHTML=`<div class="pod-manager-head"><div><div class="muted">PERSISTENT TEAM SETUP</div><h3 style="margin:.2rem 0">Game-Day Pods</h3><div class="muted">Set up each player from their first saved field preference. Players without a usable first preference stay blank until a Captain assigns them or uses Auto-fill while they are active for a game.</div></div><button id="resetPodsFromPreferences" class="primary" type="button">Set up pods from preferences</button></div>`;
       card.querySelector('#resetPodsFromPreferences').onclick=resetFromPreferences;return;
     }
 
     normalizePods();
     const players=roster().slice().sort((a,b)=>(a.fullName||a.name).localeCompare(b.fullName||b.name));
-    const assigned=players.filter(p=>assignmentFor(p.name)).length,present=players.filter(p=>p.present!==false),unassignedPresent=present.filter(p=>!assignmentFor(p.name));
-    const groups=fixedPods().map((pod,index)=>{const def=POD_DEFS[index],members=(pod.members||[]).map(playerByName).filter(Boolean),here=members.filter(p=>p.present!==false);return `<div class="pod-group"><strong>${esc(def.name)}</strong><div class="muted">${esc(def.positions.join(' + '))} • ${here.length} present / ${members.length} assigned</div><div class="pod-member-line">${members.length?members.map(p=>esc(p.fullName||p.name)).join(', '):'No players assigned'}</div></div>`;}).join('');
-    const rows=players.map(player=>`<div class="pod-player-row ${player.present===false?'absent':''}" data-player="${esc(player.name)}"><div><div class="pod-player-name">${esc(player.fullName||player.name)}</div><div class="pod-player-pref">${firstPref(player)?`Initial setup preference: ${esc(firstPref(player))}`:'No first field preference'}</div></div><label class="pod-present-toggle"><input class="pod-presence" type="checkbox" ${player.present!==false?'checked':''}> Present today</label><label>Pod<select class="pod-select"><option value="">Unassigned</option>${POD_DEFS.map(def=>`<option value="${def.id}" ${assignmentFor(player.name)===def.id?'selected':''}>${esc(def.name)}</option>`).join('')}</select></label></div>`).join('');
+    const assigned=players.filter(p=>assignmentFor(p.name)).length,present=players.filter(isActive),unassignedPresent=present.filter(p=>!assignmentFor(p.name));
+    const groups=fixedPods().map((pod,index)=>{const def=POD_DEFS[index],members=(pod.members||[]).map(playerByName).filter(Boolean),here=members.filter(isActive);return `<div class="pod-group"><strong>${esc(def.name)}</strong><div class="muted">${esc(def.positions.join(' + '))} • ${here.length} active / ${members.length} season assigned</div><div class="pod-member-line">${members.length?members.map(p=>esc(p.fullName||p.name)).join(', '):'No players assigned'}</div></div>`;}).join('');
+    const rows=players.map(player=>{const active=isActive(player);return `<div class="pod-player-row ${active?'':'absent'}" data-player="${esc(player.name)}"><div><div class="pod-player-name">${esc(player.fullName||player.name)}</div><div class="pod-player-pref">${firstPref(player)?`Initial setup preference: ${esc(firstPref(player))}`:'No first field preference'}</div></div><label class="pod-present-toggle"><input class="pod-presence" type="checkbox" ${active?'checked':''}> Present today</label><label>Pod<select class="pod-select"><option value="">Unassigned</option>${POD_DEFS.map(def=>`<option value="${def.id}" ${assignmentFor(player.name)===def.id?'selected':''}>${esc(def.name)}</option>`).join('')}</select></label></div>`;}).join('');
 
-    card.innerHTML=`<div class="pod-manager-head"><div><div class="muted">PERSISTENT TEAM SETUP</div><h3 style="margin:.2rem 0">Game-Day Pods</h3><div class="muted">Preferences are used only to place players into their initial pods. Actual inning rotation uses pod membership, attendance, even turn-taking, and Captain changes.</div></div><div class="pod-manager-actions"><button id="resetPodsFromPreferences" type="button">Reset pods from preferences</button><button id="autoFillPods" type="button">Auto-fill unassigned</button><button id="buildPodControllerDraft" class="primary" type="button">Build pod rotation draft</button></div></div><div class="pod-day-summary"><div class="pod-day-stat"><strong>${assigned}/${players.length}</strong><span class="muted">Players assigned</span></div><div class="pod-day-stat"><strong>${present.length}</strong><span class="muted">Present today</span></div><div class="pod-day-stat"><strong>${unassignedPresent.length}</strong><span class="muted">Present need a pod</span></div></div><div class="pod-status ${unassignedPresent.length?'warn':''}">${unassignedPresent.length?`<strong>Captain assignment needed:</strong> ${unassignedPresent.map(p=>esc(p.fullName||p.name)).join(', ')}`:'Every present player has exactly one pod assignment.'}</div><div class="pod-groups">${groups}</div><details style="margin-top:10px" ${unassignedPresent.length?'open':''}><summary><strong>Edit player pod assignments & attendance</strong></summary><div class="pod-assignment-list">${rows}</div></details>${draftHtml()}`;
+    card.innerHTML=`<div class="pod-manager-head"><div><div class="muted">PERSISTENT TEAM SETUP</div><h3 style="margin:.2rem 0">Game-Day Pods</h3><div class="muted">Preferences are used only to place players into their initial season pods. Auto-fill and inning rotation use only RSVP Yes players plus Captain present overrides for this game.</div></div><div class="pod-manager-actions"><button id="resetPodsFromPreferences" type="button">Reset pods from preferences</button><button id="autoFillPods" type="button">Auto-fill active unassigned</button><button id="buildPodControllerDraft" class="primary" type="button">Build pod rotation draft</button></div></div><div class="pod-day-summary"><div class="pod-day-stat"><strong>${assigned}/${players.length}</strong><span class="muted">Season pod assignments</span></div><div class="pod-day-stat"><strong>${present.length}</strong><span class="muted">Active this game</span></div><div class="pod-day-stat"><strong>${unassignedPresent.length}</strong><span class="muted">Active need a pod</span></div></div><div class="pod-status ${unassignedPresent.length?'warn':''}">${unassignedPresent.length?`<strong>Captain assignment needed:</strong> ${unassignedPresent.map(p=>esc(p.fullName||p.name)).join(', ')}`:'Every active player has exactly one pod assignment.'}</div><div class="pod-groups">${groups}</div><details style="margin-top:10px" ${unassignedPresent.length?'open':''}><summary><strong>Edit player pod assignments & attendance</strong></summary><div class="pod-assignment-list">${rows}</div></details>${draftHtml()}`;
     card.querySelector('#resetPodsFromPreferences').onclick=resetFromPreferences;
     card.querySelector('#autoFillPods').onclick=autoFillUnassigned;
     card.querySelector('#buildPodControllerDraft').onclick=buildDraft;
@@ -225,8 +238,8 @@
 
   function cleanFieldUi(){
     const hero=document.querySelector('#pods .rotation-hero .rotation-title');
-    if(hero){const notes=hero.querySelectorAll('.muted');if(notes[1])notes[1].textContent='Use Game-Day Pods, attendance, even turn-taking, and Captain decisions. Field preferences do not drive inning rotation.';}
-    const editorNote=document.querySelector('#rotationEditor .rotation-note');if(editorNote)editorNote.textContent='Choose any present player. Field preferences do not drive this rotation.';
+    if(hero){const notes=hero.querySelectorAll('.muted');if(notes[1])notes[1].textContent='Use Game-Day Pods, RSVP attendance, even turn-taking, and Captain decisions. Field preferences do not drive inning rotation.';}
+    const editorNote=document.querySelector('#rotationEditor .rotation-note');if(editorNote)editorNote.textContent='Choose any active player. Field preferences do not drive this rotation.';
     const box=document.getElementById('rotationRest');if(!box)return;
     const label=box.querySelector('.muted'),match=label&&label.textContent.match(/INNING\s+(\d+)/i),inning=match?Number(match[1]):Number(state?.gameInning||1);
     box.querySelectorAll('.rotation-person').forEach(row=>{
