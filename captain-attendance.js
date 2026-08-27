@@ -7,16 +7,21 @@
       .cap-att-stat{background:#fff;border:1px solid #bbf7d0;border-radius:12px;padding:9px;text-align:center}.cap-att-stat strong{display:block;font-size:1.35rem}
       .cap-att-list{display:grid;gap:6px}.cap-att-row{background:#fff;border:1px solid #dcfce7;border-radius:10px;padding:8px 10px;display:flex;justify-content:space-between;gap:10px}
       .cap-att-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.cap-att-actions button{flex:1 1 190px;font-weight:800}
-      .cap-vote{background:#fff;border:2px solid #bbf7d0;border-radius:14px;padding:12px;margin:12px 0}.cap-vote-buttons{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:9px}.cap-vote-buttons button{font-weight:900}.cap-vote-buttons button.on{background:#15803d;color:#fff;border-color:#15803d}.cap-vote-buttons button.no.on{background:#b91c1c;border-color:#b91c1c}.cap-vote-buttons button.maybe.on{background:#a16207;border-color:#a16207}.cap-section-title{margin-top:12px;font-weight:900}.cap-vote-saved{font-weight:800;color:#166534;margin-top:7px}
+      .cap-vote{background:#fff;border:2px solid #bbf7d0;border-radius:14px;padding:12px;margin:12px 0}.cap-vote-buttons{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:9px}.cap-vote-buttons button{font-weight:900}.cap-vote-buttons button.on{background:#15803d;color:#fff;border-color:#15803d}.cap-vote-buttons button.no.on{background:#b91c1c;border-color:#b91c1c}.cap-vote-buttons button.maybe.on{background:#a16207;border-color:#a16207}.cap-section-title{margin-top:12px;font-weight:900}.cap-vote-saved{font-weight:800;color:#166534;margin-top:7px}.cap-manual-tag{display:inline-block;margin-left:5px;border-radius:999px;padding:2px 6px;background:#fef3c7;color:#92400e;font-size:.68rem;font-weight:800}
       @media(max-width:520px){.cap-att-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cap-vote-buttons{grid-template-columns:1fr}}
     `;document.head.appendChild(style);
   }
 
-  const esc=v=>String(v??'').replace(/[&<>\"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]));
+  const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   const valid=s=>s==='yes'||s==='no'||s==='not_sure';
   let captains=[];
   let session=null;
   let saving=false;
+  let lineupWrapped=false;
+  let manualCaptureInstalled=false;
+  let eligibilitySaveTimer=null;
+  let eligibilitySaving=false;
+  const clone=v=>JSON.parse(JSON.stringify(v==null?{}:v));
   const zone=()=>state?.team?.timeZone||Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC';
   const today=()=>new Date().toLocaleDateString('en-CA',{timeZone:zone()});
 
@@ -52,6 +57,136 @@
     return valid(legacy)?legacy:'';
   }
 
+  function overridesFor(date,create=false){
+    if(!date||!state)return{};
+    if(create){
+      state.gameDayAttendanceOverrides=state.gameDayAttendanceOverrides||{};
+      state.gameDayAttendanceOverrides[date]=state.gameDayAttendanceOverrides[date]||{};
+    }
+    return state.gameDayAttendanceOverrides?.[date]||{};
+  }
+  function hasOverride(playerName,date=target()){
+    const o=overridesFor(date,false);
+    return Object.prototype.hasOwnProperty.call(o,playerName)&&typeof o[playerName]==='boolean';
+  }
+  function activeFor(playerName,date=target()){
+    if(!state)return false;
+    if(!date){const player=(state.players||[]).find(p=>p&&p.name===playerName);return !!player&&player.present!==false;}
+    const o=overridesFor(date,false);
+    if(Object.prototype.hasOwnProperty.call(o,playerName)&&typeof o[playerName]==='boolean')return o[playerName];
+    const responses=state.availability?.[date]||{},captainResponses=responses._captains||{};
+    return effectivePlayerStatus(playerName,responses,captainResponses)==='yes';
+  }
+  function teamStateUrl(){
+    const match=location.pathname.match(/^\/captain\/([^/?#]+)/i);
+    if(match&&match[1])return'/api/team-state?team='+encodeURIComponent(decodeURIComponent(match[1]));
+    const q=new URLSearchParams(location.search).get('team');
+    return q?'/api/team-state?team='+encodeURIComponent(q):'/api/team-state';
+  }
+  function scheduleEligibilitySave(date=target()){
+    if(!date)return;clearTimeout(eligibilitySaveTimer);eligibilitySaveTimer=setTimeout(()=>persistEligibility(date),90);
+  }
+  async function persistEligibility(date=target()){
+    if(!date||!state||eligibilitySaving){scheduleEligibilitySave(date);return;}
+    eligibilitySaving=true;
+    try{
+      const url=teamStateUrl(),fresh=await fetch(url+(url.includes('?')?'&':'?')+'eligibility='+Date.now(),{credentials:'include',cache:'no-store',headers:{'Cache-Control':'no-cache, no-store, must-revalidate','Pragma':'no-cache'}});
+      const current=await fresh.json().catch(()=>({}));if(!fresh.ok||!current.state)throw new Error(current.error||'Could not load fresh game-day state');
+      const next=clone(current.state),localPresent=new Map((state.players||[]).filter(p=>p&&p.name).map(p=>[p.name,p.present!==false]));
+      next.players=(Array.isArray(next.players)?next.players:[]).map(p=>localPresent.has(p?.name)?{...p,present:localPresent.get(p.name)}:p);
+      next.gameDayAttendanceOverrides=clone(state.gameDayAttendanceOverrides||{});
+      const active=new Set([...localPresent].filter(([,present])=>present).map(([name])=>name));
+      const innings=clone(next.innings||{});Object.values(innings).forEach(inn=>{if(!inn||typeof inn!=='object')return;Object.keys(inn).forEach(pos=>{if(inn[pos]&&!active.has(inn[pos]))inn[pos]='';});});next.innings=innings;
+      if(next.currentKicker&&!active.has(next.currentKicker))next.currentKicker='';
+      const saved=await fetch(url,{method:'PUT',credentials:'include',cache:'no-store',headers:{'Content-Type':'application/json','Cache-Control':'no-cache, no-store, must-revalidate','Pragma':'no-cache'},body:JSON.stringify({state:next})});
+      const result=await saved.json().catch(()=>({}));if(!saved.ok)throw new Error(result.error||'Could not save game-day eligibility');
+      const status=document.getElementById('saveStatus');if(status)status.innerHTML='<span class="ok">Saved live</span> • RSVP game-day roster updated';
+    }catch(error){
+      const status=document.getElementById('saveStatus');if(status)status.innerHTML='<span class="warn">Attendance not saved: '+esc(error.message||'save failed')+'</span>';
+    }finally{eligibilitySaving=false;}
+  }
+
+  function pruneInactiveFromInnings(date=target()){
+    if(!state?.innings)return false;
+    const active=new Set((state.players||[]).filter(p=>p&&p.name&&activeFor(p.name,date)).map(p=>p.name));
+    let changed=false;
+    Object.values(state.innings).forEach(inn=>{
+      if(!inn||typeof inn!=='object')return;
+      Object.keys(inn).forEach(pos=>{if(inn[pos]&&!active.has(inn[pos])){inn[pos]='';changed=true;}});
+    });
+    if(state.currentKicker&&!active.has(state.currentKicker)){state.currentKicker='';changed=true;}
+    return changed;
+  }
+  function syncEligibility(date=target(),save=true){
+    if(!date||!state)return 0;
+    let changed=0;
+    (state.players||[]).forEach(p=>{
+      if(!p||!p.name)return;
+      const next=activeFor(p.name,date);
+      if(p.present!==next){p.present=next;changed++;}
+    });
+    if(pruneInactiveFromInnings(date))changed++;
+    if(changed&&save)scheduleEligibilitySave(date);
+    if(changed){
+      if(typeof renderKicking==='function')renderKicking();
+      if(typeof renderLineup==='function')renderLineup();
+      window.dispatchEvent(new Event('buntpreferrednamesrefresh'));
+    }
+    return changed;
+  }
+  function setManualOverride(playerName,present,date=target()){
+    if(!date||!playerName||!state)return;
+    const o=overridesFor(date,true);o[playerName]=!!present;
+    const player=(state.players||[]).find(p=>p&&p.name===playerName);if(player)player.present=!!present;
+    pruneInactiveFromInnings(date);
+    scheduleEligibilitySave(date);
+    if(typeof renderRoster==='function')renderRoster();
+    if(typeof renderLineup==='function')renderLineup();
+    if(typeof renderKicking==='function')renderKicking();
+    window.dispatchEvent(new Event('buntpreferrednamesrefresh'));
+    render();
+  }
+  function clearManualOverride(playerName,date=target()){
+    const o=overridesFor(date,false);if(!Object.prototype.hasOwnProperty.call(o,playerName))return;
+    delete o[playerName];syncEligibility(date,true);render();
+  }
+
+  window.BuntGameDayEligibility={targetDate:target,isActive:activeFor,hasOverride,setManualOverride,clearManualOverride,sync:syncEligibility};
+
+  function recordManualOverride(playerName,present,date=target()){
+    if(!date||!playerName||!state)return;
+    const o=overridesFor(date,true);o[playerName]=!!present;
+  }
+  function installManualOverrideCapture(){
+    if(manualCaptureInstalled)return;manualCaptureInstalled=true;
+    document.addEventListener('click',event=>{
+      const button=event.target?.closest?.('#players .att');if(!button||!state)return;
+      const card=button.closest('.card'),cards=[...document.querySelectorAll('#players > .card')],index=cards.indexOf(card),player=state.players?.[index];
+      if(!player?.name)return;event.preventDefault();event.stopImmediatePropagation();setManualOverride(player.name,!(player.present!==false));
+    },true);
+    document.addEventListener('change',event=>{
+      const input=event.target?.closest?.('#gameDayPodManager .pod-presence');if(!input)return;
+      const name=input.closest('.pod-player-row')?.dataset?.player;if(!name)return;event.stopImmediatePropagation();setManualOverride(name,input.checked);
+    },true);
+  }
+  function filterLineupOptions(){
+    const box=document.getElementById('positions');if(!box||!state)return;
+    const active=new Set((state.players||[]).filter(p=>p&&p.name&&activeFor(p.name)).map(p=>p.name));
+    box.querySelectorAll('select').forEach(select=>{
+      [...select.options].forEach(option=>{
+        const value=String(option.value||option.textContent||'').trim();
+        if(value&&value!=='Unassigned'&&!active.has(value))option.remove();
+      });
+    });
+  }
+  function installRenderHooks(){
+    installManualOverrideCapture();
+    if(!lineupWrapped&&typeof window.renderLineup==='function'){
+      const old=window.renderLineup;window.renderLineup=function(...args){const result=old.apply(this,args);filterLineupOptions();return result;};lineupWrapped=true;
+    }
+    filterLineupOptions();
+  }
+
   function render(){
     if(typeof state==='undefined'||!state)return;
     const card=mount();if(!card)return;
@@ -75,21 +210,29 @@
     const mePlayer=linkedPlayerName(me);
     const myAnswer=mePlayer?effectivePlayerStatus(mePlayer,responses,captainResponses):(meKey?captainResponses[meKey]?.status||'':'');
     const total={yes:playerGroups.yes.length+captainGroups.yes.length,no:playerGroups.no.length+captainGroups.no.length,not_sure:playerGroups.not_sure.length+captainGroups.not_sure.length,missing:playerGroups.missing.length+captainGroups.missing.length};
+    const activeCount=players.filter(p=>activeFor(p.name,date)).length;
+    const manualCount=players.filter(p=>hasOverride(p.name,date)).length;
     const order=['yes','no','not_sure','missing'];
     const captainSection=unlinkedCaptains.length?`<div class="cap-section-title">Non-playing captains</div><div class="cap-att-list">${order.map(k=>'<div class="cap-att-row"><strong>'+answerLabel(k)+'</strong><span>'+esc(captainGroups[k].join(', ')||'—')+'</span></div>').join('')}</div>`:'';
     const captainCopyButton=unlinkedCaptains.length?'<button id="copyMissingCaptains">Copy unanswered captains</button>':'';
 
-    card.innerHTML=`<div class="row wrap"><div><div class="muted">SUNDAY LINEUP AVAILABILITY</div><h2 style="margin:.25rem 0">${esc(pretty(date))}</h2><div class="muted">Everyone is counted once. Captains who are also players use their roster record.</div></div><span class="pill">Weekly RSVP</span></div>
+    card.innerHTML=`<div class="row wrap"><div><div class="muted">SUNDAY GAME-DAY AVAILABILITY</div><h2 style="margin:.25rem 0">${esc(pretty(date))}</h2><div class="muted">Only RSVP Yes players are active automatically. Captain manual overrides win for this game.</div></div><span class="pill">${activeCount} active${manualCount?` • ${manualCount} override${manualCount===1?'':'s'}`:''}</span></div>
       ${session?.authenticated?`<div class="cap-vote"><div class="muted">YOUR AVAILABILITY${mePlayer?' • PLAYER + CAPTAIN':''}</div><strong>${esc(mePlayer||me?.display_name||session?.user?.displayName||'Captain')}, will you be there?</strong><div class="cap-vote-buttons"><button data-cap-vote="yes" class="${myAnswer==='yes'?'on':''}">✅ Yes</button><button data-cap-vote="no" class="no ${myAnswer==='no'?'on':''}">❌ No</button><button data-cap-vote="not_sure" class="maybe ${myAnswer==='not_sure'?'on':''}">🤔 Not sure</button></div>${myAnswer?`<div class="cap-vote-saved">Your vote is saved: ${answerLabel(myAnswer)}</div>`:''}</div>`:''}
       <div class="cap-att-grid"><div class="cap-att-stat"><strong>${total.yes}</strong>Yes</div><div class="cap-att-stat"><strong>${total.no}</strong>No</div><div class="cap-att-stat"><strong>${total.not_sure}</strong>Not sure</div><div class="cap-att-stat"><strong>${total.missing}</strong>No response</div></div>
       <div class="cap-section-title">Team</div><div class="cap-att-list">${order.map(k=>'<div class="cap-att-row"><strong>'+answerLabel(k)+'</strong><span>'+esc(playerGroups[k].join(', ')||'—')+'</span></div>').join('')}</div>
       ${captainSection}
-      <div class="cap-att-actions"><button id="applySundayAttendance" class="primary">Use Yes / No for lineup</button><button id="copyMissingAttendance">Copy unanswered team members</button>${captainCopyButton}</div>`;
+      <div class="cap-att-actions"><button id="applySundayAttendance" class="primary">Sync RSVPs to game-day lineup</button><button id="copyMissingAttendance">Copy unanswered team members</button>${captainCopyButton}</div>`;
 
     card.querySelectorAll('[data-cap-vote]').forEach(btn=>btn.onclick=()=>saveCaptainVote(btn.dataset.capVote,date));
-    document.getElementById('applySundayAttendance').onclick=()=>{let changed=0;players.forEach(p=>{const s=effectivePlayerStatus(p.name,responses,captainResponses);if(s==='yes'&&p.present!==true){p.present=true;changed++}if(s==='no'&&p.present!==false){p.present=false;changed++}});if(typeof queueSave==='function')queueSave();if(typeof renderRoster==='function')renderRoster();alert(changed?'Answers applied to the roster. Not sure and unanswered people were left unchanged.':'The roster already matches the Yes / No answers.')};
+    document.getElementById('applySundayAttendance').onclick=()=>{
+      const changed=syncEligibility(date,true);
+      if(typeof renderRoster==='function')renderRoster();
+      render();
+      alert(changed?`Game-day roster updated. ${players.filter(p=>activeFor(p.name,date)).length} players are active from Yes votes plus Captain overrides.`:`Game-day roster already matches Yes votes and Captain overrides.`);
+    };
     document.getElementById('copyMissingAttendance').onclick=()=>copyNames(playerGroups.missing,'Everyone on the team roster has answered.','Unanswered team member names copied.');
     const missingCaptains=document.getElementById('copyMissingCaptains');if(missingCaptains)missingCaptains.onclick=()=>copyNames(captainGroups.missing,'Every non-playing captain has answered.','Unanswered captain names copied.');
+    filterLineupOptions();
   }
 
   async function copyNames(names,emptyMessage,successMessage){
@@ -110,7 +253,7 @@
         state.availability[date]._captains=state.availability[date]._captains||{};
         state.availability[date]._captains[key]={status,respondedAt:j.respondedAt,displayName:j.displayName,role:session?.team?.role||'captain'};
       }
-      render();
+      syncEligibility(date,true);render();
     }catch(e){alert(e.message||'Could not save availability')}finally{saving=false}
   }
 
@@ -133,13 +276,16 @@
       if(stateRes.ok&&state&&sharedStateSafe()){
         state.availability=stateJson.state?.availability||{};
         state.captainPlayerLinks=stateJson.state?.captainPlayerLinks||{};
+        state.gameDayAttendanceOverrides=stateJson.state?.gameDayAttendanceOverrides||state.gameDayAttendanceOverrides||{};
       }
       if(captainRes.ok)captains=captainJson.captains||[];
       if(sessionRes.ok)session=sessionJson;
+      installRenderHooks();
+      syncEligibility(target(),true);
       render();
     }catch(e){}
   }
 
-  const wait=setInterval(()=>{if(typeof state==='undefined'||!state||!document.getElementById('dashboard'))return;clearInterval(wait);pull();setInterval(()=>{if(!document.hidden)pull()},10000)},250);
+  const wait=setInterval(()=>{if(typeof state==='undefined'||!state||!document.getElementById('dashboard'))return;clearInterval(wait);installRenderHooks();pull();setInterval(()=>{if(!document.hidden)pull()},10000)},250);
   window.addEventListener('focus',pull);
 })();
