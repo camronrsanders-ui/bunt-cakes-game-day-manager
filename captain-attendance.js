@@ -19,6 +19,9 @@
   let saving=false;
   let lineupWrapped=false;
   let manualCaptureInstalled=false;
+  let eligibilitySaveTimer=null;
+  let eligibilitySaving=false;
+  const clone=v=>JSON.parse(JSON.stringify(v==null?{}:v));
   const zone=()=>state?.team?.timeZone||Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC';
   const today=()=>new Date().toLocaleDateString('en-CA',{timeZone:zone()});
 
@@ -74,6 +77,35 @@
     const responses=state.availability?.[date]||{},captainResponses=responses._captains||{};
     return effectivePlayerStatus(playerName,responses,captainResponses)==='yes';
   }
+  function teamStateUrl(){
+    const match=location.pathname.match(/^\/captain\/([^/?#]+)/i);
+    if(match&&match[1])return'/api/team-state?team='+encodeURIComponent(decodeURIComponent(match[1]));
+    const q=new URLSearchParams(location.search).get('team');
+    return q?'/api/team-state?team='+encodeURIComponent(q):'/api/team-state';
+  }
+  function scheduleEligibilitySave(date=target()){
+    if(!date)return;clearTimeout(eligibilitySaveTimer);eligibilitySaveTimer=setTimeout(()=>persistEligibility(date),90);
+  }
+  async function persistEligibility(date=target()){
+    if(!date||!state||eligibilitySaving){scheduleEligibilitySave(date);return;}
+    eligibilitySaving=true;
+    try{
+      const url=teamStateUrl(),fresh=await fetch(url+(url.includes('?')?'&':'?')+'eligibility='+Date.now(),{credentials:'include',cache:'no-store',headers:{'Cache-Control':'no-cache, no-store, must-revalidate','Pragma':'no-cache'}});
+      const current=await fresh.json().catch(()=>({}));if(!fresh.ok||!current.state)throw new Error(current.error||'Could not load fresh game-day state');
+      const next=clone(current.state),localPresent=new Map((state.players||[]).filter(p=>p&&p.name).map(p=>[p.name,p.present!==false]));
+      next.players=(Array.isArray(next.players)?next.players:[]).map(p=>localPresent.has(p?.name)?{...p,present:localPresent.get(p.name)}:p);
+      next.gameDayAttendanceOverrides=clone(state.gameDayAttendanceOverrides||{});
+      const active=new Set([...localPresent].filter(([,present])=>present).map(([name])=>name));
+      const innings=clone(next.innings||{});Object.values(innings).forEach(inn=>{if(!inn||typeof inn!=='object')return;Object.keys(inn).forEach(pos=>{if(inn[pos]&&!active.has(inn[pos]))inn[pos]='';});});next.innings=innings;
+      if(next.currentKicker&&!active.has(next.currentKicker))next.currentKicker='';
+      const saved=await fetch(url,{method:'PUT',credentials:'include',cache:'no-store',headers:{'Content-Type':'application/json','Cache-Control':'no-cache, no-store, must-revalidate','Pragma':'no-cache'},body:JSON.stringify({state:next})});
+      const result=await saved.json().catch(()=>({}));if(!saved.ok)throw new Error(result.error||'Could not save game-day eligibility');
+      const status=document.getElementById('saveStatus');if(status)status.innerHTML='<span class="ok">Saved live</span> • RSVP game-day roster updated';
+    }catch(error){
+      const status=document.getElementById('saveStatus');if(status)status.innerHTML='<span class="warn">Attendance not saved: '+esc(error.message||'save failed')+'</span>';
+    }finally{eligibilitySaving=false;}
+  }
+
   function pruneInactiveFromInnings(date=target()){
     if(!state?.innings)return false;
     const active=new Set((state.players||[]).filter(p=>p&&p.name&&activeFor(p.name,date)).map(p=>p.name));
@@ -94,7 +126,7 @@
       if(p.present!==next){p.present=next;changed++;}
     });
     if(pruneInactiveFromInnings(date))changed++;
-    if(changed&&save&&typeof queueSave==='function')queueSave();
+    if(changed&&save)scheduleEligibilitySave(date);
     if(changed){
       if(typeof renderKicking==='function')renderKicking();
       if(typeof renderLineup==='function')renderLineup();
@@ -107,7 +139,7 @@
     const o=overridesFor(date,true);o[playerName]=!!present;
     const player=(state.players||[]).find(p=>p&&p.name===playerName);if(player)player.present=!!present;
     pruneInactiveFromInnings(date);
-    if(typeof queueSave==='function')queueSave();
+    scheduleEligibilitySave(date);
     if(typeof renderRoster==='function')renderRoster();
     if(typeof renderLineup==='function')renderLineup();
     if(typeof renderKicking==='function')renderKicking();
@@ -130,11 +162,11 @@
     document.addEventListener('click',event=>{
       const button=event.target?.closest?.('#players .att');if(!button||!state)return;
       const card=button.closest('.card'),cards=[...document.querySelectorAll('#players > .card')],index=cards.indexOf(card),player=state.players?.[index];
-      if(player?.name)recordManualOverride(player.name,!(player.present!==false));
+      if(!player?.name)return;event.preventDefault();event.stopImmediatePropagation();setManualOverride(player.name,!(player.present!==false));
     },true);
     document.addEventListener('change',event=>{
       const input=event.target?.closest?.('#gameDayPodManager .pod-presence');if(!input)return;
-      const name=input.closest('.pod-player-row')?.dataset?.player;if(name)recordManualOverride(name,input.checked);
+      const name=input.closest('.pod-player-row')?.dataset?.player;if(!name)return;event.stopImmediatePropagation();setManualOverride(name,input.checked);
     },true);
   }
   function filterLineupOptions(){
