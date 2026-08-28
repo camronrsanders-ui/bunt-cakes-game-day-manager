@@ -114,7 +114,8 @@ async function getTeam(sql, slug = DEFAULT_TEAM_SLUG) {
   if (!safe) return null;
   const rows = await sql`
     SELECT t.id, t.slug, t.active, t.plan, t.billing_status,
-           ts.state, ts.updated_at
+           ts.state,
+           to_char(ts.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS updated_at
     FROM teams t
     LEFT JOIN team_states ts ON ts.team_id = t.id
     WHERE t.slug = ${safe} AND t.active = true
