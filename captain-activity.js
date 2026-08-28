@@ -10,6 +10,32 @@
 
   const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 
+  function installVersionAwareFetch(){
+    if(window.__buntExactVersionFetchInstalled||typeof window.fetch!=='function')return;
+    window.__buntExactVersionFetchInstalled=true;
+    const baseFetch=window.fetch.bind(window);
+    window.fetch=async function(input,init){
+      const raw=typeof input==='string'?input:(input&&input.url)||'';
+      const method=String((init&&init.method)||(input&&input.method)||'GET').toUpperCase();
+      const isTeamSave=method==='PUT'&&/\/api\/team-state(?:[?#]|$)/.test(String(raw));
+      const response=await baseFetch(input,init);
+      if(!isTeamSave||!response.ok)return response;
+      try{
+        const saved=await response.clone().json();
+        const confirmed=await baseFetch('/api/team-state?fresh='+Date.now(),{
+          method:'GET',credentials:'include',cache:'no-store',
+          headers:{'Cache-Control':'no-cache, no-store, must-revalidate','Pragma':'no-cache'}
+        });
+        if(!confirmed.ok)return response;
+        const current=await confirmed.json();
+        if(!current||!current.updatedAt)return response;
+        saved.updatedAt=current.updatedAt;
+        const headers=new Headers(response.headers);headers.set('Content-Type','application/json; charset=utf-8');
+        return new Response(JSON.stringify(saved),{status:response.status,statusText:response.statusText,headers});
+      }catch(_){return response;}
+    };
+  }
+
   function captainName(){
     const raw=(typeof user!=='undefined'&&user&&(user.displayName||user.display_name||user.email))||'Captain';
     return String(raw||'Captain').trim()||'Captain';
@@ -79,7 +105,7 @@
 
   function install(){
     if(installed)return;
-    if(typeof state==='undefined'||!state||typeof queueSave!=='function'){setTimeout(install,120);return;}
+    if(typeof state==='undefined'||!state||typeof queueSave!=='function'||window.__buntCaptainLiveSyncInstalled!==true){setTimeout(install,120);return;}
     installed=true;
     const originalQueueSave=queueSave;
     queueSave=function(...args){
@@ -95,5 +121,6 @@
     renderAll();
   }
 
+  installVersionAwareFetch();
   install();
 })();
