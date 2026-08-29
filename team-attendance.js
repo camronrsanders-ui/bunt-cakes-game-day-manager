@@ -23,10 +23,10 @@
   const zone=()=>state?.team?.timeZone||Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC';
   const today=()=>new Date().toLocaleDateString('en-CA',{timeZone:zone()});
   const time12=t=>{if(!t)return'';const [h,m]=t.split(':').map(Number);return new Date(2000,0,1,h,m||0).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true})};
-  let working=false;
+  let working=false,accessRejected=false;
 
   function playerAccess(){return state&&state.playerAccess&&typeof state.playerAccess==='object'?state.playerAccess:{paired:false}}
-  function playerName(){const access=playerAccess();return access.paired===true?String(access.playerName||'').trim():''}
+  function playerName(){if(accessRejected)return'';const access=playerAccess();return access.paired===true?String(access.playerName||'').trim():''}
   function sundayDates(){const t=today(),events=Array.isArray(state?.events)?state.events:[];return[...new Set(events.filter(e=>e&&e.type==='Game'&&e.date&&e.date>=t).map(e=>e.date).filter(d=>new Date(d+'T12:00:00').getDay()===0))].sort()}
   function targetDate(){const requested=new URLSearchParams(location.search).get('availability'),dates=sundayDates();return requested&&dates.includes(requested)?requested:(dates[0]||'')}
   function gamesFor(date){return(state?.events||[]).filter(e=>e&&e.type==='Game'&&e.date===date).sort((a,b)=>(a.time||'').localeCompare(b.time||''))}
@@ -35,7 +35,13 @@
   function statusLabel(v){return v==='yes'?'Yes':v==='no'?'No':v==='not_sure'?'Not sure':''}
   function mount(){const home=document.getElementById('home');if(!home)return null;let card=document.getElementById('weeklyAttendanceCard');if(!card){card=document.createElement('div');card.id='weeklyAttendanceCard';card.className='card attendance-card';const reminder=home.querySelector('.reminder-card');if(reminder)reminder.insertAdjacentElement('beforebegin',card);else home.prepend(card)}return card}
   function notificationBlock(){return '<div class="attendance-notify"><strong>🔔 Thursday availability reminders</strong><div id="attendanceNotifyText" class="muted">Get a reminder each Thursday when you need to RSVP for Sunday.</div><button id="enableAttendancePush">Set Up Thursday Notifications</button></div>'}
-  function accessRequiredBlock(){return '<div class="attendance-access-required">Player access needs to be set up. Ask your captain for your setup link.</div>'}
+  function accessRequiredBlock(){return accessRejected?'<div class="attendance-access-required"><strong>Player access needs to reconnect on this phone/app.</strong><div style="margin-top:6px">Ask your captain for a new setup link, then open that link in this same app or browser. You do not need a full access reset unless your captain specifically chooses one.</div></div>':'<div class="attendance-access-required">Player access needs to be set up. Ask your captain for your setup link.</div>'}
+  function rejectAccess(){
+    accessRejected=true;
+    if(typeof state!=='undefined'&&state)state.playerAccess={paired:false};
+    renderCard();
+    window.dispatchEvent(new Event('teamplayeraccesschange'));
+  }
 
   function renderCard(){
     if(typeof state==='undefined'||!state)return;const card=mount();if(!card)return;const date=targetDate(),name=playerName(),paired=!!name;
@@ -56,11 +62,24 @@
     refreshPushStatus();
   }
 
-  async function saveAnswer(status){const name=playerName(),date=targetDate();if(!name){alert('Player access needs to be set up. Ask your captain for your setup link.');return}if(!date||working)return;working=true;try{const r=await fetch('/api/team-state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'attendance-response',playerName:name,gameDate:date,status})});const j=await r.json();if(!r.ok)throw new Error(j.error||'Could not save attendance');state.availability=state.availability||{};state.availability[date]=state.availability[date]||{};state.availability[date][name]={status,respondedAt:j.respondedAt};renderCard()}catch(e){alert(e.message||'Could not save your answer')}finally{working=false}}
+  async function saveAnswer(status){
+    const name=playerName(),date=targetDate();
+    if(!name){renderCard();return}
+    if(!date||working)return;
+    working=true;
+    try{
+      const r=await fetch('/api/team-state',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'attendance-response',playerName:name,gameDate:date,status})});
+      const j=await r.json().catch(()=>({}));
+      if(r.status===401&&j&&j.playerAccessRequired){rejectAccess();return}
+      if(!r.ok)throw new Error(j.error||'Could not save attendance');
+      accessRejected=false;
+      state.availability=state.availability||{};state.availability[date]=state.availability[date]||{};state.availability[date][name]={status,respondedAt:j.respondedAt};renderCard();
+    }catch(e){alert(e.message||'Could not save your answer')}finally{working=false}
+  }
   function b64ToBytes(value){const pad='='.repeat((4-value.length%4)%4),base64=(value+pad).replace(/-/g,'+').replace(/_/g,'/'),raw=atob(base64);return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)))}
   function standalone(){return matchMedia('(display-mode: standalone)').matches||navigator.standalone===true}
   async function registration(){if(!('serviceWorker'in navigator))throw new Error('Push notifications are not supported on this device');return navigator.serviceWorker.register('/service-worker.js').then(()=>navigator.serviceWorker.ready)}
-  async function postSubscription(sub){const name=playerName();if(!name)throw new Error('Player access needs to be set up. Ask your captain for your setup link.');const r=await fetch('/api/team-state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'subscribe',playerName:name,subscription:sub.toJSON()})});if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.error||'Could not save reminder settings')}}
+  async function postSubscription(sub){const name=playerName();if(!name)throw new Error('Player access needs to be set up. Ask your captain for your setup link.');const r=await fetch('/api/team-state',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'subscribe',playerName:name,subscription:sub.toJSON()})});if(!r.ok){const j=await r.json().catch(()=>({}));if(r.status===401&&j&&j.playerAccessRequired){rejectAccess();throw new Error('Player access needs to reconnect on this phone/app.')}throw new Error(j.error||'Could not save reminder settings')}}
   async function syncExistingSubscription(){try{if(!playerName()||!('PushManager'in window))return;const reg=await registration(),sub=await reg.pushManager.getSubscription();if(sub)await postSubscription(sub)}catch(e){}}
 
   async function pushState(){
@@ -82,7 +101,7 @@
   }
 
   async function enablePush(){
-    const name=playerName();if(!name){alert('Player access needs to be set up. Ask your captain for your setup link.');return false}
+    const name=playerName();if(!name){renderCard();return false}
     const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
     if(isIOS&&!standalone()){
       if(typeof window.teamGameDayShowInstallGuide==='function')window.teamGameDayShowInstallGuide();
@@ -104,6 +123,6 @@
   window.teamGameDayRenderAttendance=renderCard;
 
   const wait=setInterval(()=>{if(typeof state==='undefined'||!state||!document.getElementById('home'))return;clearInterval(wait);renderCard();syncExistingSubscription();setInterval(()=>{renderCard()},3000)},250);
-  window.addEventListener('teamplayeraccesschange',()=>{renderCard();if(playerName())syncExistingSubscription()});
+  window.addEventListener('teamplayeraccesschange',()=>{const access=playerAccess();if(access.paired===true)accessRejected=false;renderCard();if(playerName())syncExistingSubscription()});
   window.addEventListener('pageshow',renderCard);
 })();
