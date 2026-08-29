@@ -21,7 +21,7 @@
   let manualCaptureInstalled=false;
   let eligibilitySaveTimer=null;
   let eligibilitySaving=false;
-  const clone=v=>JSON.parse(JSON.stringify(v==null?{}:v));
+  let externalEligibilitySync=false;
   const zone=()=>state?.team?.timeZone||Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC';
   const today=()=>new Date().toLocaleDateString('en-CA',{timeZone:zone()});
 
@@ -77,32 +77,27 @@
     const responses=state.availability?.[date]||{},captainResponses=responses._captains||{};
     return effectivePlayerStatus(playerName,responses,captainResponses)==='yes';
   }
-  function teamStateUrl(){
-    const match=location.pathname.match(/^\/captain\/([^/?#]+)/i);
-    if(match&&match[1])return'/api/team-state?team='+encodeURIComponent(decodeURIComponent(match[1]));
-    const q=new URLSearchParams(location.search).get('team');
-    return q?'/api/team-state?team='+encodeURIComponent(q):'/api/team-state';
-  }
+
   function scheduleEligibilitySave(date=target()){
-    if(!date)return;clearTimeout(eligibilitySaveTimer);eligibilitySaveTimer=setTimeout(()=>persistEligibility(date),90);
+    if(!date)return;
+    clearTimeout(eligibilitySaveTimer);
+    eligibilitySaveTimer=setTimeout(()=>persistEligibility(date),60);
   }
+
   async function persistEligibility(date=target()){
-    if(!date||!state||eligibilitySaving){scheduleEligibilitySave(date);return;}
+    if(!date||!state)return;
+    if(eligibilitySaving){scheduleEligibilitySave(date);return;}
     eligibilitySaving=true;
     try{
-      const url=teamStateUrl(),fresh=await fetch(url+(url.includes('?')?'&':'?')+'eligibility='+Date.now(),{credentials:'include',cache:'no-store',headers:{'Cache-Control':'no-cache, no-store, must-revalidate','Pragma':'no-cache'}});
-      const current=await fresh.json().catch(()=>({}));if(!fresh.ok||!current.state)throw new Error(current.error||'Could not load fresh game-day state');
-      const next=clone(current.state),localPresent=new Map((state.players||[]).filter(p=>p&&p.name).map(p=>[p.name,p.present!==false]));
-      next.players=(Array.isArray(next.players)?next.players:[]).map(p=>localPresent.has(p?.name)?{...p,present:localPresent.get(p.name)}:p);
-      next.gameDayAttendanceOverrides=clone(state.gameDayAttendanceOverrides||{});
-      const active=new Set([...localPresent].filter(([,present])=>present).map(([name])=>name));
-      const innings=clone(next.innings||{});Object.values(innings).forEach(inn=>{if(!inn||typeof inn!=='object')return;Object.keys(inn).forEach(pos=>{if(inn[pos]&&!active.has(inn[pos]))inn[pos]='';});});next.innings=innings;
-      if(next.currentKicker&&!active.has(next.currentKicker))next.currentKicker='';
-      const saved=await fetch(url,{method:'PUT',credentials:'include',cache:'no-store',headers:{'Content-Type':'application/json','Cache-Control':'no-cache, no-store, must-revalidate','Pragma':'no-cache'},body:JSON.stringify({state:next})});
-      const result=await saved.json().catch(()=>({}));if(!saved.ok)throw new Error(result.error||'Could not save game-day eligibility');
-      const status=document.getElementById('saveStatus');if(status)status.innerHTML='<span class="ok">Saved live</span> • RSVP game-day roster updated';
+      // One authoritative Captain save queue owns attendance, pods, lineup and kicking state.
+      // This avoids a stale attendance snapshot overwriting a newer Field Rotation edit.
+      if(typeof window.buntCakesSaveNow!=='function')throw new Error('Live save is not ready yet');
+      await window.buntCakesSaveNow();
+      const status=document.getElementById('saveStatus');
+      if(status)status.innerHTML='<span class="ok">Saved live</span> • RSVP game-day roster updated';
     }catch(error){
-      const status=document.getElementById('saveStatus');if(status)status.innerHTML='<span class="warn">Attendance not saved: '+esc(error.message||'save failed')+'</span>';
+      const status=document.getElementById('saveStatus');
+      if(status)status.innerHTML='<span class="warn">Attendance is still syncing: '+esc(error.message||'save pending')+'</span>';
     }finally{eligibilitySaving=false;}
   }
 
@@ -131,6 +126,7 @@
       if(typeof renderKicking==='function')renderKicking();
       if(typeof renderLineup==='function')renderLineup();
       window.dispatchEvent(new Event('buntpreferrednamesrefresh'));
+      window.dispatchEvent(new CustomEvent('buntgamedayeligibilitychange',{detail:{date}}));
     }
     return changed;
   }
@@ -144,6 +140,7 @@
     if(typeof renderLineup==='function')renderLineup();
     if(typeof renderKicking==='function')renderKicking();
     window.dispatchEvent(new Event('buntpreferrednamesrefresh'));
+    window.dispatchEvent(new CustomEvent('buntgamedayeligibilitychange',{detail:{date}}));
     render();
   }
   function clearManualOverride(playerName,date=target()){
@@ -153,10 +150,6 @@
 
   window.BuntGameDayEligibility={targetDate:target,isActive:activeFor,hasOverride,setManualOverride,clearManualOverride,sync:syncEligibility};
 
-  function recordManualOverride(playerName,present,date=target()){
-    if(!date||!playerName||!state)return;
-    const o=overridesFor(date,true);o[playerName]=!!present;
-  }
   function installManualOverrideCapture(){
     if(manualCaptureInstalled)return;manualCaptureInstalled=true;
     document.addEventListener('click',event=>{
@@ -268,7 +261,7 @@
   async function pull(){
     try{
       const [stateRes,captainRes,sessionRes]=await Promise.all([
-        fetch('/api/team-state?attendance='+Date.now(),{cache:'no-store'}),
+        fetch('/api/team-state?attendance='+Date.now(),{cache:'no-store',credentials:'include'}),
         fetch('/api/captains',{cache:'no-store',credentials:'include'}),
         fetch('/api/session',{cache:'no-store',credentials:'include'})
       ]);
@@ -286,6 +279,13 @@
     }catch(e){}
   }
 
+  function syncFromSharedState(){
+    if(externalEligibilitySync||typeof state==='undefined'||!state)return;
+    externalEligibilitySync=true;
+    try{syncEligibility(target(),true);render();}finally{setTimeout(()=>{externalEligibilitySync=false;},0);}
+  }
+
   const wait=setInterval(()=>{if(typeof state==='undefined'||!state||!document.getElementById('dashboard'))return;clearInterval(wait);installRenderHooks();pull();setInterval(()=>{if(!document.hidden)pull()},10000)},250);
+  window.addEventListener('buntpreferrednamesrefresh',syncFromSharedState);
   window.addEventListener('focus',pull);
 })();
