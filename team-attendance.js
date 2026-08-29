@@ -122,7 +122,8 @@
   window.teamGameDayPushState=pushState;
   window.teamGameDayRenderAttendance=renderCard;
 
-  const wait=setInterval(()=>{if(typeof state==='undefined'||!state||!document.getElementById('home'))return;clearInterval(wait);renderCard();syncExistingSubscription();setInterval(()=>{renderCard()},3000)},250);
+  const wait=setInterval(()=>{if(typeof state==='undefined'||!state||!document.getElementById('home'))return;clearInterval(wait);renderCard();syncExistingSubscription()},250);
+  window.addEventListener('buntpreferrednamesrefresh',renderCard);
   window.addEventListener('teamplayeraccesschange',()=>{const access=playerAccess();if(access.paired===true)accessRejected=false;renderCard();if(playerName())syncExistingSubscription()});
   window.addEventListener('pageshow',renderCard);
 })();
