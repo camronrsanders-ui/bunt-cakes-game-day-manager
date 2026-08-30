@@ -13,11 +13,11 @@
   let writeChain=Promise.resolve();
   let installed=false;
 
-  function defaultGame(){return{teamAName:'',teamBName:'',teamAScore:0,teamBScore:0,balls:0,fouls:0,outs:0,inning:1,kickingTeam:'a',updatedAt:null,updatedBy:''};}
+  function defaultGame(){return{teamAName:'',teamBName:'',teamAScore:0,teamBScore:0,balls:0,fouls:0,outs:0,inning:1,kickingTeam:'b',updatedAt:null,updatedBy:''};}
   function normalizedGame(value){
     const raw=value&&typeof value==='object'?value:{};
     const n=(v,min,max,fallback)=>{const x=Number(v);return Number.isInteger(x)?Math.max(min,Math.min(max,x)):fallback;};
-    return{...defaultGame(),...raw,teamAName:clean(raw.teamAName).slice(0,80),teamBName:clean(raw.teamBName).slice(0,80),teamAScore:n(raw.teamAScore,0,99,0),teamBScore:n(raw.teamBScore,0,99,0),balls:n(raw.balls,0,4,0),fouls:n(raw.fouls,0,4,0),outs:n(raw.outs,0,3,0),inning:n(raw.inning,1,12,1),kickingTeam:raw.kickingTeam==='b'?'b':'a'};
+    return{...defaultGame(),...raw,teamAName:clean(raw.teamAName).slice(0,80),teamBName:clean(raw.teamBName).slice(0,80),teamAScore:n(raw.teamAScore,0,99,0),teamBScore:n(raw.teamBScore,0,99,0),balls:n(raw.balls,0,4,0),fouls:n(raw.fouls,0,4,0),outs:n(raw.outs,0,3,0),inning:n(raw.inning,1,12,1),kickingTeam:raw.kickingTeam==='a'?'a':'b'};
   }
   function gameFor(id){return normalizedGame(remote.games?.[id]);}
   function eventSort(a,b){return((a.date||'9999-12-31')+(a.time||'')).localeCompare((b.date||'9999-12-31')+(b.time||''));}
@@ -37,8 +37,8 @@
     const d=e.date?new Date(e.date+'T12:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}):'Date TBD';
     return `${d}${e.time?' • '+time12(e.time):''}${e.location?' • '+e.location:''}`;
   }
-  function teamA(g){return clean(g.teamAName)||'Team 1';}
-  function teamB(g){return clean(g.teamBName)||'Team 2';}
+  function teamA(g){return clean(g.teamAName)||'Home';}
+  function teamB(g){return clean(g.teamBName)||'Away';}
   function editingConsole(){
     const el=document.activeElement;
     if(!el||!['INPUT','SELECT','TEXTAREA'].includes(el.tagName))return false;
@@ -105,8 +105,8 @@
     const event=events.find(e=>e.eventId===selectedEventId)||events[0],g=gameFor(event.eventId),a=teamA(g),b=teamB(g);
     const eventOptions=events.map(e=>`<option value="${esc(e.eventId)}" ${e.eventId===event.eventId?'selected':''}>${esc(eventLabel(e))}</option>`).join('');
     const innings=Array.from({length:12},(_,i)=>`<option value="${i+1}" ${g.inning===i+1?'selected':''}>${i+1}</option>`).join('');
-    const nextHalf=g.kickingTeam==='a'?`Switch sides → ${b}`:`Next inning → ${Math.min(12,g.inning+1)}`;
-    host.innerHTML=`<div class="umpire-console"><div class="card umpire-hero"><div class="umpire-head"><div><div class="muted">LIVE OFFICIATING TOOL</div><h2 class="umpire-title">Umpire Console</h2><div class="muted">${esc(eventLabel(event))}</div></div><span class="pill">${isCaptain()?'Captain view':'You are the umpire'}</span></div>${events.length>1?`<label>Officiating slot<select id="umpireEventSelect" class="umpire-event-select">${eventOptions}</select></label>`:''}<div class="umpire-live" data-umpire-live>${g.updatedAt?'Live • updated '+new Date(g.updatedAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}):'Ready'}</div></div><div class="umpire-team-grid"><div class="card umpire-team-card"><label>Team 1<input id="umpireTeamA" value="${esc(g.teamAName)}" placeholder="Enter team name" autocomplete="off"></label><div class="umpire-score">${g.teamAScore}</div><div class="umpire-score-actions"><button type="button" data-score-team="a" data-score-delta="-1">−</button><button type="button" class="primary" data-score-team="a" data-score-delta="1">+ Run</button></div></div><div class="card umpire-team-card"><label>Team 2<input id="umpireTeamB" value="${esc(g.teamBName)}" placeholder="Enter team name" autocomplete="off"></label><div class="umpire-score">${g.teamBScore}</div><div class="umpire-score-actions"><button type="button" data-score-team="b" data-score-delta="-1">−</button><button type="button" class="primary" data-score-team="b" data-score-delta="1">+ Run</button></div></div></div><div class="card"><div class="umpire-status-grid"><label>Inning<select id="umpireInning">${innings}</select></label><label>Kicking now<select id="umpireKicking"><option value="a" ${g.kickingTeam==='a'?'selected':''}>${esc(a)}</option><option value="b" ${g.kickingTeam==='b'?'selected':''}>${esc(b)}</option></select></label></div><div class="umpire-count-grid" style="margin-top:10px"><div class="umpire-count"><span class="muted">Balls</span><strong>${g.balls}</strong><div class="umpire-count-actions"><button type="button" data-count="balls" data-count-delta="-1">−</button><button type="button" data-count="balls" data-count-delta="1">+</button></div></div><div class="umpire-count"><span class="muted">Fouls</span><strong>${g.fouls}</strong><div class="umpire-count-actions"><button type="button" data-count="fouls" data-count-delta="-1">−</button><button type="button" data-count="fouls" data-count-delta="1">+</button></div></div><div class="umpire-count"><span class="muted">Outs</span><strong>${g.outs}</strong><div class="umpire-count-actions"><button type="button" data-count="outs" data-count-delta="-1">−</button><button type="button" data-count="outs" data-count-delta="1">+</button></div></div></div><div class="umpire-actions" style="margin-top:10px"><button type="button" id="umpireResetCounts">Reset balls / fouls / outs</button><button type="button" id="umpireNextHalf" class="primary">${esc(nextHalf)}</button></div></div></div>`;
+    const nextHalf=g.kickingTeam==='b'?`Switch sides → ${a}`:`Next inning → ${Math.min(12,g.inning+1)}`;
+    host.innerHTML=`<div class="umpire-console"><div class="card umpire-hero"><div class="umpire-head"><div><div class="muted">LIVE OFFICIATING TOOL</div><h2 class="umpire-title">Umpire Console</h2><div class="muted">${esc(eventLabel(event))}</div><div class="muted">Away kicks first • Home fields first</div></div><span class="pill">${isCaptain()?'Captain view':'You are the umpire'}</span></div>${events.length>1?`<label>Officiating slot<select id="umpireEventSelect" class="umpire-event-select">${eventOptions}</select></label>`:''}<div class="umpire-live" data-umpire-live>${g.updatedAt?'Live • updated '+new Date(g.updatedAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}):'Ready'}</div></div><div class="umpire-team-grid"><div class="card umpire-team-card"><label>Home<input id="umpireTeamA" value="${esc(g.teamAName)}" placeholder="Enter home team" autocomplete="off"></label><div class="umpire-score">${g.teamAScore}</div><div class="umpire-score-actions"><button type="button" data-score-team="a" data-score-delta="-1">−</button><button type="button" class="primary" data-score-team="a" data-score-delta="1">+ Run</button></div></div><div class="card umpire-team-card"><label>Away<input id="umpireTeamB" value="${esc(g.teamBName)}" placeholder="Enter away team" autocomplete="off"></label><div class="umpire-score">${g.teamBScore}</div><div class="umpire-score-actions"><button type="button" data-score-team="b" data-score-delta="-1">−</button><button type="button" class="primary" data-score-team="b" data-score-delta="1">+ Run</button></div></div></div><div class="card"><div class="umpire-status-grid"><label>Inning<select id="umpireInning">${innings}</select></label><label>Kicking now<select id="umpireKicking"><option value="a" ${g.kickingTeam==='a'?'selected':''}>${esc(a)}</option><option value="b" ${g.kickingTeam==='b'?'selected':''}>${esc(b)}</option></select></label></div><div class="umpire-count-grid" style="margin-top:10px"><div class="umpire-count"><span class="muted">Balls</span><strong>${g.balls}</strong><div class="umpire-count-actions"><button type="button" data-count="balls" data-count-delta="-1">−</button><button type="button" data-count="balls" data-count-delta="1">+</button></div></div><div class="umpire-count"><span class="muted">Fouls</span><strong>${g.fouls}</strong><div class="umpire-count-actions"><button type="button" data-count="fouls" data-count-delta="-1">−</button><button type="button" data-count="fouls" data-count-delta="1">+</button></div></div><div class="umpire-count"><span class="muted">Outs</span><strong>${g.outs}</strong><div class="umpire-count-actions"><button type="button" data-count="outs" data-count-delta="-1">−</button><button type="button" data-count="outs" data-count-delta="1">+</button></div></div></div><div class="umpire-actions" style="margin-top:10px"><button type="button" id="umpireResetCounts">Reset balls / fouls / outs</button><button type="button" id="umpireNextHalf" class="primary">${esc(nextHalf)}</button></div></div></div>`;
 
     host.querySelector('#umpireEventSelect')?.addEventListener('change',e=>{selectedEventId=e.target.value;renderAll();});
     host.querySelector('#umpireTeamA')?.addEventListener('change',e=>mutate({teamAName:e.target.value}));
@@ -124,9 +124,9 @@
     host.querySelector('#umpireResetCounts')?.addEventListener('click',()=>mutate({balls:0,fouls:0,outs:0}));
     host.querySelector('#umpireNextHalf')?.addEventListener('click',()=>{
       const current=gameFor(selectedEventId);
-      mutate(current.kickingTeam==='a'
-        ?{kickingTeam:'b',balls:0,fouls:0,outs:0}
-        :{kickingTeam:'a',inning:Math.min(12,current.inning+1),balls:0,fouls:0,outs:0});
+      mutate(current.kickingTeam==='b'
+        ?{kickingTeam:'a',balls:0,fouls:0,outs:0}
+        :{kickingTeam:'b',inning:Math.min(12,current.inning+1),balls:0,fouls:0,outs:0});
     });
   }
 
