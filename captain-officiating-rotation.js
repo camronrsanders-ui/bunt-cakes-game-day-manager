@@ -5,8 +5,8 @@
   function counts(){
     const out=new Map((state.players||[]).map(p=>[p.name,{umpire:0,line:0,total:0}]));
     (state.events||[]).filter(e=>e.type==='Officiating').forEach(e=>{
-      if(e.umpire&&out.has(e.umpire)){const x=out.get(e.umpire);x.umpire++;x.total++;}
-      [e.lineRef1,e.lineRef2].forEach(n=>{if(n&&out.has(n)){const x=out.get(n);x.line++;x.total++;}});
+      if(e.umpire&&isAvailable(e.umpire,e.date)&&out.has(e.umpire)){const x=out.get(e.umpire);x.umpire++;x.total++;}
+      [e.lineRef1,e.lineRef2].forEach(n=>{if(n&&isAvailable(n,e.date)&&out.has(n)){const x=out.get(n);x.line++;x.total++;}});
     });
     return out;
   }
