@@ -38,12 +38,12 @@ function publicEvent(event) {
   return { eventId:eventKey(event), title:clean(event.title||'Officiating'), date:clean(event.date), time:clean(event.time), location:clean(event.location), umpire:clean(event.umpire), lineRef1:clean(event.lineRef1), lineRef2:clean(event.lineRef2) };
 }
 function defaultGame() {
-  return { teamAName:'', teamBName:'', teamAScore:0, teamBScore:0, balls:0, fouls:0, outs:0, inning:1, kickingTeam:'a', updatedAt:null, updatedBy:'' };
+  return { teamAName:'', teamBName:'', teamAScore:0, teamBScore:0, balls:0, fouls:0, outs:0, inning:1, kickingTeam:'b', updatedAt:null, updatedBy:'' };
 }
 function normalizeGame(value) {
   const raw=value&&typeof value==='object'?value:{};
   const number=(v,min,max,fallback)=>{const n=Number(v);return Number.isInteger(n)?Math.max(min,Math.min(max,n)):fallback;};
-  return {...defaultGame(),teamAName:clean(raw.teamAName).slice(0,80),teamBName:clean(raw.teamBName).slice(0,80),teamAScore:number(raw.teamAScore,0,99,0),teamBScore:number(raw.teamBScore,0,99,0),balls:number(raw.balls,0,4,0),fouls:number(raw.fouls,0,4,0),outs:number(raw.outs,0,3,0),inning:number(raw.inning,1,12,1),kickingTeam:raw.kickingTeam==='b'?'b':'a',updatedAt:raw.updatedAt||null,updatedBy:clean(raw.updatedBy).slice(0,120)};
+  return {...defaultGame(),teamAName:clean(raw.teamAName).slice(0,80),teamBName:clean(raw.teamBName).slice(0,80),teamAScore:number(raw.teamAScore,0,99,0),teamBScore:number(raw.teamBScore,0,99,0),balls:number(raw.balls,0,4,0),fouls:number(raw.fouls,0,4,0),outs:number(raw.outs,0,3,0),inning:number(raw.inning,1,12,1),kickingTeam:raw.kickingTeam==='a'?'a':'b',updatedAt:raw.updatedAt||null,updatedBy:clean(raw.updatedBy).slice(0,120)};
 }
 function validatePatch(raw) {
   if(!raw||typeof raw!=='object'||Array.isArray(raw)) throw Object.assign(new Error('A valid umpire game update is required'),{status:400});
