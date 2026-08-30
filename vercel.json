@@ -5,6 +5,7 @@
   ],
   "rewrites": [
     { "source": "/start", "destination": "/start.html" },
+    { "source": "/api/team-state/umpire", "destination": "/api/umpire-game" },
     { "source": "/team/:team", "destination": "/api/team-reminders-page?team=:team" },
     { "source": "/team/:team/", "destination": "/api/team-reminders-page?team=:team" },
     { "source": "/captain/:team", "destination": "/api/captain-field-page?team=:team" },
