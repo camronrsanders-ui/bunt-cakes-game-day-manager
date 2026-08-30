@@ -24,7 +24,13 @@
     const activeUmpires=roster.filter(p=>rolesOf(p).includes('Umpire')&&!p.officiatingBackupOnly);
     const backupUmpires=roster.filter(p=>rolesOf(p).includes('Umpire')&&p.officiatingBackupOnly);
     if(!activeUmpires.length&&!backupUmpires.length){alert('Add the Umpire role to at least one player first.');return;}
-    const ctr=counts();let changed=0;
+    let changed=0;
+    events.forEach(e=>{
+      ['umpire','lineRef1','lineRef2'].forEach(key=>{
+        if(e[key]&&!isAvailable(e[key],e.date)){e[key]='';changed++;}
+      });
+    });
+    const ctr=counts();
     events.forEach(e=>{
       const used=new Set([e.umpire,e.lineRef1,e.lineRef2].filter(Boolean));
       if(!e.umpire){
@@ -38,7 +44,7 @@
         if(pick){e[key]=pick.name;used.add(pick.name);const c=ctr.get(pick.name);c.line++;c.total++;changed++;}
       }
     });
-    if(!changed){alert('All officiating slots already have assignments. Nothing was changed.');return;}
+    if(!changed){alert('All officiating slots already match current availability. Nothing was changed.');return;}
     if(typeof queueSave==='function')queueSave();
     if(typeof renderEvents==='function')renderEvents();
     if(typeof renderTracker==='function')renderTracker();
@@ -50,7 +56,7 @@
     if(!panel){panel=document.createElement('div');panel.id='fairOfficiatingRotation';panel.className='card';section.prepend(panel);}
     const umpires=(state.players||[]).filter(p=>rolesOf(p).includes('Umpire'));
     const ctr=counts();
-    panel.innerHTML='<div class="row wrap"><div><strong>Fair Officiating Rotation</strong><div class="muted">Fills only unassigned duties. A player who selected No for that game date is excluded from that date’s umpire and line-ref pool. A No for one week does not remove them from later weeks.</div></div><button id="buildOfficiatingRotation" class="primary">Fill Fair Rotation</button></div><div class="officiating-pool">'+(umpires.length?umpires.map(p=>'<span class="pill">'+esc(p.name)+' • '+(ctr.get(p.name)?.umpire||0)+' ump'+(p.officiatingBackupOnly?' • backup':'')+'</span>').join(' '):'<span class="muted">No umpire roles set yet.</span>')+'</div>';
+    panel.innerHTML='<div class="row wrap"><div><strong>Fair Officiating Rotation</strong><div class="muted">Fills unassigned duties and removes future duties from anyone who selected No for that date. A No for one week does not remove the player from later weeks.</div></div><button id="buildOfficiatingRotation" class="primary">Sync Fair Rotation</button></div><div class="officiating-pool">'+(umpires.length?umpires.map(p=>'<span class="pill">'+esc(p.name)+' • '+(ctr.get(p.name)?.umpire||0)+' ump'+(p.officiatingBackupOnly?' • backup':'')+'</span>').join(' '):'<span class="muted">No umpire roles set yet.</span>')+'</div>';
     panel.querySelector('#buildOfficiatingRotation').onclick=build;
   }
   const style=document.createElement('style');style.textContent='.officiating-pool{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}';document.head.appendChild(style);
