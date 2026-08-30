@@ -8,7 +8,7 @@
   function showNoGame(){
     const section=document.getElementById('pods');if(!section)return;
     const tab=document.querySelector('[data-tab="pods"]');if(tab)tab.textContent='Fielding';
-    section.innerHTML='<div class="card"><h2 style="margin:.2rem 0">Fielding</h2><div class="muted">No upcoming game is posted yet. Sync or add the next game first; then Fielding will use that game’s RSVPs and switch assignments.</div></div>';
+    section.innerHTML='<div class="card"><h2 style="margin:.2rem 0">Fielding</h2><div class="muted">No upcoming game is posted yet. Sync or add the next game first; then Fielding will use that game’s RSVPs and rotation assignments.</div></div>';
   }
   function load(){
     if(loaded||loading)return;
@@ -16,7 +16,7 @@
     if(!hasUpcomingGame()){showNoGame();return;}
     loading=true;
     const script=document.createElement('script');
-    script.src='/captain-position-switches.js?v=2';
+    script.src='/captain-position-switches.js?v=3';
     script.dataset.positionSwitchController='1';
     script.onload=()=>{loaded=true;loading=false};
     script.onerror=()=>{loading=false;setTimeout(load,1000)};
