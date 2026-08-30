@@ -7,8 +7,8 @@
   }
   function showNoGame(){
     const section=document.getElementById('pods');if(!section)return;
-    const tab=document.querySelector('[data-tab="pods"]');if(tab)tab.textContent='Field Rotation';
-    section.innerHTML='<div class="card"><div class="muted">POSITION SWITCH SYSTEM</div><h2 style="margin:.2rem 0">Field Rotation</h2><div class="muted">No upcoming game is posted yet. Sync or add the next game first; then Field Rotation will use that game’s RSVPs and switch assignments.</div></div>';
+    const tab=document.querySelector('[data-tab="pods"]');if(tab)tab.textContent='Fielding';
+    section.innerHTML='<div class="card"><h2 style="margin:.2rem 0">Fielding</h2><div class="muted">No upcoming game is posted yet. Sync or add the next game first; then Fielding will use that game’s RSVPs and switch assignments.</div></div>';
   }
   function load(){
     if(loaded||loading)return;
