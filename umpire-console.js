@@ -9,6 +9,7 @@
   let remote={role:'',actorName:'',events:[],games:{}};
   let selectedEventId='';
   let loading=false;
+  let writing=false;
   let writeChain=Promise.resolve();
   let installed=false;
 
@@ -38,11 +39,16 @@
   }
   function teamA(g){return clean(g.teamAName)||'Team 1';}
   function teamB(g){return clean(g.teamBName)||'Team 2';}
+  function editingConsole(){
+    const el=document.activeElement;
+    if(!el||!['INPUT','SELECT','TEXTAREA'].includes(el.tagName))return false;
+    return !!(el.closest('#umpire')||el.closest('#captainUmpireConsole'));
+  }
 
   function ensureStyles(){
     if(document.getElementById('umpireConsoleStyles'))return;
     const style=document.createElement('style');style.id='umpireConsoleStyles';style.textContent=`
-      .umpire-console{display:grid;gap:10px}.umpire-hero{border:2px solid #f59e0b;background:#fffaf0}.umpire-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}.umpire-title{margin:.2rem 0}.umpire-event-select{width:100%;margin-top:8px}.umpire-team-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.umpire-team-card{padding:12px;text-align:center}.umpire-team-card input{font-weight:800;text-align:center}.umpire-score{font-size:3rem;font-weight:900;line-height:1;margin:12px 0}.umpire-score-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.umpire-score-actions button{font-size:1.25rem;font-weight:900}.umpire-status-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.umpire-count-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.umpire-count{padding:12px;text-align:center}.umpire-count strong{display:block;font-size:2rem}.umpire-count-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}.umpire-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.umpire-live{font-size:.86rem;color:#166534;font-weight:800}.umpire-live.warn{color:#991b1b}.umpire-readonly-note{font-size:.86rem;color:#6b7280}.captain-dashboard-umpire-moved{display:none!important}#dashboard.umpire-dashboard-compact>.grid.g3:first-child{grid-template-columns:1fr 1fr!important}#dashboard.umpire-dashboard-compact>.grid.g3:first-child>.card:nth-child(3){grid-column:1/-1}#dashboard.umpire-dashboard-compact>.grid.g3:first-child>.card{padding:12px}
+      .umpire-console{display:grid;gap:10px}.umpire-hero{border:2px solid #f59e0b;background:#fffaf0}.umpire-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}.umpire-title{margin:.2rem 0}.umpire-event-select{width:100%;margin-top:8px}.umpire-team-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.umpire-team-card{padding:12px;text-align:center}.umpire-team-card input{font-weight:800;text-align:center}.umpire-score{font-size:3rem;font-weight:900;line-height:1;margin:12px 0}.umpire-score-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.umpire-score-actions button{font-size:1.25rem;font-weight:900}.umpire-status-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.umpire-count-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.umpire-count{padding:12px;text-align:center}.umpire-count strong{display:block;font-size:2rem}.umpire-count-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}.umpire-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.umpire-live{font-size:.86rem;color:#166534;font-weight:800}.umpire-live.warn{color:#991b1b}.captain-dashboard-umpire-moved{display:none!important}#dashboard.umpire-dashboard-compact>.grid.g3:first-child{grid-template-columns:1fr 1fr!important}#dashboard.umpire-dashboard-compact>.grid.g3:first-child>.card:nth-child(3){grid-column:1/-1}#dashboard.umpire-dashboard-compact>.grid.g3:first-child>.card{padding:12px}
       @media(max-width:560px){.umpire-team-grid,.umpire-status-grid,.umpire-actions{grid-template-columns:1fr}.umpire-count-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.umpire-score{font-size:2.5rem}}
       @media(max-width:390px){.umpire-count-grid{grid-template-columns:1fr}.umpire-count{display:grid;grid-template-columns:1fr 1fr;align-items:center}.umpire-count-actions{grid-column:1/-1}}
     `;document.head.appendChild(style);
@@ -141,11 +147,11 @@
     try{
       const r=await fetch(API(),{credentials:'include',cache:'no-store',headers:{'Cache-Control':'no-cache, no-store, must-revalidate'}}),j=await r.json().catch(()=>({}));
       if(!r.ok){
-        if(r.status===401||r.status===403){remote={role:'',actorName:'',events:[],games:{}};renderAll();return;}
+        if(r.status===401||r.status===403){remote={role:'',actorName:'',events:[],games:{}};if(!editingConsole())renderAll();return;}
         throw new Error(j.error||'Could not load umpire console');
       }
       remote={role:j.role||'',actorName:j.actorName||'',events:Array.isArray(j.events)?j.events:[],games:j.games&&typeof j.games==='object'?j.games:{}};
-      selectDefaultEvent();renderAll();
+      selectDefaultEvent();if(!editingConsole())renderAll();
     }catch(e){setLiveStatus(e.message||'Umpire console offline',true);}
     finally{loading=false;}
   }
@@ -153,16 +159,19 @@
   function mutate(patch){
     const eventId=selectedEventId;if(!eventId)return Promise.resolve(false);
     writeChain=writeChain.then(async()=>{
-      const current=gameFor(eventId);remote.games[eventId]={...current,...patch,updatedAt:new Date().toISOString(),updatedBy:remote.actorName||''};renderAll();setLiveStatus('Saving…');
-      const r=await fetch(API(),{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({eventId,patch})}),j=await r.json().catch(()=>({}));
-      if(!r.ok)throw new Error(j.error||'Could not save umpire update');
-      remote.games[eventId]=normalizedGame(j.game);renderAll();setLiveStatus('Saved live • '+new Date(j.game?.updatedAt||Date.now()).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}));return true;
+      writing=true;
+      try{
+        const current=gameFor(eventId);remote.games[eventId]={...current,...patch,updatedAt:new Date().toISOString(),updatedBy:remote.actorName||''};renderAll();setLiveStatus('Saving…');
+        const r=await fetch(API(),{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({eventId,patch})}),j=await r.json().catch(()=>({}));
+        if(!r.ok)throw new Error(j.error||'Could not save umpire update');
+        remote.games[eventId]=normalizedGame(j.game);renderAll();setLiveStatus('Saved live • '+new Date(j.game?.updatedAt||Date.now()).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}));return true;
+      }finally{writing=false;}
     }).catch(async e=>{setLiveStatus(e.message||'Save failed',true);await loadRemote(true);return false;});
     return writeChain;
   }
 
   function shouldPoll(){
-    if(document.hidden)return false;
+    if(document.hidden||writing||editingConsole())return false;
     if(isCaptain())return !document.getElementById('officials')?.classList.contains('hidden');
     return !playerSection()?.classList.contains('hidden');
   }
@@ -170,10 +179,11 @@
     if(installed)return;if(typeof state==='undefined'||!state){setTimeout(install,150);return;}
     installed=true;ensureStyles();compactCaptainDashboard();
     document.querySelector('[data-tab="officials"]')?.addEventListener('click',()=>setTimeout(()=>loadRemote(true),0));
-    window.addEventListener('buntpreferrednamesrefresh',()=>loadRemote(true));
+    window.addEventListener('buntpreferrednamesrefresh',()=>{if(!editingConsole())loadRemote(true)});
     window.addEventListener('teamplayeraccesschange',()=>loadRemote(true));
-    window.addEventListener('focus',()=>loadRemote(true));
-    document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadRemote(true)});
+    window.addEventListener('focus',()=>{if(!editingConsole())loadRemote(true)});
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!editingConsole())loadRemote(true)});
+    document.addEventListener('focusout',event=>{if(event.target?.closest?.('#umpire,#captainUmpireConsole'))setTimeout(()=>renderAll(),80)},true);
     setInterval(()=>{if(shouldPoll())loadRemote(false)},2000);
     loadRemote(true);
   }
