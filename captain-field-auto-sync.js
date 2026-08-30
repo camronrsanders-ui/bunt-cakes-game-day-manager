@@ -28,6 +28,7 @@
   const assignment=name=>{for(const pod of fixedPods())if((pod.members||[]).includes(name))return pod.id;return'';};
   const activeCount=pod=>(pod.members||[]).map(player).filter(active).length;
   const room=pod=>{const def=PODS.find(x=>x.id===pod.id);return !!def&&activeCount(pod)<def.cap;};
+  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
   function metaRoot(create=false){
     const d=gameDate();if(!d||!window.state)return{};
@@ -72,33 +73,38 @@
   }
 
   function generate(){
-    const activePlayers=roster().filter(p=>p&&p.name&&active(p)).sort(byRsvp),podMap=new Map(),ov=overrides(false);
-    PODS.forEach(def=>{const pod=fixedPods().find(x=>x.id===def.id);podMap.set(def.id,(pod?.members||[]).map(player).filter(active));});
+    const activePlayers=roster().filter(p=>p&&p.name&&active(p)).sort(byRsvp),ov=overrides(false);
     const stats=new Map(activePlayers.map(p=>[p.name,{played:0,last:0,byPos:{}}])),innings={},resting={},fills=[];
+    const fitBonus=(p,pos)=>{
+      const assignedPod=assignment(p.name),homePod=POS_TO_POD.get(pos.toLowerCase()),list=prefs(p),prefIndex=list.indexOf(pos);
+      let score=assignedPod&&assignedPod===homePod?450:0;
+      if(prefIndex>=0)score+=220-(prefIndex*30);
+      else if(p?.flexible===true||p?.flexibleAnywhere===true||p?.preferenceMode==='flexible')score+=90;
+      else if(p?.willingElsewhere===true||p?.flexibleElsewhere===true)score+=45;
+      return score;
+    };
     for(let inning=1;inning<=7;inning++){
-      const out={};POSITIONS.forEach(pos=>out[pos]='');const used=new Set(),restMap=ov.rests?.[inning]||ov.rests?.[String(inning)]||{},forcedRest=new Set(Object.keys(restMap).filter(n=>restMap[n]));
-      const forced=ov.positions?.[inning]||ov.positions?.[String(inning)]||{};
-      for(const pos of POSITIONS){const name=String(forced[pos]||'');const p=player(name);if(name&&p&&active(p)&&!forcedRest.has(name)&&!used.has(name)){out[pos]=name;used.add(name);}}
-      for(const def of PODS){
-        const members=podMap.get(def.id)||[];
-        for(const pos of def.positions){
-          if(out[pos])continue;
-          const candidates=members.filter(p=>!used.has(p.name)&&!forcedRest.has(p.name)).sort((a,b)=>{
-            const sa=stats.get(a.name),sb=stats.get(b.name);
-            return sa.played-sb.played||Number(sa.last===inning-1)-Number(sb.last===inning-1)||(sa.byPos[pos]||0)-(sb.byPos[pos]||0)||preferenceRank(a,pos)-preferenceRank(b,pos)||rsvpTime(a)-rsvpTime(b)||a.name.localeCompare(b.name);
-          });
-          if(candidates[0]){out[pos]=candidates[0].name;used.add(candidates[0].name);}
-        }
-      }
+      const out={};POSITIONS.forEach(pos=>out[pos]='');
+      const used=new Set(),restMap=ov.rests?.[inning]||ov.rests?.[String(inning)]||{},forcedRest=new Set(Object.keys(restMap).filter(n=>restMap[n])),forced=ov.positions?.[inning]||ov.positions?.[String(inning)]||{};
+      for(const pos of POSITIONS){const name=String(forced[pos]||''),p=player(name);if(name&&p&&active(p)&&!forcedRest.has(name)&&!used.has(name)){out[pos]=name;used.add(name);}}
       for(const pos of POSITIONS){
         if(out[pos])continue;
-        const candidates=activePlayers.filter(p=>!used.has(p.name)&&!forcedRest.has(p.name)).sort((a,b)=>{
-          const sa=stats.get(a.name),sb=stats.get(b.name),ap=assignment(a.name)===POS_TO_POD.get(pos.toLowerCase()),bp=assignment(b.name)===POS_TO_POD.get(pos.toLowerCase());
-          return Number(bp)-Number(ap)||sa.played-sb.played||preferenceRank(a,pos)-preferenceRank(b,pos)||Number(sa.last===inning-1)-Number(sb.last===inning-1)||(sa.byPos[pos]||0)-(sb.byPos[pos]||0)||rsvpTime(a)-rsvpTime(b)||a.name.localeCompare(b.name);
+        let candidates=activePlayers.filter(p=>!used.has(p.name)&&!forcedRest.has(p.name));
+        if(pos==='Pitcher'){
+          const qualified=candidates.filter(p=>assignment(p.name)==='field-pod-pitcher'||prefs(p).includes('Pitcher'));
+          if(qualified.length)candidates=qualified;
+        }
+        candidates.sort((a,b)=>{
+          const sa=stats.get(a.name),sb=stats.get(b.name);
+          const scoreA=fitBonus(a,pos)-(sa.played*500)-(sa.last===inning-1?160:0)-((sa.byPos[pos]||0)*45);
+          const scoreB=fitBonus(b,pos)-(sb.played*500)-(sb.last===inning-1?160:0)-((sb.byPos[pos]||0)*45);
+          return scoreB-scoreA||rsvpTime(a)-rsvpTime(b)||a.name.localeCompare(b.name);
         });
-        if(candidates[0]){out[pos]=candidates[0].name;used.add(candidates[0].name);fills.push({inning,pos,player:candidates[0].name});}
+        const pick=candidates[0];if(!pick)continue;
+        out[pos]=pick.name;used.add(pick.name);
+        if(assignment(pick.name)!==POS_TO_POD.get(pos.toLowerCase()))fills.push({inning,pos,player:pick.name});
       }
-      for(const name of used){const s=stats.get(name);if(!s)continue;s.played++;s.last=inning;const pos=POSITIONS.find(x=>out[x]===name);if(pos)s.byPos[pos]=(s.byPos[pos]||0)+1;}
+      for(const name of used){const st=stats.get(name);if(!st)continue;st.played++;st.last=inning;const pos=POSITIONS.find(x=>out[x]===name);if(pos)st.byPos[pos]=(st.byPos[pos]||0)+1;}
       innings[inning]=out;resting[inning]=activePlayers.filter(p=>!used.has(p.name)).map(p=>p.name);
     }
     const gaps=Object.values(innings).reduce((n,inn)=>n+POSITIONS.filter(pos=>!inn[pos]).length,0);
@@ -106,7 +112,7 @@
   }
 
   async function saveStatus(message){
-    if(typeof queueSave==='function')queueSave();
+    if(typeof window.queueSave==='function')window.queueSave();else if(typeof queueSave==='function')queueSave();
     try{if(typeof window.buntCakesSaveNow==='function')await window.buntCakesSaveNow();}
     catch(e){showStatus('Rotation is still syncing: '+(e?.message||'save pending'),true);return false;}
     showStatus(message||'Rotation synced and saved live.');return true;
