@@ -1,11 +1,13 @@
 const { getSql } = require('./_db');
 const { requestedTeamSlug, getCaptain, requireTeamCaptain } = require('./_auth');
+const umpireGameHandler = require('../umpire-game-handler');
 
 function clearSessionCookie(res){
   res.setHeader('Set-Cookie','bc_captain=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0');
 }
 
 module.exports = async function handler(req,res){
+  if(String(req.query&&req.query.mode||'')==='umpire') return umpireGameHandler(req,res);
   if(req.method!=='POST') return res.status(405).json({error:'Method not allowed'});
   try{
     const sql=getSql();
