@@ -11,281 +11,49 @@
       @media(max-width:520px){.cap-att-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cap-vote-buttons{grid-template-columns:1fr}}
     `;document.head.appendChild(style);
   }
-
   const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   const valid=s=>s==='yes'||s==='no'||s==='not_sure';
-  let captains=[];
-  let session=null;
-  let saving=false;
-  let lineupWrapped=false;
-  let manualCaptureInstalled=false;
-  let eligibilitySaveTimer=null;
-  let eligibilitySaving=false;
-  const clone=v=>JSON.parse(JSON.stringify(v==null?{}:v));
+  let captains=[];let session=null;let saving=false;let lineupWrapped=false;let manualCaptureInstalled=false;let eligibilitySaveTimer=null;let eligibilitySaving=false;let externalEligibilitySync=false;
   const zone=()=>state?.team?.timeZone||Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC';
   const today=()=>new Date().toLocaleDateString('en-CA',{timeZone:zone()});
-
-  function dates(){
-    const t=today();
-    return [...new Set((state?.events||[]).filter(e=>e&&e.type==='Game'&&e.date>=t).map(e=>e.date).filter(d=>new Date(d+'T12:00:00').getDay()===0))].sort();
-  }
+  function dates(){const t=today();return [...new Set((state?.events||[]).filter(e=>e&&e.type==='Game'&&e.date>=t).map(e=>e.date).filter(d=>new Date(d+'T12:00:00').getDay()===0))].sort();}
   function target(){return dates()[0]||''}
   function pretty(d){return new Date(d+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'})}
   function mount(){const dash=document.getElementById('dashboard');if(!dash)return null;let card=document.getElementById('captainAttendance');if(!card){card=document.createElement('div');card.id='captainAttendance';card.className='card cap-attendance';dash.prepend(card)}return card}
   function answerLabel(s){return s==='yes'?'Yes':s==='no'?'No':s==='not_sure'?'Not sure':'No response'}
-  function currentCaptain(){
-    const email=String(session?.user?.email||'').toLowerCase();
-    return captains.find(c=>String(c.email||'').toLowerCase()===email)||null;
-  }
-  function linkedPlayerName(c){
-    if(!c)return'';
-    const players=state?.players||[];
-    const email=String(c.email||'').trim().toLowerCase();
-    const explicit=state?.captainPlayerLinks?.[email];
-    if(explicit&&players.some(p=>p&&p.name===explicit))return explicit;
-    const display=String(c.display_name||'').trim().toLowerCase();
-    const byName=players.find(p=>String(p?.name||'').trim().toLowerCase()===display);
-    if(byName)return byName.name;
-    const byFull=players.find(p=>String(p?.fullName||'').trim().toLowerCase()===display);
-    return byFull?.name||'';
-  }
+  function currentCaptain(){const email=String(session?.user?.email||'').toLowerCase();return captains.find(c=>String(c.email||'').toLowerCase()===email)||null;}
+  function linkedPlayerName(c){if(!c)return'';const players=state?.players||[];const email=String(c.email||'').trim().toLowerCase();const explicit=state?.captainPlayerLinks?.[email];if(explicit&&players.some(p=>p&&p.name===explicit))return explicit;const display=String(c.display_name||'').trim().toLowerCase();const byName=players.find(p=>String(p?.name||'').trim().toLowerCase()===display);if(byName)return byName.name;const byFull=players.find(p=>String(p?.fullName||'').trim().toLowerCase()===display);return byFull?.name||'';}
   function captainForPlayer(playerName){return captains.find(c=>linkedPlayerName(c)===playerName)||null}
-  function effectivePlayerStatus(playerName,responses,captainResponses){
-    const direct=responses[playerName]?.status;if(valid(direct))return direct;
-    const cap=captainForPlayer(playerName);if(!cap)return'';
-    const legacy=captainResponses[String(cap.email||'').toLowerCase()]?.status;
-    return valid(legacy)?legacy:'';
-  }
-
-  function overridesFor(date,create=false){
-    if(!date||!state)return{};
-    if(create){
-      state.gameDayAttendanceOverrides=state.gameDayAttendanceOverrides||{};
-      state.gameDayAttendanceOverrides[date]=state.gameDayAttendanceOverrides[date]||{};
-    }
-    return state.gameDayAttendanceOverrides?.[date]||{};
-  }
-  function hasOverride(playerName,date=target()){
-    const o=overridesFor(date,false);
-    return Object.prototype.hasOwnProperty.call(o,playerName)&&typeof o[playerName]==='boolean';
-  }
-  function activeFor(playerName,date=target()){
-    if(!state)return false;
-    if(!date){const player=(state.players||[]).find(p=>p&&p.name===playerName);return !!player&&player.present!==false;}
-    const o=overridesFor(date,false);
-    if(Object.prototype.hasOwnProperty.call(o,playerName)&&typeof o[playerName]==='boolean')return o[playerName];
-    const responses=state.availability?.[date]||{},captainResponses=responses._captains||{};
-    return effectivePlayerStatus(playerName,responses,captainResponses)==='yes';
-  }
-  function teamStateUrl(){
-    const match=location.pathname.match(/^\/captain\/([^/?#]+)/i);
-    if(match&&match[1])return'/api/team-state?team='+encodeURIComponent(decodeURIComponent(match[1]));
-    const q=new URLSearchParams(location.search).get('team');
-    return q?'/api/team-state?team='+encodeURIComponent(q):'/api/team-state';
-  }
-  function scheduleEligibilitySave(date=target()){
-    if(!date)return;clearTimeout(eligibilitySaveTimer);eligibilitySaveTimer=setTimeout(()=>persistEligibility(date),90);
-  }
+  function effectivePlayerStatus(playerName,responses,captainResponses){const direct=responses[playerName]?.status;if(valid(direct))return direct;const cap=captainForPlayer(playerName);if(!cap)return'';const legacy=captainResponses[String(cap.email||'').toLowerCase()]?.status;return valid(legacy)?legacy:'';}
+  function overridesFor(date,create=false){if(!date||!state)return{};if(create){state.gameDayAttendanceOverrides=state.gameDayAttendanceOverrides||{};state.gameDayAttendanceOverrides[date]=state.gameDayAttendanceOverrides[date]||{};}return state.gameDayAttendanceOverrides?.[date]||{};}
+  function hasOverride(playerName,date=target()){const o=overridesFor(date,false);return Object.prototype.hasOwnProperty.call(o,playerName)&&typeof o[playerName]==='boolean';}
+  function activeFor(playerName,date=target()){if(!state)return false;if(!date){const player=(state.players||[]).find(p=>p&&p.name===playerName);return !!player&&player.present!==false;}const o=overridesFor(date,false);if(Object.prototype.hasOwnProperty.call(o,playerName)&&typeof o[playerName]==='boolean')return o[playerName];const responses=state.availability?.[date]||{},captainResponses=responses._captains||{};return effectivePlayerStatus(playerName,responses,captainResponses)==='yes';}
+  function scheduleEligibilitySave(date=target()){if(!date)return;clearTimeout(eligibilitySaveTimer);eligibilitySaveTimer=setTimeout(()=>persistEligibility(date),60);}
   async function persistEligibility(date=target()){
-    if(!date||!state||eligibilitySaving){scheduleEligibilitySave(date);return;}
-    eligibilitySaving=true;
+    if(!date||!state)return;if(eligibilitySaving){scheduleEligibilitySave(date);return;}eligibilitySaving=true;
     try{
-      const url=teamStateUrl(),fresh=await fetch(url+(url.includes('?')?'&':'?')+'eligibility='+Date.now(),{credentials:'include',cache:'no-store',headers:{'Cache-Control':'no-cache, no-store, must-revalidate','Pragma':'no-cache'}});
-      const current=await fresh.json().catch(()=>({}));if(!fresh.ok||!current.state)throw new Error(current.error||'Could not load fresh game-day state');
-      const next=clone(current.state),localPresent=new Map((state.players||[]).filter(p=>p&&p.name).map(p=>[p.name,p.present!==false]));
-      next.players=(Array.isArray(next.players)?next.players:[]).map(p=>localPresent.has(p?.name)?{...p,present:localPresent.get(p.name)}:p);
-      next.gameDayAttendanceOverrides=clone(state.gameDayAttendanceOverrides||{});
-      const active=new Set([...localPresent].filter(([,present])=>present).map(([name])=>name));
-      const innings=clone(next.innings||{});Object.values(innings).forEach(inn=>{if(!inn||typeof inn!=='object')return;Object.keys(inn).forEach(pos=>{if(inn[pos]&&!active.has(inn[pos]))inn[pos]='';});});next.innings=innings;
-      if(next.currentKicker&&!active.has(next.currentKicker))next.currentKicker='';
-      const saved=await fetch(url,{method:'PUT',credentials:'include',cache:'no-store',headers:{'Content-Type':'application/json','Cache-Control':'no-cache, no-store, must-revalidate','Pragma':'no-cache'},body:JSON.stringify({state:next})});
-      const result=await saved.json().catch(()=>({}));if(!saved.ok)throw new Error(result.error||'Could not save game-day eligibility');
+      if(typeof window.buntCakesSaveNow!=='function')throw new Error('Live save is not ready yet');
+      await window.buntCakesSaveNow();
       const status=document.getElementById('saveStatus');if(status)status.innerHTML='<span class="ok">Saved live</span> • RSVP game-day roster updated';
-    }catch(error){
-      const status=document.getElementById('saveStatus');if(status)status.innerHTML='<span class="warn">Attendance not saved: '+esc(error.message||'save failed')+'</span>';
-    }finally{eligibilitySaving=false;}
+    }catch(error){const status=document.getElementById('saveStatus');if(status)status.innerHTML='<span class="warn">Attendance is still syncing: '+esc(error.message||'save pending')+'</span>';}
+    finally{eligibilitySaving=false;}
   }
-
-  function pruneInactiveFromInnings(date=target()){
-    if(!state?.innings)return false;
-    const active=new Set((state.players||[]).filter(p=>p&&p.name&&activeFor(p.name,date)).map(p=>p.name));
-    let changed=false;
-    Object.values(state.innings).forEach(inn=>{
-      if(!inn||typeof inn!=='object')return;
-      Object.keys(inn).forEach(pos=>{if(inn[pos]&&!active.has(inn[pos])){inn[pos]='';changed=true;}});
-    });
-    if(state.currentKicker&&!active.has(state.currentKicker)){state.currentKicker='';changed=true;}
-    return changed;
-  }
-  function syncEligibility(date=target(),save=true){
-    if(!date||!state)return 0;
-    let changed=0;
-    (state.players||[]).forEach(p=>{
-      if(!p||!p.name)return;
-      const next=activeFor(p.name,date);
-      if(p.present!==next){p.present=next;changed++;}
-    });
-    if(pruneInactiveFromInnings(date))changed++;
-    if(changed&&save)scheduleEligibilitySave(date);
-    if(changed){
-      if(typeof renderKicking==='function')renderKicking();
-      if(typeof renderLineup==='function')renderLineup();
-      window.dispatchEvent(new Event('buntpreferrednamesrefresh'));
-    }
-    return changed;
-  }
-  function setManualOverride(playerName,present,date=target()){
-    if(!date||!playerName||!state)return;
-    const o=overridesFor(date,true);o[playerName]=!!present;
-    const player=(state.players||[]).find(p=>p&&p.name===playerName);if(player)player.present=!!present;
-    pruneInactiveFromInnings(date);
-    scheduleEligibilitySave(date);
-    if(typeof renderRoster==='function')renderRoster();
-    if(typeof renderLineup==='function')renderLineup();
-    if(typeof renderKicking==='function')renderKicking();
-    window.dispatchEvent(new Event('buntpreferrednamesrefresh'));
-    render();
-  }
-  function clearManualOverride(playerName,date=target()){
-    const o=overridesFor(date,false);if(!Object.prototype.hasOwnProperty.call(o,playerName))return;
-    delete o[playerName];syncEligibility(date,true);render();
-  }
-
+  function pruneInactiveFromInnings(date=target()){if(!state?.innings)return false;const active=new Set((state.players||[]).filter(p=>p&&p.name&&activeFor(p.name,date)).map(p=>p.name));let changed=false;Object.values(state.innings).forEach(inn=>{if(!inn||typeof inn!=='object')return;Object.keys(inn).forEach(pos=>{if(inn[pos]&&!active.has(inn[pos])){inn[pos]='';changed=true;}});});if(state.currentKicker&&!active.has(state.currentKicker)){state.currentKicker='';changed=true;}return changed;}
+  function syncEligibility(date=target(),save=true){if(!date||!state)return 0;let changed=0;(state.players||[]).forEach(p=>{if(!p||!p.name)return;const next=activeFor(p.name,date);if(p.present!==next){p.present=next;changed++;}});if(pruneInactiveFromInnings(date))changed++;if(changed&&save)scheduleEligibilitySave(date);if(changed){if(typeof renderKicking==='function')renderKicking();if(typeof renderLineup==='function')renderLineup();window.dispatchEvent(new Event('buntpreferrednamesrefresh'));window.dispatchEvent(new CustomEvent('buntgamedayeligibilitychange',{detail:{date}}));}return changed;}
+  function setManualOverride(playerName,present,date=target()){if(!date||!playerName||!state)return;const o=overridesFor(date,true);o[playerName]=!!present;const player=(state.players||[]).find(p=>p&&p.name===playerName);if(player)player.present=!!present;pruneInactiveFromInnings(date);scheduleEligibilitySave(date);if(typeof renderRoster==='function')renderRoster();if(typeof renderLineup==='function')renderLineup();if(typeof renderKicking==='function')renderKicking();window.dispatchEvent(new Event('buntpreferrednamesrefresh'));window.dispatchEvent(new CustomEvent('buntgamedayeligibilitychange',{detail:{date}}));render();}
+  function clearManualOverride(playerName,date=target()){const o=overridesFor(date,false);if(!Object.prototype.hasOwnProperty.call(o,playerName))return;delete o[playerName];syncEligibility(date,true);render();}
   window.BuntGameDayEligibility={targetDate:target,isActive:activeFor,hasOverride,setManualOverride,clearManualOverride,sync:syncEligibility};
-
-  function recordManualOverride(playerName,present,date=target()){
-    if(!date||!playerName||!state)return;
-    const o=overridesFor(date,true);o[playerName]=!!present;
-  }
-  function installManualOverrideCapture(){
-    if(manualCaptureInstalled)return;manualCaptureInstalled=true;
-    document.addEventListener('click',event=>{
-      const button=event.target?.closest?.('#players .att');if(!button||!state)return;
-      const card=button.closest('.card'),cards=[...document.querySelectorAll('#players > .card')],index=cards.indexOf(card),player=state.players?.[index];
-      if(!player?.name)return;event.preventDefault();event.stopImmediatePropagation();setManualOverride(player.name,!(player.present!==false));
-    },true);
-    document.addEventListener('change',event=>{
-      const input=event.target?.closest?.('#gameDayPodManager .pod-presence');if(!input)return;
-      const name=input.closest('.pod-player-row')?.dataset?.player;if(!name)return;event.stopImmediatePropagation();setManualOverride(name,input.checked);
-    },true);
-  }
-  function filterLineupOptions(){
-    const box=document.getElementById('positions');if(!box||!state)return;
-    const active=new Set((state.players||[]).filter(p=>p&&p.name&&activeFor(p.name)).map(p=>p.name));
-    box.querySelectorAll('select').forEach(select=>{
-      [...select.options].forEach(option=>{
-        const value=String(option.value||option.textContent||'').trim();
-        if(value&&value!=='Unassigned'&&!active.has(value))option.remove();
-      });
-    });
-  }
-  function installRenderHooks(){
-    installManualOverrideCapture();
-    if(!lineupWrapped&&typeof window.renderLineup==='function'){
-      const old=window.renderLineup;window.renderLineup=function(...args){const result=old.apply(this,args);filterLineupOptions();return result;};lineupWrapped=true;
-    }
-    filterLineupOptions();
-  }
-
-  function render(){
-    if(typeof state==='undefined'||!state)return;
-    const card=mount();if(!card)return;
-    const date=target();
-    if(!date){card.innerHTML='<strong>Sunday Availability</strong><div class="muted">No upcoming Sunday game is scheduled.</div>';return}
-
-    const responses=state.availability?.[date]||{};
-    const players=state.players||[];
-    const captainResponses=responses._captains||{};
-    const playerGroups={yes:[],no:[],not_sure:[],missing:[]};
-    players.forEach(p=>{const s=effectivePlayerStatus(p.name,responses,captainResponses);if(valid(s))playerGroups[s].push(p.name);else playerGroups.missing.push(p.name)});
-
-    const captainGroups={yes:[],no:[],not_sure:[],missing:[]};
-    const unlinkedCaptains=captains.filter(c=>!linkedPlayerName(c));
-    unlinkedCaptains.forEach(c=>{
-      const key=String(c.email||'').toLowerCase(),s=captainResponses[key]?.status,name=c.display_name||c.email;
-      if(valid(s))captainGroups[s].push(name);else captainGroups.missing.push(name);
-    });
-
-    const me=currentCaptain(),meKey=String(me?.email||session?.user?.email||'').toLowerCase();
-    const mePlayer=linkedPlayerName(me);
-    const myAnswer=mePlayer?effectivePlayerStatus(mePlayer,responses,captainResponses):(meKey?captainResponses[meKey]?.status||'':'');
-    const total={yes:playerGroups.yes.length+captainGroups.yes.length,no:playerGroups.no.length+captainGroups.no.length,not_sure:playerGroups.not_sure.length+captainGroups.not_sure.length,missing:playerGroups.missing.length+captainGroups.missing.length};
-    const activeCount=players.filter(p=>activeFor(p.name,date)).length;
-    const manualCount=players.filter(p=>hasOverride(p.name,date)).length;
-    const order=['yes','no','not_sure','missing'];
-    const captainSection=unlinkedCaptains.length?`<div class="cap-section-title">Non-playing captains</div><div class="cap-att-list">${order.map(k=>'<div class="cap-att-row"><strong>'+answerLabel(k)+'</strong><span>'+esc(captainGroups[k].join(', ')||'—')+'</span></div>').join('')}</div>`:'';
-    const captainCopyButton=unlinkedCaptains.length?'<button id="copyMissingCaptains">Copy unanswered captains</button>':'';
-
-    card.innerHTML=`<div class="row wrap"><div><div class="muted">SUNDAY GAME-DAY AVAILABILITY</div><h2 style="margin:.25rem 0">${esc(pretty(date))}</h2><div class="muted">Only RSVP Yes players are active automatically. Captain manual overrides win for this game.</div></div><span class="pill">${activeCount} active${manualCount?` • ${manualCount} override${manualCount===1?'':'s'}`:''}</span></div>
-      ${session?.authenticated?`<div class="cap-vote"><div class="muted">YOUR AVAILABILITY${mePlayer?' • PLAYER + CAPTAIN':''}</div><strong>${esc(mePlayer||me?.display_name||session?.user?.displayName||'Captain')}, will you be there?</strong><div class="cap-vote-buttons"><button data-cap-vote="yes" class="${myAnswer==='yes'?'on':''}">✅ Yes</button><button data-cap-vote="no" class="no ${myAnswer==='no'?'on':''}">❌ No</button><button data-cap-vote="not_sure" class="maybe ${myAnswer==='not_sure'?'on':''}">🤔 Not sure</button></div>${myAnswer?`<div class="cap-vote-saved">Your vote is saved: ${answerLabel(myAnswer)}</div>`:''}</div>`:''}
-      <div class="cap-att-grid"><div class="cap-att-stat"><strong>${total.yes}</strong>Yes</div><div class="cap-att-stat"><strong>${total.no}</strong>No</div><div class="cap-att-stat"><strong>${total.not_sure}</strong>Not sure</div><div class="cap-att-stat"><strong>${total.missing}</strong>No response</div></div>
-      <div class="cap-section-title">Team</div><div class="cap-att-list">${order.map(k=>'<div class="cap-att-row"><strong>'+answerLabel(k)+'</strong><span>'+esc(playerGroups[k].join(', ')||'—')+'</span></div>').join('')}</div>
-      ${captainSection}
-      <div class="cap-att-actions"><button id="applySundayAttendance" class="primary">Sync RSVPs to game-day lineup</button><button id="copyMissingAttendance">Copy unanswered team members</button>${captainCopyButton}</div>`;
-
-    card.querySelectorAll('[data-cap-vote]').forEach(btn=>btn.onclick=()=>saveCaptainVote(btn.dataset.capVote,date));
-    document.getElementById('applySundayAttendance').onclick=()=>{
-      const changed=syncEligibility(date,true);
-      if(typeof renderRoster==='function')renderRoster();
-      render();
-      alert(changed?`Game-day roster updated. ${players.filter(p=>activeFor(p.name,date)).length} players are active from Yes votes plus Captain overrides.`:`Game-day roster already matches Yes votes and Captain overrides.`);
-    };
-    document.getElementById('copyMissingAttendance').onclick=()=>copyNames(playerGroups.missing,'Everyone on the team roster has answered.','Unanswered team member names copied.');
-    const missingCaptains=document.getElementById('copyMissingCaptains');if(missingCaptains)missingCaptains.onclick=()=>copyNames(captainGroups.missing,'Every non-playing captain has answered.','Unanswered captain names copied.');
-    filterLineupOptions();
-  }
-
-  async function copyNames(names,emptyMessage,successMessage){
-    const text=names.join(', ');if(!text){alert(emptyMessage);return}
-    try{await navigator.clipboard.writeText(text);alert(successMessage)}catch(e){prompt('Copy names:',text)}
-  }
-
-  async function saveCaptainVote(status,date){
-    if(saving)return;saving=true;
-    try{
-      const r=await fetch('/api/captains',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'availability-response',gameDate:date,status})});
-      const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Could not save availability');
-      state.availability=state.availability||{};state.availability[date]=state.availability[date]||{};
-      if(j.playerName){
-        state.availability[date][j.playerName]={status,respondedAt:j.respondedAt,displayName:j.displayName,role:session?.team?.role||'captain',source:'captain-login'};
-      }else{
-        const key=String(session?.user?.email||'').toLowerCase();
-        state.availability[date]._captains=state.availability[date]._captains||{};
-        state.availability[date]._captains[key]={status,respondedAt:j.respondedAt,displayName:j.displayName,role:session?.team?.role||'captain'};
-      }
-      syncEligibility(date,true);render();
-    }catch(e){alert(e.message||'Could not save availability')}finally{saving=false}
-  }
-
-  function sharedStateSafe(){
-    try{
-      if(typeof window.__buntCaptainLiveSyncBusy==='function'&&window.__buntCaptainLiveSyncBusy())return false;
-      if(typeof window.__buntCaptainInteractionBusy==='function'&&window.__buntCaptainInteractionBusy())return false;
-    }catch(_){}
-    return true;
-  }
-
-  async function pull(){
-    try{
-      const [stateRes,captainRes,sessionRes]=await Promise.all([
-        fetch('/api/team-state?attendance='+Date.now(),{cache:'no-store'}),
-        fetch('/api/captains',{cache:'no-store',credentials:'include'}),
-        fetch('/api/session',{cache:'no-store',credentials:'include'})
-      ]);
-      const stateJson=await stateRes.json(),captainJson=await captainRes.json(),sessionJson=await sessionRes.json();
-      if(stateRes.ok&&state&&sharedStateSafe()){
-        state.availability=stateJson.state?.availability||{};
-        state.captainPlayerLinks=stateJson.state?.captainPlayerLinks||{};
-        state.gameDayAttendanceOverrides=stateJson.state?.gameDayAttendanceOverrides||state.gameDayAttendanceOverrides||{};
-      }
-      if(captainRes.ok)captains=captainJson.captains||[];
-      if(sessionRes.ok)session=sessionJson;
-      installRenderHooks();
-      syncEligibility(target(),true);
-      render();
-    }catch(e){}
-  }
-
+  function installManualOverrideCapture(){if(manualCaptureInstalled)return;manualCaptureInstalled=true;document.addEventListener('click',event=>{const button=event.target?.closest?.('#players .att');if(!button||!state)return;const card=button.closest('.card'),cards=[...document.querySelectorAll('#players > .card')],index=cards.indexOf(card),player=state.players?.[index];if(!player?.name)return;event.preventDefault();event.stopImmediatePropagation();setManualOverride(player.name,!(player.present!==false));},true);document.addEventListener('change',event=>{const input=event.target?.closest?.('#gameDayPodManager .pod-presence');if(!input)return;const name=input.closest('.pod-player-row')?.dataset?.player;if(!name)return;event.stopImmediatePropagation();setManualOverride(name,input.checked);},true);}
+  function filterLineupOptions(){const box=document.getElementById('positions');if(!box||!state)return;const active=new Set((state.players||[]).filter(p=>p&&p.name&&activeFor(p.name)).map(p=>p.name));box.querySelectorAll('select').forEach(select=>{[...select.options].forEach(option=>{const value=String(option.value||option.textContent||'').trim();if(value&&value!=='Unassigned'&&!active.has(value))option.remove();});});}
+  function installRenderHooks(){installManualOverrideCapture();if(!lineupWrapped&&typeof window.renderLineup==='function'){const old=window.renderLineup;window.renderLineup=function(...args){const result=old.apply(this,args);filterLineupOptions();return result;};lineupWrapped=true;}filterLineupOptions();}
+  function render(){if(typeof state==='undefined'||!state)return;const card=mount();if(!card)return;const date=target();if(!date){card.innerHTML='<strong>Sunday Availability</strong><div class="muted">No upcoming Sunday game is scheduled.</div>';return}const responses=state.availability?.[date]||{},players=state.players||[],captainResponses=responses._captains||{};const playerGroups={yes:[],no:[],not_sure:[],missing:[]};players.forEach(p=>{const s=effectivePlayerStatus(p.name,responses,captainResponses);if(valid(s))playerGroups[s].push(p.name);else playerGroups.missing.push(p.name)});const captainGroups={yes:[],no:[],not_sure:[],missing:[]},unlinkedCaptains=captains.filter(c=>!linkedPlayerName(c));unlinkedCaptains.forEach(c=>{const key=String(c.email||'').toLowerCase(),s=captainResponses[key]?.status,name=c.display_name||c.email;if(valid(s))captainGroups[s].push(name);else captainGroups.missing.push(name);});const me=currentCaptain(),meKey=String(me?.email||session?.user?.email||'').toLowerCase(),mePlayer=linkedPlayerName(me),myAnswer=mePlayer?effectivePlayerStatus(mePlayer,responses,captainResponses):(meKey?captainResponses[meKey]?.status||'':'');const total={yes:playerGroups.yes.length+captainGroups.yes.length,no:playerGroups.no.length+captainGroups.no.length,not_sure:playerGroups.not_sure.length+captainGroups.not_sure.length,missing:playerGroups.missing.length+captainGroups.missing.length};const activeCount=players.filter(p=>activeFor(p.name,date)).length,manualCount=players.filter(p=>hasOverride(p.name,date)).length,order=['yes','no','not_sure','missing'];const captainSection=unlinkedCaptains.length?`<div class="cap-section-title">Non-playing captains</div><div class="cap-att-list">${order.map(k=>'<div class="cap-att-row"><strong>'+answerLabel(k)+'</strong><span>'+esc(captainGroups[k].join(', ')||'—')+'</span></div>').join('')}</div>`:'',captainCopyButton=unlinkedCaptains.length?'<button id="copyMissingCaptains">Copy unanswered captains</button>':'';
+    card.innerHTML=`<div class="row wrap"><div><div class="muted">SUNDAY GAME-DAY AVAILABILITY</div><h2 style="margin:.25rem 0">${esc(pretty(date))}</h2><div class="muted">Only RSVP Yes players are active automatically. Captain manual overrides win for this game.</div></div><span class="pill">${activeCount} active${manualCount?` • ${manualCount} override${manualCount===1?'':'s'}`:''}</span></div>${session?.authenticated?`<div class="cap-vote"><div class="muted">YOUR AVAILABILITY${mePlayer?' • PLAYER + CAPTAIN':''}</div><strong>${esc(mePlayer||me?.display_name||session?.user?.displayName||'Captain')}, will you be there?</strong><div class="cap-vote-buttons"><button data-cap-vote="yes" class="${myAnswer==='yes'?'on':''}">✅ Yes</button><button data-cap-vote="no" class="no ${myAnswer==='no'?'on':''}">❌ No</button><button data-cap-vote="not_sure" class="maybe ${myAnswer==='not_sure'?'on':''}">🤔 Not sure</button></div>${myAnswer?`<div class="cap-vote-saved">Your vote is saved: ${answerLabel(myAnswer)}</div>`:''}</div>`:''}<div class="cap-att-grid"><div class="cap-att-stat"><strong>${total.yes}</strong>Yes</div><div class="cap-att-stat"><strong>${total.no}</strong>No</div><div class="cap-att-stat"><strong>${total.not_sure}</strong>Not sure</div><div class="cap-att-stat"><strong>${total.missing}</strong>No response</div></div><div class="cap-section-title">Team</div><div class="cap-att-list">${order.map(k=>'<div class="cap-att-row"><strong>'+answerLabel(k)+'</strong><span>'+esc(playerGroups[k].join(', ')||'—')+'</span></div>').join('')}</div>${captainSection}<div class="cap-att-actions"><button id="applySundayAttendance" class="primary">Sync RSVPs to game-day lineup</button><button id="copyMissingAttendance">Copy unanswered team members</button>${captainCopyButton}</div>`;
+    card.querySelectorAll('[data-cap-vote]').forEach(btn=>btn.onclick=()=>saveCaptainVote(btn.dataset.capVote,date));document.getElementById('applySundayAttendance').onclick=()=>{const changed=syncEligibility(date,true);if(typeof renderRoster==='function')renderRoster();render();alert(changed?`Game-day roster updated. ${players.filter(p=>activeFor(p.name,date)).length} players are active from Yes votes plus Captain overrides.`:`Game-day roster already matches Yes votes and Captain overrides.`);};document.getElementById('copyMissingAttendance').onclick=()=>copyNames(playerGroups.missing,'Everyone on the team roster has answered.','Unanswered team member names copied.');const missingCaptains=document.getElementById('copyMissingCaptains');if(missingCaptains)missingCaptains.onclick=()=>copyNames(captainGroups.missing,'Every non-playing captain has answered.','Unanswered captain names copied.');filterLineupOptions();}
+  async function copyNames(names,emptyMessage,successMessage){const text=names.join(', ');if(!text){alert(emptyMessage);return}try{await navigator.clipboard.writeText(text);alert(successMessage)}catch(e){prompt('Copy names:',text)}}
+  async function saveCaptainVote(status,date){if(saving)return;saving=true;try{const r=await fetch('/api/captains',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'availability-response',gameDate:date,status})});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Could not save availability');state.availability=state.availability||{};state.availability[date]=state.availability[date]||{};if(j.playerName){state.availability[date][j.playerName]={status,respondedAt:j.respondedAt,displayName:j.displayName,role:session?.team?.role||'captain',source:'captain-login'};}else{const key=String(session?.user?.email||'').toLowerCase();state.availability[date]._captains=state.availability[date]._captains||{};state.availability[date]._captains[key]={status,respondedAt:j.respondedAt,displayName:j.displayName,role:session?.team?.role||'captain'};}syncEligibility(date,true);render();}catch(e){alert(e.message||'Could not save availability')}finally{saving=false}}
+  function sharedStateSafe(){try{if(typeof window.__buntCaptainLiveSyncBusy==='function'&&window.__buntCaptainLiveSyncBusy())return false;if(typeof window.__buntCaptainInteractionBusy==='function'&&window.__buntCaptainInteractionBusy())return false;}catch(_){}return true;}
+  async function pull(){try{const [stateRes,captainRes,sessionRes]=await Promise.all([fetch('/api/team-state?attendance='+Date.now(),{cache:'no-store',credentials:'include'}),fetch('/api/captains',{cache:'no-store',credentials:'include'}),fetch('/api/session',{cache:'no-store',credentials:'include'})]);const stateJson=await stateRes.json(),captainJson=await captainRes.json(),sessionJson=await sessionRes.json();if(stateRes.ok&&state&&sharedStateSafe()){state.availability=stateJson.state?.availability||{};state.captainPlayerLinks=stateJson.state?.captainPlayerLinks||{};state.gameDayAttendanceOverrides=stateJson.state?.gameDayAttendanceOverrides||state.gameDayAttendanceOverrides||{};}if(captainRes.ok)captains=captainJson.captains||[];if(sessionRes.ok)session=sessionJson;installRenderHooks();syncEligibility(target(),true);render();}catch(e){}}
+  function syncFromSharedState(){if(externalEligibilitySync||typeof state==='undefined'||!state)return;externalEligibilitySync=true;try{syncEligibility(target(),true);render();}finally{setTimeout(()=>{externalEligibilitySync=false;},0);}}
   const wait=setInterval(()=>{if(typeof state==='undefined'||!state||!document.getElementById('dashboard'))return;clearInterval(wait);installRenderHooks();pull();setInterval(()=>{if(!document.hidden)pull()},10000)},250);
-  window.addEventListener('focus',pull);
+  window.addEventListener('buntpreferrednamesrefresh',syncFromSharedState);window.addEventListener('focus',pull);
 })();
