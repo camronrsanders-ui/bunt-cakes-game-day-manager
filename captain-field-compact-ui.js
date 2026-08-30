@@ -17,14 +17,12 @@
       document.head.appendChild(style);
     }
     const fieldTab=document.querySelector('[data-tab="pods"]');
-    if(fieldTab){fieldTab.textContent='Fielding';fieldTab.setAttribute('aria-label','Fielding');}
+    if(fieldTab&&fieldTab.textContent!=='Fielding')fieldTab.textContent='Fielding';
     const lineupTab=document.querySelector('[data-tab="lineup"]');
-    if(lineupTab)lineupTab.setAttribute('aria-hidden','true');
-    if(!document.querySelector('script[data-fielding-consolidated]')){
-      const script=document.createElement('script');
-      script.src='/captain-fielding-consolidated-ui.js?v=1';
-      script.dataset.fieldingConsolidated='1';
-      document.head.appendChild(script);
+    if(lineupTab){
+      lineupTab.style.display='none';
+      lineupTab.setAttribute('aria-hidden','true');
+      lineupTab.tabIndex=-1;
     }
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});
