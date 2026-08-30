@@ -1,7 +1,7 @@
 (()=>{
   const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   const rolesOf=p=>window.BuntRoles?.normalizedRoles?window.BuntRoles.normalizedRoles(p):(Array.isArray(p?.roles)?p.roles:String(p?.role||'').split(/\s*(?:\/|,|•|\|)\s*/).filter(Boolean));
-  const isAvailable=(name,date)=>{const a=state?.availability?.[date]?.[name]?.status;return a!=='no';};
+  const isAvailable=(name,date)=>state?.availability?.[date]?.[name]?.status!=='no';
   function counts(){
     const out=new Map((state.players||[]).map(p=>[p.name,{umpire:0,line:0,total:0}]));
     (state.events||[]).filter(e=>e.type==='Officiating').forEach(e=>{
@@ -11,7 +11,7 @@
     return out;
   }
   function choose(pool,used,metric,date,ctr){
-    return pool.filter(p=>!used.has(p.name)&&p.present!==false&&isAvailable(p.name,date)).sort((a,b)=>{
+    return pool.filter(p=>!used.has(p.name)&&isAvailable(p.name,date)).sort((a,b)=>{
       const ca=ctr.get(a.name)||{umpire:0,line:0,total:0},cb=ctr.get(b.name)||{umpire:0,line:0,total:0};
       return ca[metric]-cb[metric]||ca.total-cb.total||a.name.localeCompare(b.name);
     })[0]||null;
@@ -20,7 +20,7 @@
     if(typeof state==='undefined'||!state)return;
     const events=(state.events||[]).filter(e=>e.type==='Officiating').sort((a,b)=>((a.date||'')+(a.time||'')).localeCompare((b.date||'')+(b.time||'')));
     if(!events.length){alert('No officiating slots are on the schedule yet.');return;}
-    const roster=(state.players||[]).filter(p=>p.present!==false);
+    const roster=state.players||[];
     const activeUmpires=roster.filter(p=>rolesOf(p).includes('Umpire')&&!p.officiatingBackupOnly);
     const backupUmpires=roster.filter(p=>rolesOf(p).includes('Umpire')&&p.officiatingBackupOnly);
     if(!activeUmpires.length&&!backupUmpires.length){alert('Add the Umpire role to at least one player first.');return;}
@@ -50,7 +50,7 @@
     if(!panel){panel=document.createElement('div');panel.id='fairOfficiatingRotation';panel.className='card';section.prepend(panel);}
     const umpires=(state.players||[]).filter(p=>rolesOf(p).includes('Umpire'));
     const ctr=counts();
-    panel.innerHTML='<div class="row wrap"><div><strong>Fair Officiating Rotation</strong><div class="muted">Fills only unassigned duties. Manual assignments stay untouched. Umpires rotate through qualified players; line refs rotate across available players.</div></div><button id="buildOfficiatingRotation" class="primary">Fill Fair Rotation</button></div><div class="officiating-pool">'+(umpires.length?umpires.map(p=>'<span class="pill">'+esc(p.name)+' • '+(ctr.get(p.name)?.umpire||0)+' ump'+(p.officiatingBackupOnly?' • backup':'')+'</span>').join(' '):'<span class="muted">No umpire roles set yet.</span>')+'</div>';
+    panel.innerHTML='<div class="row wrap"><div><strong>Fair Officiating Rotation</strong><div class="muted">Fills only unassigned duties. A player who selected No for that game date is excluded from that date’s umpire and line-ref pool. A No for one week does not remove them from later weeks.</div></div><button id="buildOfficiatingRotation" class="primary">Fill Fair Rotation</button></div><div class="officiating-pool">'+(umpires.length?umpires.map(p=>'<span class="pill">'+esc(p.name)+' • '+(ctr.get(p.name)?.umpire||0)+' ump'+(p.officiatingBackupOnly?' • backup':'')+'</span>').join(' '):'<span class="muted">No umpire roles set yet.</span>')+'</div>';
     panel.querySelector('#buildOfficiatingRotation').onclick=build;
   }
   const style=document.createElement('style');style.textContent='.officiating-pool{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}';document.head.appendChild(style);
