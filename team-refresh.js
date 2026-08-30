@@ -60,6 +60,7 @@
     ['data-bunt-field-rotation','/team-field-rotation.js?v=9'],
     ['data-bunt-team-usability','/team-usability.js?v=3'],
     ['data-team-officiating-view','/team-officiating-view.js?v=1'],
+    ['data-bunt-umpire-console','/umpire-console.js?v=1'],
     ['data-team-role-badges','/team-role-badges.js?v=1'],
     ['data-bunt-preferred-names','/preferred-names.js?v=2'],
     ['data-bunt-attendance','/team-attendance.js?v=6'],
