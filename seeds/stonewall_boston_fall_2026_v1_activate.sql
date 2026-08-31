@@ -6,8 +6,8 @@ BEGIN;
 
 DO $$
 DECLARE
-  version_id uuid;
-  ruleset_id uuid;
+  target_version_id uuid;
+  target_ruleset_id uuid;
   verified_rules integer;
   verified_scenarios integer;
   visuals integer;
@@ -16,7 +16,7 @@ DECLARE
   uncited_verified_rules integer;
 BEGIN
   SELECT rv.id,rv.ruleset_id
-    INTO version_id,ruleset_id
+    INTO target_version_id,target_ruleset_id
   FROM ruleset_versions rv
   JOIN rulesets rs ON rs.id=rv.ruleset_id
   JOIN leagues l ON l.id=rs.league_id
@@ -25,42 +25,42 @@ BEGIN
     AND rv.version=1
   LIMIT 1;
 
-  IF version_id IS NULL THEN
+  IF target_version_id IS NULL THEN
     RAISE EXCEPTION 'Stonewall Boston v1 does not exist';
   END IF;
 
   SELECT count(*) INTO verified_rules
   FROM rules
-  WHERE ruleset_version_id=version_id AND verification_status='verified';
+  WHERE ruleset_version_id=target_version_id AND verification_status='verified';
 
   SELECT count(*) INTO verified_scenarios
   FROM ruling_scenarios s
   JOIN rules r ON r.id=s.rule_id AND r.ruleset_version_id=s.ruleset_version_id
-  WHERE s.ruleset_version_id=version_id AND r.verification_status='verified';
+  WHERE s.ruleset_version_id=target_version_id AND r.verification_status='verified';
 
   SELECT count(*) INTO visuals
   FROM rule_visuals
-  WHERE ruleset_version_id=version_id;
+  WHERE ruleset_version_id=target_version_id;
 
   SELECT count(*) INTO verified_sources
   FROM rule_sources
-  WHERE ruleset_version_id=version_id AND verification_status='verified';
+  WHERE ruleset_version_id=target_version_id AND verification_status='verified';
 
   SELECT count(*) INTO signals
   FROM umpire_signals s
   JOIN rule_sources src ON src.id=s.source_id AND src.ruleset_version_id=s.ruleset_version_id
-  WHERE s.ruleset_version_id=version_id AND src.verification_status='verified';
+  WHERE s.ruleset_version_id=target_version_id AND src.verification_status='verified';
 
   SELECT count(*) INTO uncited_verified_rules
   FROM rules r
-  WHERE r.ruleset_version_id=version_id
+  WHERE r.ruleset_version_id=target_version_id
     AND r.verification_status='verified'
     AND NOT EXISTS (
       SELECT 1
       FROM rule_source_links lnk
       JOIN rule_sources src ON src.id=lnk.source_id
       WHERE lnk.rule_id=r.id
-        AND src.ruleset_version_id=version_id
+        AND src.ruleset_version_id=target_version_id
         AND src.verification_status='verified'
     );
 
@@ -73,19 +73,19 @@ BEGIN
 
   -- Future-safe: if another version of this logical ruleset were active, retire it
   -- before activating this reviewed version. This does not mutate its child content.
-  UPDATE ruleset_versions
-  SET status='superseded',effective_to=COALESCE(effective_to,now())
-  WHERE ruleset_versions.ruleset_id=ruleset_id
-    AND id<>version_id
-    AND status='active';
+  UPDATE ruleset_versions rv
+  SET status='superseded',effective_to=COALESCE(rv.effective_to,now())
+  WHERE rv.ruleset_id=target_ruleset_id
+    AND rv.id<>target_version_id
+    AND rv.status='active';
 
-  UPDATE ruleset_versions
+  UPDATE ruleset_versions rv
   SET status='active',
-      effective_from=COALESCE(effective_from,now()),
+      effective_from=COALESCE(rv.effective_from,now()),
       effective_to=NULL,
-      published_at=COALESCE(published_at,now())
-  WHERE id=version_id
-    AND status IN ('review','active');
+      published_at=COALESCE(rv.published_at,now())
+  WHERE rv.id=target_version_id
+    AND rv.status IN ('review','active');
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'v1 must be in review or already active before publication';
