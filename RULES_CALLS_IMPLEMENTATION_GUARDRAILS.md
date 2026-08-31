@@ -1,22 +1,22 @@
 # Rules & Calls Engine — Implementation Guardrails
 
-These decisions resolve the final blocking review before Phase 1 code/migration work.
+These decisions describe the current Phase 1 implementation and supersede older architecture examples where they conflict.
 
 ## 1. Vercel function budget
 
-The production project currently has 12 deployable `/api/*.js` endpoints and runs on the Vercel Hobby plan. We will not add a 13th deployable API file in Phase 1.
+The production project has 12 deployable `/api/*.js` endpoints and runs on the Vercel Hobby plan. Phase 1 does not add another deployable API file.
 
-Rules & Calls functionality will reuse an existing deployable endpoint and may use non-deployable helper modules outside the API surface. If the hosting plan/function budget changes later, the rules API can be split without changing the data model.
+Rules & Calls reuses `/api/team-state/umpire` through the existing account rewrite and keeps reusable logic in non-deployable helper modules.
 
 ## 2. Status separation
 
-Publication state and rule verification are separate concepts.
+Publication state and rule/source verification are separate concepts.
 
 - `ruleset_versions.status`: `draft | review | active | superseded`
 - `rules.verification_status`: `draft | review | verified`
 - `rule_sources.verification_status`: `draft | review | verified`
 
-Live retrieval requires the resolved ruleset version to be `active` and the returned rule/source content to be `verified`.
+There is no `verified` ruleset-version status. Live team resolution uses `active`; a historical game may continue resolving its immutable `superseded` version. Displayed rules and sources remain verified-only.
 
 ## 3. No circular current-version foreign key
 
@@ -27,7 +27,7 @@ Live retrieval requires the resolved ruleset version to be `active` and the retu
 
 ## 4. Indexed deterministic search
 
-`ruling_scenarios.search_text` will be a stored generated `tsvector` with a GIN index.
+`ruling_scenarios.search_text` is a stored generated `tsvector` with a GIN index.
 
 Search input rules:
 
@@ -36,16 +36,16 @@ Search input rules:
 - maximum 120 characters
 - parameterized query only
 - explicit PostgreSQL casts where inference may be ambiguous
-- scope to exact resolved team + active ruleset version
+- exact resolved ruleset version
 - only rules with `verification_status = 'verified'`
 
-Phase 1 does not need generative AI to decide calls.
+Phase 1 does not use generative AI to decide calls.
 
-## 5. Shared count normalization
+## 5. Shared count normalization and configurable limits
 
-The existing `team_states.state` remains the live source of truth.
+The existing live game-state stores remain the source of truth for game counts.
 
-All Captain and Player response paths must normalize counts to:
+All Captain and Player response paths normalize counts to:
 
 ```json
 {
@@ -56,33 +56,41 @@ All Captain and Player response paths must normalize counts to:
 }
 ```
 
-Missing `strikes` is treated as `0` without destructively rewriting historical state.
+Missing `strikes` is treated as `0` without rewriting old JSON rows.
+
+Umpire Console count limits resolve from `rule_values` for the game/team ruleset. Stonewall defaults are used only as a compatibility fallback when the Rules schema has not been migrated yet.
 
 ## 6. PostgreSQL casts
 
-New rules queries must use explicit casts for UUID/text/jsonb parameters when ambiguity is possible. Do not rely on server inference in complex CTE, JSON, `unnest`, or search queries.
+New rules queries use explicit casts for UUID/text/jsonb parameters where ambiguity is possible. User-controlled search text is never concatenated into SQL.
 
 ## 7. Stable game binding
 
-`game_ruleset_bindings` uses a stable internal event/game identifier and `team_id`.
+`game_ruleset_bindings` uses `(team_id, game_id)` and the game ID comes only from a real event `id` or `sourceUid`.
 
-Primary key:
+The legacy Umpire state can still use the old date/time/title fallback for backward compatibility, but that fallback is never used to create a historical rules binding.
 
-```sql
-PRIMARY KEY (team_id, game_id)
-```
+On the first game mutation or first game-scoped Rules & Calls read, the stable game is bound to the then-active ruleset. Future reads use that exact version even after it becomes `superseded`.
 
-Do not bind using event title, opponent name, date display text, or team slug.
+## 8. Version immutability and publication
 
-## 8. Version immutability
+Stonewall Boston Fall 2026 version 1 is assembled in `review` state. Child seed data, sources, signals and visuals are loaded before publication.
 
-Stonewall Boston Fall 2026 is version 1 seed/configuration data. Once active, version 1 content is immutable. Later material changes create v2+.
+`stonewall_boston_fall_2026_v1_activate.sql` validates the required verified content and then activates v1 transactionally.
 
-Draft versions may be edited before activation. Activation is transactional and freezes the version. No previously active child rows are updated in-place.
+`002_rules_calls_integrity.sql` prevents inserts/updates/deletes of version-owned child content after a version becomes active. Material changes therefore require v2+ rather than editing v1 in place.
 
-## 9. Visual safety
+## 9. Cross-version integrity
 
-Visuals are typed JSON only. No stored raw HTML or executable SVG strings.
+The hardening migration adds same-version relationships so scenario rules/categories, visuals, and umpire signal sources cannot point across ruleset versions.
+
+`rule_source_links` is also validated by a trigger to ensure its rule and source belong to the same version.
+
+Every published umpire signal requires a source. The official Stonewall call-sign source remains directly attached to all seven seeded signals.
+
+## 10. Visual safety
+
+Visuals are structured JSON only. No stored raw HTML or executable SVG strings.
 
 Minimum stepped structure:
 
@@ -96,28 +104,46 @@ Minimum stepped structure:
 }
 ```
 
-The application renderer owns DOM/SVG creation.
+The generic application renderer owns DOM/SVG creation.
 
-## 10. Migration safety
+Phase 1 includes original app-owned diagrams for overthrows, encroachment, tag-up, force out, strike zone and fair/foul.
 
-Migration dependency order:
+## 11. Umpire signals
 
-1. leagues
-2. seasons
-3. rulesets
-4. ruleset_versions
-5. rule_categories
-6. rules
-7. ruling_scenarios
-8. rule_visuals
-9. umpire_signals
-10. rule_sources
-11. rule_values
-12. team_ruleset_bindings
-13. game_ruleset_bindings
+The official Stonewall Boston Umpire Call Signs PDF was inspected directly before signal seeding.
 
-No migration rewrites `team_states.state`; strike compatibility remains application-side.
+The seven source-backed signals are Ball, Strike, Foul, Fair, Out, Safe, and Dead Ball / Play Ends. The source does not define separate required spoken wording, so `verbal_call` remains empty rather than invented.
 
-## Phase 1 gate
+## 12. Migration and seed order
 
-Migration SQL may be committed for review, but it must not be applied to production Neon until schema/type compatibility and the full seed are reviewed by both engineers.
+Schema order in `001_rules_calls_foundation.sql` creates dependencies before dependents, including `rule_sources` before `umpire_signals`.
+
+Review/test execution order:
+
+1. `migrations/001_rules_calls_foundation.sql`
+2. `migrations/002_rules_calls_integrity.sql`
+3. `seeds/stonewall_boston_fall_2026_v1_core.sql`
+4. `seeds/stonewall_boston_fall_2026_v1_scenarios.sql`
+5. `seeds/stonewall_boston_fall_2026_v1_sources_visuals.sql`
+6. `seeds/stonewall_boston_fall_2026_v1_signals.sql`
+7. `seeds/stonewall_boston_fall_2026_v1_remaining_verified.sql`
+8. `seeds/stonewall_boston_fall_2026_v1_activate.sql`
+9. create/verify the intended `team_ruleset_bindings` row for the target test workspace
+10. exercise active/search/ruling/signals and game binding end to end
+
+No migration rewrites `team_states.state`.
+
+## 13. Production gate
+
+Production Neon remains untouched until all of the following are true:
+
+- the migration package executes successfully on a temporary Neon branch
+- schema integrity queries pass
+- all seed validation/activation checks pass
+- game binding and historical-version behavior pass
+- Captain and assigned-umpire authorization pass
+- mobile Rules & Calls UX passes
+- both engineering reviews have no blocking findings
+- the user explicitly approves production migration
+
+Current external blocker: the Neon migration connector exposes camelCase arguments but its backend rejects them in favor of a different snake_case schema, so it cannot currently create the required temporary branch. This is a tooling block, not permission to bypass the temporary-branch gate.
