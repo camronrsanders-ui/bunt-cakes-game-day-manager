@@ -66,7 +66,14 @@ async function loadRuling(sql,versionId,scenarioId){
     FROM ruling_scenarios s
     JOIN rules r ON r.id=s.rule_id
     LEFT JOIN rule_categories c ON c.id=s.category_id
-    LEFT JOIN rule_visuals v ON v.scenario_id=s.id AND v.ruleset_version_id=s.ruleset_version_id
+    LEFT JOIN LATERAL (
+      SELECT rv.definition_json,rv.alt_text
+      FROM rule_visuals rv
+      WHERE rv.scenario_id=s.id
+        AND rv.ruleset_version_id=s.ruleset_version_id
+      ORDER BY rv.created_at,rv.visual_key
+      LIMIT 1
+    ) v ON true
     WHERE s.id=${String(scenarioId)}::uuid
       AND s.ruleset_version_id=${String(versionId)}::uuid
       AND r.ruleset_version_id=${String(versionId)}::uuid
