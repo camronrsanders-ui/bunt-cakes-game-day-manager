@@ -99,24 +99,30 @@ async function loadRuling(sql,versionId,scenarioId){
   return {...ruling,sources,relatedCalls:related};
 }
 
-async function handleRulesCalls({req,res,sql,row}){
-  const active=await activeMetadata(sql,String(row.id));
-  if(!active)return res.status(404).json({error:'No active ruleset is configured for this team'});
-  const action=clean(req.query&&req.query.rules).toLowerCase();
-  if(action==='active')return res.status(200).json({ok:true,activeRuleset:active});
-  if(action==='search'){
-    const query=boundedQuery(req.query&&req.query.q);
-    if(!query)return res.status(200).json({ok:true,activeRuleset:active,query:'',results:[]});
-    return res.status(200).json({ok:true,activeRuleset:active,query,results:await searchScenarios(sql,active.rulesetVersionId,query)});
+async function handleRulesCalls({req,res,sql,row,actor}){
+  if(!actor)return res.status(401).json({error:'Umpire or Captain access is required'});
+  try{
+    const active=await activeMetadata(sql,String(row.id));
+    if(!active)return res.status(404).json({error:'No active ruleset is configured for this team'});
+    const action=clean(req.query&&req.query.rules).toLowerCase();
+    if(action==='active')return res.status(200).json({ok:true,activeRuleset:active});
+    if(action==='search'){
+      const query=boundedQuery(req.query&&req.query.q);
+      if(!query)return res.status(200).json({ok:true,activeRuleset:active,query:'',results:[]});
+      return res.status(200).json({ok:true,activeRuleset:active,query,results:await searchScenarios(sql,active.rulesetVersionId,query)});
+    }
+    if(action==='ruling'){
+      const scenarioId=clean(req.query&&req.query.scenarioId);
+      if(!UUID_RE.test(scenarioId))return res.status(400).json({error:'A valid scenario is required'});
+      const ruling=await loadRuling(sql,active.rulesetVersionId,scenarioId);
+      if(!ruling)return res.status(404).json({error:'That ruling was not found in this team ruleset'});
+      return res.status(200).json({ok:true,activeRuleset:active,ruling});
+    }
+    return res.status(400).json({error:'Unknown rules action'});
+  }catch(error){
+    if(String(error&&error.code)==='42P01')return res.status(503).json({error:'Rules & Calls is not available for this team yet.'});
+    throw error;
   }
-  if(action==='ruling'){
-    const scenarioId=clean(req.query&&req.query.scenarioId);
-    if(!UUID_RE.test(scenarioId))return res.status(400).json({error:'A valid scenario is required'});
-    const ruling=await loadRuling(sql,active.rulesetVersionId,scenarioId);
-    if(!ruling)return res.status(404).json({error:'That ruling was not found in this team ruleset'});
-    return res.status(200).json({ok:true,activeRuleset:active,ruling});
-  }
-  return res.status(400).json({error:'Unknown rules action'});
 }
 
 module.exports={handleRulesCalls,boundedQuery,resolveActiveVersion,activeMetadata,searchScenarios,loadRuling};
