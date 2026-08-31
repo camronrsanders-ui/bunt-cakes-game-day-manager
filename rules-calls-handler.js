@@ -106,6 +106,24 @@ async function loadRuling(sql,versionId,scenarioId){
   return {...ruling,sources,relatedCalls:related};
 }
 
+async function loadSignals(sql,versionId){
+  return sql`
+    SELECT
+      s.signal_key,s.title,s.verbal_call,s.instructions,s.use_when,s.visual_steps,
+      src.name AS source_name,src.citation AS source_citation,
+      CASE WHEN src.url ~* '^https?://' THEN src.url ELSE NULL END AS source_url
+    FROM umpire_signals s
+    JOIN rule_sources src ON src.id=s.source_id
+    WHERE s.ruleset_version_id=${String(versionId)}::uuid
+      AND src.ruleset_version_id=${String(versionId)}::uuid
+      AND src.verification_status='verified'
+    ORDER BY CASE s.signal_key
+      WHEN 'ball' THEN 10 WHEN 'strike' THEN 20 WHEN 'foul' THEN 30
+      WHEN 'fair' THEN 40 WHEN 'out' THEN 50 WHEN 'safe' THEN 60
+      WHEN 'dead-ball-play-ends' THEN 70 ELSE 999 END,s.title
+  `;
+}
+
 async function handleRulesCalls({req,res,sql,row,actor}){
   if(!actor)return res.status(401).json({error:'Umpire or Captain access is required'});
   try{
@@ -113,6 +131,7 @@ async function handleRulesCalls({req,res,sql,row,actor}){
     if(!active)return res.status(404).json({error:'No active ruleset is configured for this team'});
     const action=clean(req.query&&req.query.rules).toLowerCase();
     if(action==='active')return res.status(200).json({ok:true,activeRuleset:active});
+    if(action==='signals')return res.status(200).json({ok:true,activeRuleset:active,signals:await loadSignals(sql,active.rulesetVersionId)});
     if(action==='search'){
       const query=boundedQuery(req.query&&req.query.q);
       if(!query)return res.status(200).json({ok:true,activeRuleset:active,query:'',results:[]});
@@ -127,9 +146,9 @@ async function handleRulesCalls({req,res,sql,row,actor}){
     }
     return res.status(400).json({error:'Unknown rules action'});
   }catch(error){
-    if(String(error&&error.code)==='42P01')return res.status(503).json({error:'Rules & Calls is not available for this team yet.'});
+    if(String(error&&error.code)==='42P01'||String(error&&error.code)==='42703')return res.status(503).json({error:'Rules & Calls is not available for this team yet.'});
     throw error;
   }
 }
 
-module.exports={handleRulesCalls,boundedQuery,resolveActiveVersion,activeMetadata,searchScenarios,loadRuling};
+module.exports={handleRulesCalls,boundedQuery,resolveActiveVersion,activeMetadata,searchScenarios,loadRuling,loadSignals};
