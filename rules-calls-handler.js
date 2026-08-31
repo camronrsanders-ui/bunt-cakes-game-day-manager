@@ -1,13 +1,10 @@
 function clean(value){return String(value||'').trim();}
 function boundedQuery(value){return clean(value).slice(0,120);}
+const UUID_RE=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 async function resolveActiveVersion(sql,teamId){
   const rows=await sql`
-    SELECT
-      rv.id AS ruleset_version_id,
-      rv.version,
-      rs.name,
-      l.name AS league_name
+    SELECT rv.id AS ruleset_version_id,rv.version,rs.name,l.name AS league_name
     FROM team_ruleset_bindings tb
     JOIN ruleset_versions rv ON rv.id=tb.active_ruleset_version_id
     JOIN rulesets rs ON rs.id=rv.ruleset_id
@@ -28,8 +25,7 @@ async function loadCounts(sql,versionId){
     WHERE ruleset_version_id=${String(versionId)}::uuid
       AND key IN ('balls_for_walk','strikes_for_out','fouls_for_out','outs_per_half_inning','innings','regulation_minutes')
   `;
-  const values={};
-  for(const row of rows)values[row.key]=Number(row.value);
+  const values={};for(const row of rows)values[row.key]=Number(row.value);
   return {
     balls:Number.isFinite(values.balls_for_walk)?values.balls_for_walk:4,
     strikes:Number.isFinite(values.strikes_for_out)?values.strikes_for_out:3,
@@ -41,29 +37,14 @@ async function loadCounts(sql,versionId){
 }
 
 async function activeMetadata(sql,teamId){
-  const active=await resolveActiveVersion(sql,teamId);
-  if(!active)return null;
-  return {
-    rulesetVersionId:active.ruleset_version_id,
-    name:active.name,
-    leagueName:active.league_name,
-    version:Number(active.version),
-    counts:await loadCounts(sql,active.ruleset_version_id)
-  };
+  const active=await resolveActiveVersion(sql,teamId);if(!active)return null;
+  return {rulesetVersionId:active.ruleset_version_id,name:active.name,leagueName:active.league_name,version:Number(active.version),counts:await loadCounts(sql,active.ruleset_version_id)};
 }
 
 async function searchScenarios(sql,versionId,query){
-  const q=boundedQuery(query);
-  if(!q)return [];
+  const q=boundedQuery(query);if(!q)return [];
   return sql`
-    SELECT
-      s.id AS scenario_id,
-      s.title,
-      s.call_label,
-      s.call_type,
-      c.name AS category,
-      r.rule_key,
-      r.source_section,
+    SELECT s.id AS scenario_id,s.title,s.call_label,s.call_type,c.name AS category,r.rule_key,r.source_section,
       ts_rank(s.search_text,websearch_to_tsquery('english',${q}::text)) AS rank
     FROM ruling_scenarios s
     JOIN rules r ON r.id=s.rule_id
@@ -79,23 +60,9 @@ async function searchScenarios(sql,versionId,query){
 
 async function loadRuling(sql,versionId,scenarioId){
   const rows=await sql`
-    SELECT
-      s.id AS scenario_id,
-      s.title,
-      s.call_label,
-      s.call_type,
-      s.what_happened,
-      s.what_to_do,
-      s.why,
-      r.id AS rule_id,
-      r.rule_key,
-      r.title AS rule_title,
-      r.official_text,
-      r.quick_summary,
-      r.source_section,
-      c.name AS category,
-      v.definition_json AS visual_definition,
-      v.alt_text AS visual_alt_text
+    SELECT s.id AS scenario_id,s.title,s.call_label,s.call_type,s.what_happened,s.what_to_do,s.why,
+      r.id AS rule_id,r.rule_key,r.title AS rule_title,r.official_text,r.quick_summary,r.source_section,c.name AS category,
+      v.definition_json AS visual_definition,v.alt_text AS visual_alt_text
     FROM ruling_scenarios s
     JOIN rules r ON r.id=s.rule_id
     LEFT JOIN rule_categories c ON c.id=s.category_id
@@ -106,10 +73,11 @@ async function loadRuling(sql,versionId,scenarioId){
       AND r.verification_status='verified'
     LIMIT 1
   `;
-  const ruling=rows[0];
-  if(!ruling)return null;
+  const ruling=rows[0];if(!ruling)return null;
   const sources=await sql`
-    SELECT src.name,src.publisher,src.url,src.citation,src.verification_status
+    SELECT src.name,src.publisher,
+      CASE WHEN src.url ~* '^https?://' THEN src.url ELSE NULL END AS url,
+      src.citation,src.verification_status
     FROM rule_source_links link
     JOIN rule_sources src ON src.id=link.source_id
     WHERE link.rule_id=${String(ruling.rule_id)}::uuid
@@ -139,12 +107,11 @@ async function handleRulesCalls({req,res,sql,row}){
   if(action==='search'){
     const query=boundedQuery(req.query&&req.query.q);
     if(!query)return res.status(200).json({ok:true,activeRuleset:active,query:'',results:[]});
-    const results=await searchScenarios(sql,active.rulesetVersionId,query);
-    return res.status(200).json({ok:true,activeRuleset:active,query,results});
+    return res.status(200).json({ok:true,activeRuleset:active,query,results:await searchScenarios(sql,active.rulesetVersionId,query)});
   }
   if(action==='ruling'){
     const scenarioId=clean(req.query&&req.query.scenarioId);
-    if(!/^[0-9a-fA-F-]{36}$/.test(scenarioId))return res.status(400).json({error:'A valid scenario is required'});
+    if(!UUID_RE.test(scenarioId))return res.status(400).json({error:'A valid scenario is required'});
     const ruling=await loadRuling(sql,active.rulesetVersionId,scenarioId);
     if(!ruling)return res.status(404).json({error:'That ruling was not found in this team ruleset'});
     return res.status(200).json({ok:true,activeRuleset:active,ruling});
