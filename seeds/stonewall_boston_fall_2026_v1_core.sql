@@ -1,5 +1,6 @@
 -- Stonewall Sports Boston Fall 2026 v1 core seed
 -- REVIEW ONLY. Do not apply until migration is approved.
+-- Version 1 is assembled in review state; the final activation seed publishes it only after validation.
 
 WITH league_row AS (
   INSERT INTO leagues(name,slug)
@@ -27,7 +28,7 @@ WITH league_row AS (
   UNION ALL SELECT r.id FROM rulesets r JOIN league_id l ON l.id=r.league_id WHERE r.name='Stonewall Boston Kickball Rules' LIMIT 1
 ), version_row AS (
   INSERT INTO ruleset_versions(ruleset_id,season_id,version,status,published_at)
-  SELECT r.id,s.id,1,'active',now() FROM ruleset_id r CROSS JOIN season_id s LIMIT 1
+  SELECT r.id,s.id,1,'review',NULL FROM ruleset_id r CROSS JOIN season_id s LIMIT 1
   ON CONFLICT (ruleset_id,version) DO NOTHING
   RETURNING id
 ), version_id AS (
