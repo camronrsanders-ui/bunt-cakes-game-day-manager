@@ -146,7 +146,7 @@ async function handleRulesCalls({req,res,sql,row,actor}){
     }
     return res.status(400).json({error:'Unknown rules action'});
   }catch(error){
-    if(String(error&&error.code)==='42P01'||String(error&&error.code)==='42703')return res.status(503).json({error:'Rules & Calls is not available for this team yet.'});
+    if(String(error&&error.code)==='42P01')return res.status(503).json({error:'Rules & Calls is not available for this team yet.'});
     throw error;
   }
 }
