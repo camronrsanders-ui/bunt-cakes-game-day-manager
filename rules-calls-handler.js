@@ -1,10 +1,11 @@
 function clean(value){return String(value||'').trim();}
 function boundedQuery(value){return clean(value).slice(0,120);}
+function boundedGameId(value){return clean(value).slice(0,180);}
 const UUID_RE=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 async function resolveActiveVersion(sql,teamId){
   const rows=await sql`
-    SELECT rv.id AS ruleset_version_id,rv.version,rs.name,l.name AS league_name
+    SELECT rv.id AS ruleset_version_id,rv.version,rv.status,rs.name,l.name AS league_name
     FROM team_ruleset_bindings tb
     JOIN ruleset_versions rv ON rv.id=tb.active_ruleset_version_id
     JOIN rulesets rs ON rs.id=rv.ruleset_id
@@ -16,6 +17,34 @@ async function resolveActiveVersion(sql,teamId){
     LIMIT 1
   `;
   return rows[0]||null;
+}
+
+async function resolveBoundVersion(sql,teamId,gameId){
+  const id=boundedGameId(gameId);if(!id)return null;
+  const rows=await sql`
+    SELECT rv.id AS ruleset_version_id,rv.version,rv.status,rs.name,l.name AS league_name
+    FROM game_ruleset_bindings gb
+    JOIN ruleset_versions rv ON rv.id=gb.ruleset_version_id
+    JOIN rulesets rs ON rs.id=rv.ruleset_id
+    JOIN leagues l ON l.id=rs.league_id
+    WHERE gb.team_id=${String(teamId)}::text
+      AND gb.game_id=${id}::text
+      AND rv.status IN ('active','superseded')
+    LIMIT 1
+  `;
+  return rows[0]||null;
+}
+
+async function bindActiveRulesetForGame(sql,teamId,gameId){
+  const id=boundedGameId(gameId);if(!id)return null;
+  const existing=await resolveBoundVersion(sql,teamId,id);if(existing)return existing;
+  const active=await resolveActiveVersion(sql,teamId);if(!active)return null;
+  await sql`
+    INSERT INTO game_ruleset_bindings(team_id,game_id,ruleset_version_id)
+    VALUES(${String(teamId)}::text,${id}::text,${String(active.ruleset_version_id)}::uuid)
+    ON CONFLICT (team_id,game_id) DO NOTHING
+  `;
+  return await resolveBoundVersion(sql,teamId,id)||active;
 }
 
 async function loadCounts(sql,versionId){
@@ -36,10 +65,29 @@ async function loadCounts(sql,versionId){
   };
 }
 
-async function activeMetadata(sql,teamId){
-  const active=await resolveActiveVersion(sql,teamId);if(!active)return null;
-  return {rulesetVersionId:active.ruleset_version_id,name:active.name,leagueName:active.league_name,version:Number(active.version),counts:await loadCounts(sql,active.ruleset_version_id)};
+async function metadataForVersion(sql,version){
+  if(!version)return null;
+  return {
+    rulesetVersionId:version.ruleset_version_id,
+    name:version.name,
+    leagueName:version.league_name,
+    version:Number(version.version),
+    status:version.status,
+    counts:await loadCounts(sql,version.ruleset_version_id)
+  };
 }
+
+async function resolveRulesContext(sql,teamId,gameId='',bindIfMissing=true){
+  const id=boundedGameId(gameId);
+  if(id){
+    let bound=await resolveBoundVersion(sql,teamId,id);
+    if(!bound&&bindIfMissing)bound=await bindActiveRulesetForGame(sql,teamId,id);
+    if(bound)return metadataForVersion(sql,bound);
+  }
+  return metadataForVersion(sql,await resolveActiveVersion(sql,teamId));
+}
+
+async function activeMetadata(sql,teamId){return resolveRulesContext(sql,teamId,'',false);}
 
 async function searchScenarios(sql,versionId,query){
   const q=boundedQuery(query);if(!q)return [];
@@ -97,6 +145,7 @@ async function loadRuling(sql,versionId,scenarioId){
     FROM ruling_scenarios s
     JOIN rules r ON r.id=s.rule_id
     WHERE s.ruleset_version_id=${String(versionId)}::uuid
+      AND r.ruleset_version_id=${String(versionId)}::uuid
       AND r.verification_status='verified'
       AND s.category_id=(SELECT category_id FROM ruling_scenarios WHERE id=${String(scenarioId)}::uuid AND ruleset_version_id=${String(versionId)}::uuid)
       AND s.id<>${String(scenarioId)}::uuid
@@ -124,25 +173,26 @@ async function loadSignals(sql,versionId){
   `;
 }
 
-async function handleRulesCalls({req,res,sql,row,actor}){
+async function handleRulesCalls({req,res,sql,row,actor,gameId=''}){
   if(!actor)return res.status(401).json({error:'Umpire or Captain access is required'});
   try{
-    const active=await activeMetadata(sql,String(row.id));
-    if(!active)return res.status(404).json({error:'No active ruleset is configured for this team'});
+    const context=await resolveRulesContext(sql,String(row.id),gameId,true);
+    if(!context)return res.status(404).json({error:'No active ruleset is configured for this team'});
     const action=clean(req.query&&req.query.rules).toLowerCase();
-    if(action==='active')return res.status(200).json({ok:true,activeRuleset:active});
-    if(action==='signals')return res.status(200).json({ok:true,activeRuleset:active,signals:await loadSignals(sql,active.rulesetVersionId)});
+    const responseMeta={...context,boundToGame:!!boundedGameId(gameId)};
+    if(action==='active')return res.status(200).json({ok:true,activeRuleset:responseMeta});
+    if(action==='signals')return res.status(200).json({ok:true,activeRuleset:responseMeta,signals:await loadSignals(sql,context.rulesetVersionId)});
     if(action==='search'){
       const query=boundedQuery(req.query&&req.query.q);
-      if(!query)return res.status(200).json({ok:true,activeRuleset:active,query:'',results:[]});
-      return res.status(200).json({ok:true,activeRuleset:active,query,results:await searchScenarios(sql,active.rulesetVersionId,query)});
+      if(!query)return res.status(200).json({ok:true,activeRuleset:responseMeta,query:'',results:[]});
+      return res.status(200).json({ok:true,activeRuleset:responseMeta,query,results:await searchScenarios(sql,context.rulesetVersionId,query)});
     }
     if(action==='ruling'){
       const scenarioId=clean(req.query&&req.query.scenarioId);
       if(!UUID_RE.test(scenarioId))return res.status(400).json({error:'A valid scenario is required'});
-      const ruling=await loadRuling(sql,active.rulesetVersionId,scenarioId);
-      if(!ruling)return res.status(404).json({error:'That ruling was not found in this team ruleset'});
-      return res.status(200).json({ok:true,activeRuleset:active,ruling});
+      const ruling=await loadRuling(sql,context.rulesetVersionId,scenarioId);
+      if(!ruling)return res.status(404).json({error:'That ruling was not found in this game ruleset'});
+      return res.status(200).json({ok:true,activeRuleset:responseMeta,ruling});
     }
     return res.status(400).json({error:'Unknown rules action'});
   }catch(error){
@@ -151,4 +201,7 @@ async function handleRulesCalls({req,res,sql,row,actor}){
   }
 }
 
-module.exports={handleRulesCalls,boundedQuery,resolveActiveVersion,activeMetadata,searchScenarios,loadRuling,loadSignals};
+module.exports={
+  handleRulesCalls,boundedQuery,boundedGameId,resolveActiveVersion,resolveBoundVersion,
+  bindActiveRulesetForGame,resolveRulesContext,activeMetadata,searchScenarios,loadRuling,loadSignals,loadCounts
+};
