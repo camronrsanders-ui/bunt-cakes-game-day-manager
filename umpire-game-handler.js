@@ -1,5 +1,6 @@
 const { getSql } = require('./api/_db');
 const { requestedTeamSlug, getTeam, getCaptainTeam, resolveAuthenticatedPlayer } = require('./api/_auth');
+const { handleRulesCalls } = require('./rules-calls-handler');
 
 let tableReady = null;
 
@@ -71,6 +72,10 @@ module.exports=async function umpireGameHandler(req,res){
     if(!row)return res.status(404).json({error:'Team was not found'});
     const actor=await actorFor(req,row,teamSlug);
     if(!actor)return res.status(401).json({error:'Your player access needs to be set up again. Ask your captain for a new setup link.',playerAccessRequired:true});
+    if(req.method==='GET'&&clean(req.query&&req.query.rules)){
+      res.setHeader('Cache-Control','no-store');
+      return handleRulesCalls({req,res,sql,row,actor});
+    }
     await ensureTable(sql);
     const events=allowedEvents(row.state||{},actor),allowedKeys=new Set(events.map(eventKey)),teamId=String(row.id);
     if(req.method==='GET'){
