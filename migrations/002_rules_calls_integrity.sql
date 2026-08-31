@@ -21,12 +21,14 @@ ALTER TABLE umpire_signals
   ON DELETE RESTRICT;
 
 -- Optional signal->rule relationship, when present, must stay inside the same version.
+-- RESTRICT is deliberate: draft editors must clear the optional association before
+-- deleting the referenced rule, which avoids partial composite SET NULL behavior.
 ALTER TABLE umpire_signals DROP CONSTRAINT IF EXISTS umpire_signals_rule_id_fkey;
 ALTER TABLE umpire_signals
   ADD CONSTRAINT umpire_signals_rule_version_fkey
   FOREIGN KEY (rule_id,ruleset_version_id)
   REFERENCES rules(id,ruleset_version_id)
-  ON DELETE SET NULL (rule_id);
+  ON DELETE RESTRICT;
 
 -- Scenario rule/category references cannot cross ruleset versions.
 ALTER TABLE ruling_scenarios DROP CONSTRAINT IF EXISTS ruling_scenarios_rule_id_fkey;
@@ -41,7 +43,7 @@ ALTER TABLE ruling_scenarios
   ADD CONSTRAINT ruling_scenarios_category_version_fkey
   FOREIGN KEY (category_id,ruleset_version_id)
   REFERENCES rule_categories(id,ruleset_version_id)
-  ON DELETE SET NULL (category_id);
+  ON DELETE RESTRICT;
 
 -- Visual scenario references cannot cross versions.
 ALTER TABLE rule_visuals DROP CONSTRAINT IF EXISTS rule_visuals_scenario_id_fkey;
@@ -57,7 +59,7 @@ ALTER TABLE rules
   ADD CONSTRAINT rules_category_version_fkey
   FOREIGN KEY (category_id,ruleset_version_id)
   REFERENCES rule_categories(id,ruleset_version_id)
-  ON DELETE SET NULL (category_id);
+  ON DELETE RESTRICT;
 
 -- Once a ruleset version is active, all version-owned content is immutable.
 CREATE OR REPLACE FUNCTION rules_calls_reject_active_child_mutation()
