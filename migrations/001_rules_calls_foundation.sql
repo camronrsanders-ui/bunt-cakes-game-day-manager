@@ -122,20 +122,6 @@ CREATE TABLE IF NOT EXISTS rule_visuals (
   CHECK (jsonb_typeof(definition_json) = 'object')
 );
 
-CREATE TABLE IF NOT EXISTS umpire_signals (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  ruleset_version_id uuid NOT NULL REFERENCES ruleset_versions(id) ON DELETE CASCADE,
-  rule_id uuid REFERENCES rules(id) ON DELETE SET NULL,
-  signal_key text NOT NULL,
-  title text NOT NULL,
-  verbal_call text NOT NULL DEFAULT '',
-  instructions text NOT NULL,
-  visual_steps jsonb NOT NULL DEFAULT '[]'::jsonb,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (ruleset_version_id, signal_key),
-  CHECK (jsonb_typeof(visual_steps) = 'array')
-);
-
 CREATE TABLE IF NOT EXISTS rule_sources (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   ruleset_version_id uuid NOT NULL REFERENCES ruleset_versions(id) ON DELETE CASCADE,
@@ -149,6 +135,25 @@ CREATE TABLE IF NOT EXISTS rule_sources (
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (ruleset_version_id, name)
 );
+
+CREATE TABLE IF NOT EXISTS umpire_signals (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  ruleset_version_id uuid NOT NULL REFERENCES ruleset_versions(id) ON DELETE CASCADE,
+  rule_id uuid REFERENCES rules(id) ON DELETE SET NULL,
+  source_id uuid REFERENCES rule_sources(id) ON DELETE SET NULL,
+  signal_key text NOT NULL,
+  title text NOT NULL,
+  verbal_call text NOT NULL DEFAULT '',
+  instructions text NOT NULL,
+  use_when text NOT NULL DEFAULT '',
+  visual_steps jsonb NOT NULL DEFAULT '[]'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (ruleset_version_id, signal_key),
+  CHECK (jsonb_typeof(visual_steps) = 'array')
+);
+
+CREATE INDEX IF NOT EXISTS idx_umpire_signals_version
+  ON umpire_signals (ruleset_version_id, signal_key);
 
 CREATE TABLE IF NOT EXISTS rule_source_links (
   rule_id uuid NOT NULL REFERENCES rules(id) ON DELETE CASCADE,
