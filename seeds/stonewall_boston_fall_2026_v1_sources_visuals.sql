@@ -9,17 +9,15 @@ WITH v AS (
   LIMIT 1
 )
 INSERT INTO rule_sources(ruleset_version_id,name,publisher,citation,verification_status,verified_at)
-SELECT v.id,x.name,'Stonewall Sports Boston',x.citation,'verified',now()
+SELECT v.id,x.name,'Stonewall Sports Boston',x.citation,x.status,
+       CASE WHEN x.status='verified' THEN now() ELSE NULL END
 FROM v CROSS JOIN (VALUES
- ('SSB Kickball Rules - Updated 3/17/26','Official Stonewall Sports Boston kickball rules updated 3/17/26'),
- ('Stonewall Boston Fall 2026 Umpire Training','League umpire training video summary supplied for Fall 2026'),
- ('Overthrow Guide Final','Stonewall Boston overthrow quick-reference guide'),
- ('Stonewall Boston Umpire Call Signs','Stonewall Boston umpire signal reference')
-) AS x(name,citation)
-WHERE NOT EXISTS (
-  SELECT 1 FROM rule_sources rs
-  WHERE rs.ruleset_version_id=v.id AND rs.name=x.name
-);
+ ('SSB Kickball Rules - Updated 3/17/26','Official Stonewall Sports Boston kickball rules updated 3/17/26','verified'),
+ ('Stonewall Boston Fall 2026 Umpire Training','League umpire training video summary supplied for Fall 2026','review'),
+ ('Overthrow Guide Final','Stonewall Boston overthrow quick-reference guide','verified'),
+ ('Stonewall Boston Umpire Call Signs','Stonewall Boston umpire signal reference','review')
+) AS x(name,citation,status)
+ON CONFLICT (ruleset_version_id,name) DO NOTHING;
 
 -- Link all v1 verified rules to the official rulebook source.
 WITH v AS (
@@ -30,7 +28,7 @@ WITH v AS (
   LIMIT 1
 ), source AS (
   SELECT rs.id FROM rule_sources rs JOIN v ON v.id=rs.ruleset_version_id
-  WHERE rs.name='SSB Kickball Rules - Updated 3/17/26' LIMIT 1
+  WHERE rs.name='SSB Kickball Rules - Updated 3/17/26' AND rs.verification_status='verified' LIMIT 1
 )
 INSERT INTO rule_source_links(rule_id,source_id)
 SELECT r.id,s.id FROM rules r JOIN v ON v.id=r.ruleset_version_id CROSS JOIN source s
