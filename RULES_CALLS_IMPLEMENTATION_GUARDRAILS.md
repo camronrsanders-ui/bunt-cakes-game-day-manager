@@ -72,13 +72,15 @@ The legacy Umpire state can still use the old date/time/title fallback for backw
 
 On the first game mutation or first game-scoped Rules & Calls read, the stable game is bound to the then-active ruleset. Future reads use that exact version even after it becomes `superseded`.
 
+Historical game bindings are write-once and can only be created against a version that is active at bind time.
+
 ## 8. Version immutability and publication
 
 Stonewall Boston Fall 2026 version 1 is assembled in `review` state. Child seed data, sources, signals and visuals are loaded before publication.
 
 `stonewall_boston_fall_2026_v1_activate.sql` validates the required verified content and then activates v1 transactionally.
 
-`002_rules_calls_integrity.sql` prevents inserts/updates/deletes of version-owned child content after a version becomes active. Material changes therefore require v2+ rather than editing v1 in place.
+`002_rules_calls_integrity.sql` prevents inserts/updates/deletes of version-owned child content after a version becomes `active` or `superseded`. The published version identity is also protected. Material changes therefore require v2+ rather than editing v1 in place.
 
 ## 9. Cross-version integrity
 
@@ -125,11 +127,13 @@ Review/test execution order:
 3. `seeds/stonewall_boston_fall_2026_v1_core.sql`
 4. `seeds/stonewall_boston_fall_2026_v1_scenarios.sql`
 5. `seeds/stonewall_boston_fall_2026_v1_sources_visuals.sql`
-6. `seeds/stonewall_boston_fall_2026_v1_signals.sql`
-7. `seeds/stonewall_boston_fall_2026_v1_remaining_verified.sql`
-8. `seeds/stonewall_boston_fall_2026_v1_activate.sql`
-9. create/verify the intended `team_ruleset_bindings` row for the target test workspace
-10. exercise active/search/ruling/signals and game binding end to end
+6. `seeds/stonewall_boston_fall_2026_v1_source_metadata.sql`
+7. `seeds/stonewall_boston_fall_2026_v1_signals.sql`
+8. `seeds/stonewall_boston_fall_2026_v1_remaining_verified.sql`
+9. `seeds/stonewall_boston_fall_2026_v1_tag_up_timing.sql`
+10. `seeds/stonewall_boston_fall_2026_v1_activate.sql`
+11. `seeds/stonewall_boston_fall_2026_v1_bind_bunt_cakes.sql` for the founder test workspace, or an equivalent explicit team binding for another test workspace
+12. exercise active/search/ruling/signals, configurable counts, stable game binding, and superseded historical-version behavior end to end
 
 No migration rewrites `team_states.state`.
 
