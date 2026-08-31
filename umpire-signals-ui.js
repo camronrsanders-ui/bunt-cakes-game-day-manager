@@ -1,7 +1,8 @@
 (()=>{
   const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   const team=()=>window.__teamSlug||'those-dirty-bunt-cakes';
-  const signalsUrl=()=>`/api/team-state/umpire?team=${encodeURIComponent(team())}&rules=signals`;
+  const gameId=()=>String(window.BuntUmpireConsole?.currentRulesGameId?.()||'').trim().slice(0,180);
+  const signalsUrl=()=>{const id=gameId();return `/api/team-state/umpire?team=${encodeURIComponent(team())}&rules=signals${id?`&rulesGameId=${encodeURIComponent(id)}`:''}`;};
   let requestSeq=0;
 
   function ensureStyles(){
