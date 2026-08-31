@@ -72,12 +72,13 @@ module.exports=async function umpireGameHandler(req,res){
     if(!row)return res.status(404).json({error:'Team was not found'});
     const actor=await actorFor(req,row,teamSlug);
     if(!actor)return res.status(401).json({error:'Your player access needs to be set up again. Ask your captain for a new setup link.',playerAccessRequired:true});
+    const events=allowedEvents(row.state||{},actor),allowedKeys=new Set(events.map(eventKey)),teamId=String(row.id);
     if(req.method==='GET'&&clean(req.query&&req.query.rules)){
+      if(actor.kind!=='captain'&&!events.length)return res.status(403).json({error:'Rules & Calls is available to the assigned umpire for this team'});
       res.setHeader('Cache-Control','no-store');
       return handleRulesCalls({req,res,sql,row,actor});
     }
     await ensureTable(sql);
-    const events=allowedEvents(row.state||{},actor),allowedKeys=new Set(events.map(eventKey)),teamId=String(row.id);
     if(req.method==='GET'){
       const rows=await sql`SELECT event_key,game_state,updated_at FROM umpire_game_states WHERE team_id=${teamId} ORDER BY updated_at DESC LIMIT 100`;
       const games={};for(const item of rows){if(!allowedKeys.has(String(item.event_key||'')))continue;games[item.event_key]={...normalizeGame(item.game_state),updatedAt:item.updated_at||(item.game_state&&item.game_state.updatedAt)||null};}
