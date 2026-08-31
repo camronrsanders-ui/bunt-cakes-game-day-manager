@@ -38,12 +38,12 @@ function publicEvent(event) {
   return { eventId:eventKey(event), title:clean(event.title||'Officiating'), date:clean(event.date), time:clean(event.time), location:clean(event.location), umpire:clean(event.umpire), lineRef1:clean(event.lineRef1), lineRef2:clean(event.lineRef2) };
 }
 function defaultGame() {
-  return { teamAName:'', teamBName:'', teamAScore:0, teamBScore:0, balls:0, fouls:0, outs:0, inning:1, kickingTeam:'b', updatedAt:null, updatedBy:'' };
+  return { teamAName:'', teamBName:'', teamAScore:0, teamBScore:0, balls:0, strikes:0, fouls:0, outs:0, inning:1, kickingTeam:'b', updatedAt:null, updatedBy:'' };
 }
 function normalizeGame(value) {
   const raw=value&&typeof value==='object'?value:{};
   const number=(v,min,max,fallback)=>{const n=Number(v);return Number.isInteger(n)?Math.max(min,Math.min(max,n)):fallback;};
-  return {...defaultGame(),teamAName:clean(raw.teamAName).slice(0,80),teamBName:clean(raw.teamBName).slice(0,80),teamAScore:number(raw.teamAScore,0,99,0),teamBScore:number(raw.teamBScore,0,99,0),balls:number(raw.balls,0,4,0),fouls:number(raw.fouls,0,4,0),outs:number(raw.outs,0,3,0),inning:number(raw.inning,1,12,1),kickingTeam:raw.kickingTeam==='a'?'a':'b',updatedAt:raw.updatedAt||null,updatedBy:clean(raw.updatedBy).slice(0,120)};
+  return {...defaultGame(),teamAName:clean(raw.teamAName).slice(0,80),teamBName:clean(raw.teamBName).slice(0,80),teamAScore:number(raw.teamAScore,0,99,0),teamBScore:number(raw.teamBScore,0,99,0),balls:number(raw.balls,0,4,0),strikes:number(raw.strikes,0,3,0),fouls:number(raw.fouls,0,4,0),outs:number(raw.outs,0,3,0),inning:number(raw.inning,1,12,1),kickingTeam:raw.kickingTeam==='a'?'a':'b',updatedAt:raw.updatedAt||null,updatedBy:clean(raw.updatedBy).slice(0,120)};
 }
 function validatePatch(raw) {
   if(!raw||typeof raw!=='object'||Array.isArray(raw)) throw Object.assign(new Error('A valid umpire game update is required'),{status:400});
@@ -51,7 +51,7 @@ function validatePatch(raw) {
   const intField=(key,min,max)=>{if(!Object.prototype.hasOwnProperty.call(raw,key))return;const n=Number(raw[key]);if(!Number.isInteger(n)||n<min||n>max)throw Object.assign(new Error(`${key} is outside the allowed range`),{status:400});patch[key]=n;};
   if(Object.prototype.hasOwnProperty.call(raw,'teamAName'))patch.teamAName=clean(raw.teamAName).slice(0,80);
   if(Object.prototype.hasOwnProperty.call(raw,'teamBName'))patch.teamBName=clean(raw.teamBName).slice(0,80);
-  intField('teamAScore',0,99);intField('teamBScore',0,99);intField('balls',0,4);intField('fouls',0,4);intField('outs',0,3);intField('inning',1,12);
+  intField('teamAScore',0,99);intField('teamBScore',0,99);intField('balls',0,4);intField('strikes',0,3);intField('fouls',0,4);intField('outs',0,3);intField('inning',1,12);
   if(Object.prototype.hasOwnProperty.call(raw,'kickingTeam')){if(!['a','b'].includes(raw.kickingTeam))throw Object.assign(new Error('Choose which team is kicking'),{status:400});patch.kickingTeam=raw.kickingTeam;}
   if(!Object.keys(patch).length)throw Object.assign(new Error('Nothing changed'),{status:400});
   return patch;
