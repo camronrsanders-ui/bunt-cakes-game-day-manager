@@ -28,11 +28,22 @@ function isSafeExternalUrl(value) {
   }
 }
 
+function normalizeCounts(value) {
+  const counts = value && typeof value === 'object' ? value : {};
+  return {
+    balls: Number(counts.balls || 0),
+    strikes: Number(counts.strikes || 0),
+    fouls: Number(counts.fouls || 0),
+    outs: Number(counts.outs || 0)
+  };
+}
+
 function captainState(value) {
   const state = value && typeof value === 'object' ? { ...value } : {};
   delete state._pushConfig;
   delete state._pushSubscriptions;
   delete state._pushReminderLog;
+  state.counts = normalizeCounts(state.counts);
   return state;
 }
 
@@ -74,7 +85,7 @@ function publicState(value, playerName = '') {
     currentKicker: raw.currentKicker || '',
     kickerIndex: Number(raw.kickerIndex || 0),
     score: raw.score || { team: 0, opponent: 0 },
-    counts: raw.counts || { balls: 0, fouls: 0, outs: 0 },
+    counts: normalizeCounts(raw.counts),
     gameInning: Number(raw.gameInning || 1),
     fieldInning: Number(raw.fieldInning || raw.gameInning || 1),
     half: raw.half || '',
