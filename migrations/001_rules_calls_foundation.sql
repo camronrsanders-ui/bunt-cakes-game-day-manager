@@ -146,7 +146,8 @@ CREATE TABLE IF NOT EXISTS rule_sources (
   verification_status text NOT NULL DEFAULT 'draft' CHECK (verification_status IN ('draft','review','verified')),
   verified_by text,
   verified_at timestamptz,
-  created_at timestamptz NOT NULL DEFAULT now()
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (ruleset_version_id, name)
 );
 
 CREATE TABLE IF NOT EXISTS rule_source_links (
