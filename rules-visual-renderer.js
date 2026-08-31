@@ -81,5 +81,15 @@
     if(altText){const sr=htmlEl('p','rules-visual-alt');sr.textContent=text(altText);host.appendChild(sr);}return true;
   }
 
+  function loadSignalsCompanion(){
+    if(document.querySelector('script[data-umpire-signals-ui]'))return;
+    const script=document.createElement('script');
+    script.src='/umpire-signals-ui.js?v=1';
+    script.async=false;
+    script.dataset.umpireSignalsUi='1';
+    document.head.appendChild(script);
+  }
+
   window.RulesVisualRenderer={render};
+  loadSignalsCompanion();
 })();
