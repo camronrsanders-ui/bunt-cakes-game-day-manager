@@ -262,7 +262,7 @@
             if(r.conflict){
               const remote=clone(r.state||{});
               const base=lastSyncedState||remote;
-              const merged=mergeLocalChanges(base,payload,remote);
+              const merged=mergeLocalChanges(base,snapshot(),remote);
               lastServerVersion=String(r.updatedAt||'');
               lastSyncedState=clone(remote);
               reconcileInPlace(state,merged);
@@ -310,6 +310,7 @@
       if(!state||saving||pending||document.hidden||interactionBusy())return;
       try{
         const r=await sharedState();
+        if(saving||pending)return;
         const version=String(r.updatedAt||'');
         if(!version)return;
         if(!lastServerVersion){
@@ -318,12 +319,13 @@
           return;
         }
         if(version===lastServerVersion)return;
-        state=clone(r.state||{});
+        const remote=clone(r.state||{});
+        reconcileInPlace(state,mergeLocalChanges(lastSyncedState||remote,snapshot(),remote));
         const n=Math.min(7,Math.max(1,Number(state.gameInning)||1));
         state.gameInning=n;
         state.fieldInning=n;
         lastServerVersion=version;
-        lastSyncedState=clone(state);
+        lastSyncedState=clone(remote);
         renderShared();
         show('<span class="ok">Live lineup updated</span> • player change received • '+whenLabel(r.updatedAt));
       }catch(_){}

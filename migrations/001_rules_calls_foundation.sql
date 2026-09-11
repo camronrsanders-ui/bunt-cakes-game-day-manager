@@ -74,6 +74,13 @@ CREATE TABLE IF NOT EXISTS rules (
 CREATE INDEX IF NOT EXISTS idx_rules_verified_version
   ON rules (ruleset_version_id, verification_status);
 
+-- Fixed text[] input makes joining deterministic; the generic PostgreSQL
+-- array_to_string(anyarray, text) is only STABLE and cannot be used directly
+-- in a generated column.
+CREATE OR REPLACE FUNCTION rules_search_terms_text(terms text[])
+RETURNS text LANGUAGE sql IMMUTABLE PARALLEL SAFE
+AS $$ SELECT array_to_string(terms, ' ') $$;
+
 CREATE TABLE IF NOT EXISTS ruling_scenarios (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   ruleset_version_id uuid NOT NULL REFERENCES ruleset_versions(id) ON DELETE CASCADE,
@@ -94,7 +101,7 @@ CREATE TABLE IF NOT EXISTS ruling_scenarios (
   search_text tsvector GENERATED ALWAYS AS (
     setweight(to_tsvector('english', coalesce(title,'')), 'A') ||
     setweight(to_tsvector('english', coalesce(question_prompt,'')), 'A') ||
-    setweight(to_tsvector('english', coalesce(array_to_string(search_terms,' '),'')), 'A') ||
+    setweight(to_tsvector('english', coalesce(rules_search_terms_text(search_terms),'')), 'A') ||
     setweight(to_tsvector('english', coalesce(what_happened,'')), 'B') ||
     setweight(to_tsvector('english', coalesce(what_to_do,'')), 'B') ||
     setweight(to_tsvector('english', coalesce(why,'')), 'C')

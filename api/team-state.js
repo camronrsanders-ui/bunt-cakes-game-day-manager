@@ -509,7 +509,7 @@ module.exports = async function handler(req, res) {
           UPDATE team_states
           SET state=jsonb_set(state,ARRAY['innings',${inningKey}]::text[],${payload}::jsonb,true),updated_at=now()
           WHERE team_id=${row.id} AND updated_at=${row.updated_at}
-          RETURNING updated_at
+          RETURNING to_char(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS updated_at
         `;
         if(!rows.length)return res.status(409).json({error:'The lineup changed while you were editing. Refresh and choose your position again.'});
         return res.status(200).json({ok:true,action:'field-position',playerName,playerId,inning,previousPosition,position:target||'Rest',swappedWith,inningState:currentInning,updatedAt:rows[0].updated_at});
@@ -559,7 +559,7 @@ module.exports = async function handler(req, res) {
             '_pushReminderLog',COALESCE(state->'_pushReminderLog','{}'::jsonb)
           ),updated_at=now()
           WHERE team_id=${row.id} AND updated_at=${expectedUpdatedAt}::timestamptz
-          RETURNING updated_at
+          RETURNING to_char(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS updated_at
         `;
         if(!rows.length){
           const current=await loadState(sql,teamSlug);
@@ -576,7 +576,7 @@ module.exports = async function handler(req, res) {
             '_pushConfig',COALESCE(state->'_pushConfig','{}'::jsonb),
             '_pushSubscriptions',COALESCE(state->'_pushSubscriptions','{}'::jsonb),
             '_pushReminderLog',COALESCE(state->'_pushReminderLog','{}'::jsonb)
-          ),updated_at=now() WHERE team_id=${row.id} RETURNING updated_at
+          ),updated_at=now() WHERE team_id=${row.id} RETURNING to_char(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS updated_at
         `;
       }
       return res.status(200).json({ok:true,updatedAt:rows[0]&&rows[0].updated_at,updatedBy:user.display_name,teamSlug});
