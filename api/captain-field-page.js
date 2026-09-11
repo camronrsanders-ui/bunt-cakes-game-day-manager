@@ -20,7 +20,7 @@ module.exports = async function handler(req, res) {
       html=html.replace('Stonewall Boston Resources','Team Resources').replace('Quick links for players and captains.','Links selected by this team.');
     }
 
-    html = html.replace('</head>', '<script src="/tenant-context.js?v=2"></script></head>');
+    html = html.replace('</head>', '<script src="/tenant-context.js?v=2"></script><link rel="stylesheet" href="/captain-console-layout.css?v=1"></head>');
     html = html.replace(
       "const today=()=>new Date().toLocaleDateString('en-CA',{timeZone:'America/New_York'});",
       "const today=()=>new Date().toLocaleDateString('en-CA',{timeZone:state?.team?.timeZone||Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC'});"

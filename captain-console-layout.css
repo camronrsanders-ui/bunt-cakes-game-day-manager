@@ -1,0 +1,56 @@
+/* Captain-only layout: contain intrinsic select widths and keep scores together. */
+#manager, #manager > section, #captainUmpireConsole,
+#captainUmpireConsole .umpire-console,
+#captainUmpireConsole .umpire-console > *,
+#captainUmpireConsole .umpire-console label,
+#captainUmpireConsole .umpire-console .card {
+  min-width: 0;
+}
+#captainUmpireConsole .umpire-console { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+#captainUmpireConsole input, #captainUmpireConsole select {
+  min-width: 0; max-width: 100%; width: 100%; font-size: 16px;
+  text-overflow: ellipsis;
+}
+#captainUmpireConsole .umpire-team-grid,
+#captainUmpireConsole .umpire-status-grid,
+#captainUmpireConsole .umpire-score-actions,
+#captainUmpireConsole .umpire-count-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+#captainUmpireConsole .umpire-head > div { min-width: 0; }
+#captainUmpireConsole .umpire-head { flex-wrap: nowrap; }
+#captainUmpireConsole .umpire-head .pill { flex-shrink: 0; }
+#captainUmpireConsole .umpire-hero { position: relative; border-top: 3px solid var(--premium-green); }
+#captainUmpireConsole .umpire-hero:has(#umpireEventSelect) .umpire-head > div > .muted:nth-of-type(2) { display: none; }
+#captainUmpireConsole .umpire-hero > label { display: block; margin-top: 12px; font-size: 13px; font-weight: 700; }
+#captainUmpireConsole .umpire-live { margin-top: 8px; font-size: 12px; }
+#captainUmpireConsole .umpire-team-card label { font-size: 13px; font-weight: 700; }
+#captainUmpireConsole .umpire-team-card input { font-weight: 600; }
+#captainUmpireConsole .umpire-count { background: var(--premium-green-soft); border-radius: 12px; }
+#captainUmpireConsole button { min-height: 44px; }
+@media (max-width: 700px) {
+  #manager > .row.wrap:first-child { padding: 12px; border-radius: 18px; gap: 10px; }
+  #manager > .row.wrap:first-child > div { min-width: 0; max-width: 100%; }
+  #manager > .row.wrap:first-child h1 { font-size: 20px !important; }
+  #manager > .row.wrap:first-child .brand-logo { width: 52px !important; height: 52px !important; }
+  #manager > .row.wrap:first-child .muted { font-size: 13px; }
+  #manager > .row.wrap:first-child select { width: auto; min-width: 0; max-width: 100%; flex: 1 1 150px; font-size: 16px; }
+  #manager #saveStatus { font-size: 12px; line-height: 1.5; }
+  #manager > .tabs { max-width: 100%; min-width: 0; overflow-x: auto !important; justify-content: flex-start !important; }
+  #captainUmpireConsole .card { padding: 12px !important; border-radius: 16px !important; }
+  #captainUmpireConsole .umpire-title { font-size: 23px; margin: 2px 0 6px; }
+  #captainUmpireConsole .umpire-head .muted { font-size: 12px; line-height: 1.5; }
+  #captainUmpireConsole .umpire-head .pill { display: none; }
+  #captainUmpireConsole .umpire-team-grid { gap: 8px; }
+  #captainUmpireConsole .umpire-team-card { padding: 10px !important; }
+  #captainUmpireConsole .umpire-team-card input { padding: 9px 5px; }
+  #captainUmpireConsole .umpire-score { font-size: 40px; margin: 12px 0; }
+  #captainUmpireConsole .umpire-score-actions { grid-template-columns: 44px minmax(0, 1fr); gap: 6px; }
+  #captainUmpireConsole .umpire-score-actions button { font-size: 16px; padding: 8px 4px !important; }
+  #captainUmpireConsole .umpire-status-grid label { font-size: 13px; font-weight: 700; }
+  #captainUmpireConsole .umpire-count-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #captainUmpireConsole .umpire-count { padding: 10px; }
+  #captainUmpireConsole .umpire-count .muted { font-size: 13px; }
+  #captainUmpireConsole .umpire-count strong { font-size: 28px; }
+  #captainUmpireConsole .umpire-actions { grid-template-columns: minmax(0, 1fr); }
+}
