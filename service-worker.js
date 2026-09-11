@@ -1,4 +1,4 @@
-const CACHE='team-game-day-v14';
+const CACHE='team-game-day-v15';
 const CORE=['/manifest.webmanifest','/generic-team-icon.svg'];
 
 self.addEventListener('install',event=>{
