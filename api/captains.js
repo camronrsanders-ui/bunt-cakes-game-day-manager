@@ -28,7 +28,7 @@ function blankState(timeZone='UTC') {
     },
     playerVisibility:{schedule:true,lineup:true,pods:true,kicking:true,officials:true,resources:true,attendance:true},
     resources:[],players:[],innings,pods:[],kickingOrder:[],score:{team:0,opponent:0},
-    counts:{balls:0,fouls:0,outs:0},gameInning:1,fieldInning:1,half:'Team kicking',
+    counts:{balls:0,strikes:0,fouls:0,outs:0},gameInning:1,fieldInning:1,half:'Team kicking',
     events:[],season:{name:'',division:'',color:'#15803d'},lastLeagueSync:null,appAccess:{},availability:{},captainPlayerLinks:{}
   };
 }
