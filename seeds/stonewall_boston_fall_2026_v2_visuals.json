@@ -1,0 +1,932 @@
+{
+  "ball-adjacent-infield": {
+    "field": "kickball_standard",
+    "orientation": "home-at-bottom",
+    "steps": [
+      {
+        "phase": "before",
+        "caption": "Example: runner leaves first and advances toward second.",
+        "elements": [
+          {
+            "type": "runner",
+            "x": 75,
+            "y": 65,
+            "label": "R"
+          },
+          {
+            "type": "path",
+            "from": [
+              75,
+              65
+            ],
+            "to": [
+              50,
+              40
+            ],
+            "kind": "runner"
+          },
+          {
+            "type": "fielder",
+            "x": 60,
+            "y": 58,
+            "label": "F"
+          },
+          {
+            "type": "ball",
+            "x": 62,
+            "y": 56
+          }
+        ]
+      },
+      {
+        "phase": "play",
+        "caption": "At the instant the ball enters the marked area, the runner is moving toward second.",
+        "elements": [
+          {
+            "type": "zone",
+            "shape": "rect",
+            "x": 84,
+            "y": 20,
+            "width": 16,
+            "height": 28,
+            "label": "ADJACENT INFIELD"
+          },
+          {
+            "type": "path",
+            "from": [
+              62,
+              56
+            ],
+            "to": [
+              95,
+              32
+            ],
+            "kind": "throw"
+          },
+          {
+            "type": "ball",
+            "x": 95,
+            "y": 32
+          },
+          {
+            "type": "runner",
+            "x": 63,
+            "y": 53,
+            "label": "R"
+          },
+          {
+            "type": "path",
+            "from": [
+              63,
+              53
+            ],
+            "to": [
+              50,
+              40
+            ],
+            "kind": "runner"
+          }
+        ]
+      },
+      {
+        "phase": "call",
+        "caption": "Adjacent infield: this runner gets second plus two bases, ending at home.",
+        "elements": [
+          {
+            "type": "label",
+            "text": "DEAD BALL",
+            "x": 50,
+            "y": 15
+          },
+          {
+            "type": "path",
+            "from": [
+              63,
+              53
+            ],
+            "to": [
+              50,
+              40
+            ],
+            "kind": "runner"
+          },
+          {
+            "type": "path",
+            "from": [
+              50,
+              40
+            ],
+            "to": [
+              25,
+              65
+            ],
+            "kind": "runner"
+          },
+          {
+            "type": "path",
+            "from": [
+              25,
+              65
+            ],
+            "to": [
+              50,
+              88
+            ],
+            "kind": "runner"
+          },
+          {
+            "type": "runner",
+            "x": 50,
+            "y": 88,
+            "label": "R"
+          }
+        ]
+      }
+    ],
+    "not_to_scale": true
+  },
+  "fair-foul-location-touch": {
+    "field": "kickball_standard",
+    "orientation": "home-at-bottom",
+    "steps": [
+      {
+        "phase": "before",
+        "caption": "Example: an untouched kicked ball lands fair before first base.",
+        "elements": [
+          {
+            "type": "ball",
+            "x": 60,
+            "y": 73
+          },
+          {
+            "type": "label",
+            "text": "UNTOUCHED BALL",
+            "x": 50,
+            "y": 15
+          }
+        ]
+      },
+      {
+        "phase": "play",
+        "caption": "The grounded ball crosses into foul territory on its own before reaching first.",
+        "elements": [
+          {
+            "type": "path",
+            "from": [
+              60,
+              73
+            ],
+            "to": [
+              76,
+              81
+            ],
+            "kind": "ball"
+          },
+          {
+            "type": "ball",
+            "x": 76,
+            "y": 81
+          }
+        ]
+      },
+      {
+        "phase": "call",
+        "caption": "Foul in this example. Foul lines are fair; fielder-touch cases have separate rules in 10.3.",
+        "elements": [
+          {
+            "type": "label",
+            "text": "FOUL",
+            "x": 50,
+            "y": 15
+          },
+          {
+            "type": "ball",
+            "x": 76,
+            "y": 81
+          }
+        ]
+      }
+    ],
+    "not_to_scale": true
+  },
+  "fielder-crossed-early": {
+    "field": "kickball_standard",
+    "orientation": "home-at-bottom",
+    "steps": [
+      {
+        "phase": "before",
+        "caption": "Example: a non-catcher fielder stays behind the first-to-third line before contact.",
+        "elements": [
+          {
+            "type": "zone",
+            "shape": "line",
+            "from": [
+              25,
+              65
+            ],
+            "to": [
+              75,
+              65
+            ],
+            "label": "1B\u20133B LINE"
+          },
+          {
+            "type": "fielder",
+            "x": 38,
+            "y": 54,
+            "label": "F"
+          },
+          {
+            "type": "runner",
+            "x": 50,
+            "y": 88,
+            "label": "K"
+          },
+          {
+            "type": "ball",
+            "x": 50,
+            "y": 75
+          }
+        ]
+      },
+      {
+        "phase": "play",
+        "caption": "Fielder crosses the line while the pitch is still approaching the kicker.",
+        "elements": [
+          {
+            "type": "zone",
+            "shape": "line",
+            "from": [
+              25,
+              65
+            ],
+            "to": [
+              75,
+              65
+            ],
+            "label": "1B\u20133B LINE"
+          },
+          {
+            "type": "path",
+            "from": [
+              38,
+              54
+            ],
+            "to": [
+              38,
+              73
+            ],
+            "kind": "fielder"
+          },
+          {
+            "type": "fielder",
+            "x": 38,
+            "y": 73,
+            "label": "F"
+          },
+          {
+            "type": "runner",
+            "x": 50,
+            "y": 88,
+            "label": "K"
+          },
+          {
+            "type": "ball",
+            "x": 50,
+            "y": 80
+          }
+        ]
+      },
+      {
+        "phase": "call",
+        "caption": "First team infraction: warning, with a do-over if defense benefited. Later infractions: award first.",
+        "elements": [
+          {
+            "type": "label",
+            "text": "ENCROACHMENT",
+            "x": 50,
+            "y": 15
+          },
+          {
+            "type": "zone",
+            "shape": "line",
+            "from": [
+              25,
+              65
+            ],
+            "to": [
+              75,
+              65
+            ],
+            "label": "1B\u20133B LINE"
+          },
+          {
+            "type": "fielder",
+            "x": 38,
+            "y": 73,
+            "label": "F"
+          }
+        ]
+      }
+    ],
+    "not_to_scale": true
+  },
+  "force-base-touch": {
+    "field": "kickball_standard",
+    "orientation": "home-at-bottom",
+    "steps": [
+      {
+        "phase": "before",
+        "caption": "A kicked ball lands fair without being caught. Runner on first is forced toward second.",
+        "elements": [
+          {
+            "type": "ball",
+            "x": 42,
+            "y": 55
+          },
+          {
+            "type": "runner",
+            "x": 75,
+            "y": 65,
+            "label": "R"
+          },
+          {
+            "type": "runner",
+            "x": 58,
+            "y": 81,
+            "label": "K"
+          },
+          {
+            "type": "fielder",
+            "x": 50,
+            "y": 40,
+            "label": "F"
+          }
+        ]
+      },
+      {
+        "phase": "play",
+        "caption": "Defender touches second with possession before the forced runner reaches it.",
+        "elements": [
+          {
+            "type": "path",
+            "from": [
+              75,
+              65
+            ],
+            "to": [
+              50,
+              40
+            ],
+            "kind": "runner"
+          },
+          {
+            "type": "runner",
+            "x": 60,
+            "y": 50,
+            "label": "R"
+          },
+          {
+            "type": "fielder",
+            "x": 50,
+            "y": 40,
+            "label": "F"
+          },
+          {
+            "type": "ball",
+            "x": 52,
+            "y": 38
+          }
+        ]
+      },
+      {
+        "phase": "call",
+        "caption": "The forced runner is out; no body tag is needed.",
+        "elements": [
+          {
+            "type": "label",
+            "text": "FORCE OUT",
+            "x": 50,
+            "y": 15
+          },
+          {
+            "type": "fielder",
+            "x": 50,
+            "y": 40,
+            "label": "F"
+          },
+          {
+            "type": "ball",
+            "x": 52,
+            "y": 38
+          },
+          {
+            "type": "runner",
+            "x": 60,
+            "y": 50,
+            "label": "R"
+          }
+        ]
+      }
+    ],
+    "not_to_scale": true
+  },
+  "overthrow-left-game-area": {
+    "field": "kickball_standard",
+    "orientation": "home-at-bottom",
+    "steps": [
+      {
+        "phase": "before",
+        "caption": "Example: runner leaves first and advances toward second.",
+        "elements": [
+          {
+            "type": "runner",
+            "x": 75,
+            "y": 65,
+            "label": "R"
+          },
+          {
+            "type": "path",
+            "from": [
+              75,
+              65
+            ],
+            "to": [
+              50,
+              40
+            ],
+            "kind": "runner"
+          },
+          {
+            "type": "fielder",
+            "x": 60,
+            "y": 58,
+            "label": "F"
+          },
+          {
+            "type": "ball",
+            "x": 62,
+            "y": 56
+          }
+        ]
+      },
+      {
+        "phase": "play",
+        "caption": "At the instant the ball enters the marked area, the runner is moving toward second.",
+        "elements": [
+          {
+            "type": "zone",
+            "shape": "edge",
+            "side": "right",
+            "label": "GAME BOUNDARY"
+          },
+          {
+            "type": "path",
+            "from": [
+              62,
+              56
+            ],
+            "to": [
+              98,
+              42
+            ],
+            "kind": "throw"
+          },
+          {
+            "type": "ball",
+            "x": 98,
+            "y": 42
+          },
+          {
+            "type": "runner",
+            "x": 63,
+            "y": 53,
+            "label": "R"
+          },
+          {
+            "type": "path",
+            "from": [
+              63,
+              53
+            ],
+            "to": [
+              50,
+              40
+            ],
+            "kind": "runner"
+          }
+        ]
+      },
+      {
+        "phase": "call",
+        "caption": "Out-of-bounds overthrow: this runner gets second plus one base, ending at third.",
+        "elements": [
+          {
+            "type": "label",
+            "text": "DEAD BALL",
+            "x": 50,
+            "y": 15
+          },
+          {
+            "type": "path",
+            "from": [
+              63,
+              53
+            ],
+            "to": [
+              50,
+              40
+            ],
+            "kind": "runner"
+          },
+          {
+            "type": "path",
+            "from": [
+              50,
+              40
+            ],
+            "to": [
+              25,
+              65
+            ],
+            "kind": "runner"
+          },
+          {
+            "type": "runner",
+            "x": 25,
+            "y": 65,
+            "label": "R"
+          }
+        ]
+      }
+    ],
+    "not_to_scale": true
+  },
+  "overthrow-past-first": {
+    "field": "kickball_standard",
+    "orientation": "home-at-bottom",
+    "steps": [
+      {
+        "phase": "before",
+        "caption": "Fields 5/6 example: defense throws toward first after the kick.",
+        "elements": [
+          {
+            "type": "runner",
+            "x": 65,
+            "y": 74,
+            "label": "K"
+          },
+          {
+            "type": "fielder",
+            "x": 75,
+            "y": 65,
+            "label": "1B"
+          },
+          {
+            "type": "ball",
+            "x": 60,
+            "y": 55
+          }
+        ]
+      },
+      {
+        "phase": "play",
+        "caption": "Ball remains playable, more than 15 feet beyond the foul line. Distance is schematic.",
+        "elements": [
+          {
+            "type": "path",
+            "from": [
+              60,
+              55
+            ],
+            "to": [
+              90,
+              78
+            ],
+            "kind": "throw"
+          },
+          {
+            "type": "ball",
+            "x": 90,
+            "y": 78
+          },
+          {
+            "type": "runner",
+            "x": 64,
+            "y": 54,
+            "label": "K"
+          },
+          {
+            "type": "path",
+            "from": [
+              75,
+              65
+            ],
+            "to": [
+              50,
+              40
+            ],
+            "kind": "runner"
+          }
+        ]
+      },
+      {
+        "phase": "call",
+        "caption": "Kicker may reach second at risk. Beyond second requires defense to bring the ball back and continue play.",
+        "elements": [
+          {
+            "type": "label",
+            "text": "LIVE \u2022 AT RISK",
+            "x": 50,
+            "y": 15
+          },
+          {
+            "type": "runner",
+            "x": 50,
+            "y": 40,
+            "label": "K"
+          },
+          {
+            "type": "ball",
+            "x": 90,
+            "y": 78
+          }
+        ]
+      }
+    ],
+    "not_to_scale": true
+  },
+  "overthrow-unsafe-area": {
+    "field": "kickball_standard",
+    "orientation": "home-at-bottom",
+    "steps": [
+      {
+        "phase": "before",
+        "caption": "Example: runner leaves first and advances toward second.",
+        "elements": [
+          {
+            "type": "runner",
+            "x": 75,
+            "y": 65,
+            "label": "R"
+          },
+          {
+            "type": "path",
+            "from": [
+              75,
+              65
+            ],
+            "to": [
+              50,
+              40
+            ],
+            "kind": "runner"
+          },
+          {
+            "type": "fielder",
+            "x": 60,
+            "y": 58,
+            "label": "F"
+          },
+          {
+            "type": "ball",
+            "x": 62,
+            "y": 56
+          }
+        ]
+      },
+      {
+        "phase": "play",
+        "caption": "At the instant the ball enters the marked area, the runner is moving toward second.",
+        "elements": [
+          {
+            "type": "zone",
+            "shape": "circle",
+            "x": 88,
+            "y": 58,
+            "radius": 8,
+            "label": "UNSAFE AREA"
+          },
+          {
+            "type": "path",
+            "from": [
+              62,
+              56
+            ],
+            "to": [
+              88,
+              58
+            ],
+            "kind": "throw"
+          },
+          {
+            "type": "ball",
+            "x": 88,
+            "y": 58
+          },
+          {
+            "type": "runner",
+            "x": 63,
+            "y": 53,
+            "label": "R"
+          },
+          {
+            "type": "path",
+            "from": [
+              63,
+              53
+            ],
+            "to": [
+              50,
+              40
+            ],
+            "kind": "runner"
+          }
+        ]
+      },
+      {
+        "phase": "call",
+        "caption": "Dead ball inside unsafe area: this runner goes to second, with no extra base.",
+        "elements": [
+          {
+            "type": "label",
+            "text": "DEAD BALL",
+            "x": 50,
+            "y": 15
+          },
+          {
+            "type": "path",
+            "from": [
+              63,
+              53
+            ],
+            "to": [
+              50,
+              40
+            ],
+            "kind": "runner"
+          },
+          {
+            "type": "runner",
+            "x": 50,
+            "y": 40,
+            "label": "R"
+          }
+        ]
+      }
+    ],
+    "not_to_scale": true
+  },
+  "pitch-enters-strike-zone": {
+    "field": "strike_zone_front",
+    "orientation": "home-at-bottom",
+    "steps": [
+      {
+        "phase": "before",
+        "caption": "Front elevation: one-foot-high zone, with one foot added on each side of the plate. Depth follows the plate.",
+        "elements": [
+          {
+            "type": "label",
+            "text": "FRONT VIEW",
+            "x": 50,
+            "y": 15
+          },
+          {
+            "type": "ball",
+            "x": 80,
+            "y": 50
+          }
+        ]
+      },
+      {
+        "phase": "play",
+        "caption": "Example assumes a legal rolling/two-bounce pitch and no excessive height in the kicking box.",
+        "elements": [
+          {
+            "type": "label",
+            "text": "LEGAL PITCH",
+            "x": 50,
+            "y": 15
+          },
+          {
+            "type": "ball",
+            "x": 69,
+            "y": 56
+          }
+        ]
+      },
+      {
+        "phase": "call",
+        "caption": "An un-kicked legal pitch overlapping the zone is a strike. Check Rule 9.2 before calling it.",
+        "elements": [
+          {
+            "type": "label",
+            "text": "STRIKE",
+            "x": 50,
+            "y": 15
+          },
+          {
+            "type": "ball",
+            "x": 69,
+            "y": 56
+          }
+        ]
+      }
+    ],
+    "not_to_scale": true
+  },
+  "runner-left-early-fly": {
+    "field": "kickball_standard",
+    "orientation": "home-at-bottom",
+    "steps": [
+      {
+        "phase": "before",
+        "caption": "Fair-territory example: runner stays on first while the fly has not landed or been touched.",
+        "elements": [
+          {
+            "type": "runner",
+            "x": 75,
+            "y": 65,
+            "label": "R"
+          },
+          {
+            "type": "fielder",
+            "x": 50,
+            "y": 24,
+            "label": "F"
+          },
+          {
+            "type": "ball",
+            "x": 50,
+            "y": 14
+          }
+        ]
+      },
+      {
+        "phase": "play",
+        "caption": "Runner departs before first touch. A completed catch follows, and the runner does not retouch.",
+        "elements": [
+          {
+            "type": "path",
+            "from": [
+              75,
+              65
+            ],
+            "to": [
+              50,
+              40
+            ],
+            "kind": "runner"
+          },
+          {
+            "type": "runner",
+            "x": 63,
+            "y": 53,
+            "label": "R"
+          },
+          {
+            "type": "fielder",
+            "x": 50,
+            "y": 24,
+            "label": "F"
+          },
+          {
+            "type": "ball",
+            "x": 52,
+            "y": 22
+          }
+        ]
+      },
+      {
+        "phase": "call",
+        "caption": "On this caught fly, failure to retouch makes the runner out. In foul territory, release requires the completed catch.",
+        "elements": [
+          {
+            "type": "label",
+            "text": "OUT \u2022 NO RETOUCH",
+            "x": 50,
+            "y": 15
+          },
+          {
+            "type": "runner",
+            "x": 63,
+            "y": 53,
+            "label": "R"
+          },
+          {
+            "type": "fielder",
+            "x": 50,
+            "y": 24,
+            "label": "F"
+          },
+          {
+            "type": "ball",
+            "x": 52,
+            "y": 22
+          }
+        ]
+      }
+    ],
+    "not_to_scale": true
+  }
+}

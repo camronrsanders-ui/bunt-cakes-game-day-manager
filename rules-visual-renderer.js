@@ -1,4 +1,5 @@
 (()=>{
+  let visualSequence=0;
   const NS='http://www.w3.org/2000/svg';
   const clamp=(value,min=0,max=100)=>{const n=Number(value);return Number.isFinite(n)?Math.max(min,Math.min(max,n)):0;};
   const point=value=>Array.isArray(value)&&value.length>=2?[clamp(value[0]),clamp(value[1])]:[0,0];
@@ -14,16 +15,27 @@
       const t=svgEl('text',{x,y:y+8,'text-anchor':'middle','font-size':5,fill:'#475569'});t.textContent=label;svg.appendChild(t);
     });
     const mound=svgEl('circle',{cx:50,cy:65,r:2.2,fill:'#dcfce7',stroke:'#166534','stroke-width':1});svg.appendChild(mound);
-    const foulLeft=svgEl('line',{x1:50,y1:88,x2:5,y2:43,stroke:'#bbf7d0','stroke-width':1});svg.appendChild(foulLeft);
-    const foulRight=svgEl('line',{x1:50,y1:88,x2:95,y2:43,stroke:'#bbf7d0','stroke-width':1});svg.appendChild(foulRight);
+    const foulLeft=svgEl('line',{x1:50,y1:88,x2:5,y2:46.6,stroke:'#bbf7d0','stroke-width':1});svg.appendChild(foulLeft);
+    const foulRight=svgEl('line',{x1:50,y1:88,x2:95,y2:46.6,stroke:'#bbf7d0','stroke-width':1});svg.appendChild(foulRight);
+  }
+
+  function strikeZoneBase(svg){
+    svg.appendChild(svgEl('rect',{x:1,y:1,width:98,height:98,rx:8,fill:'#f0fdf4',stroke:'#86efac'}));
+    svg.appendChild(svgEl('rect',{x:28,y:42,width:44,height:22,fill:'#dcfce7',stroke:'#166534','stroke-width':1}));
+    svg.appendChild(svgEl('line',{x1:15,y1:64,x2:85,y2:64,stroke:'#475569','stroke-width':1}));
+    svg.appendChild(svgEl('line',{x1:43,y1:64,x2:57,y2:64,stroke:'#0f172a','stroke-width':2}));
+    addText(svg,50,38,'STRIKE ZONE',{size:4.5});
+    addText(svg,18,52,'1 ft',{size:4});
+    addText(svg,35,73,'1 ft',{size:4});addText(svg,65,73,'1 ft',{size:4});
+    addText(svg,50,82,'PLATE WIDTH',{size:4});
   }
 
   function addText(svg,x,y,value,options={}){
-    const t=svgEl('text',{x:clamp(x),y:clamp(y),'text-anchor':options.anchor||'middle','font-size':options.size||5.2,'font-weight':options.bold?'800':'600',fill:options.fill||'#0f172a'});
-    t.textContent=text(value);svg.appendChild(t);return t;
+    const t=svgEl('text',{x:clamp(x),y:clamp(y),'text-anchor':options.anchor||(Number(x)>75?'end':Number(x)<25?'start':'middle'),'font-size':options.size||5.2,'font-weight':options.bold?'800':'600',fill:options.fill||'#0f172a'});
+    const words=text(value).split(/\s+/);let lines=[''];for(const word of words){if((lines[lines.length-1]+' '+word).trim().length>22)lines.push(word);else lines[lines.length-1]=(lines[lines.length-1]+' '+word).trim();}lines.slice(0,4).forEach((line,i)=>{const span=svgEl('tspan',{x:clamp(x),dy:i?'1.15em':0});span.textContent=line;t.appendChild(span);});svg.appendChild(t);return t;
   }
 
-  function renderElement(svg,element,index){
+  function renderElement(svg,element,index,arrowId){
     if(!element||typeof element!=='object')return;
     const type=text(element.type).toLowerCase();
     if(type==='runner'||type==='fielder'){
@@ -36,7 +48,7 @@
     }
     if(type==='path'){
       const [x1,y1]=point(element.from),[x2,y2]=point(element.to),kind=text(element.kind).toLowerCase();
-      const line=svgEl('line',{x1,y1,x2,y2,stroke:kind==='throw'?'#f59e0b':kind==='fielder'?'#dc2626':'#2563eb','stroke-width':2,'stroke-dasharray':kind==='return'?'3 2':'','marker-end':'url(#rulesArrow)'});svg.appendChild(line);return;
+      const line=svgEl('line',{x1,y1,x2,y2,stroke:['throw','ball'].includes(kind)?'#f59e0b':kind==='fielder'?'#dc2626':'#2563eb','stroke-width':2,'stroke-dasharray':kind==='return'?'3 2':'','marker-end':`url(#${arrowId})`});svg.appendChild(line);return;
     }
     if(type==='zone'){
       const shape=text(element.shape).toLowerCase();
@@ -46,7 +58,7 @@
       }else if(shape==='rect'){
         const x=clamp(element.x),y=clamp(element.y),w=clamp(element.width,2,50),h=clamp(element.height,2,50);
         svg.appendChild(svgEl('rect',{x,y,width:w,height:h,rx:3,fill:'#fee2e2','fill-opacity':.7,stroke:'#b91c1c','stroke-width':1.2,'stroke-dasharray':'3 2'}));
-        addText(svg,x+w/2,y+h/2,element.label,{size:4,bold:true,fill:'#991b1b'});
+        addText(svg,x+w/2,Math.max(8,y-3),element.label,{size:4,bold:true,fill:'#991b1b'});
       }else if(shape==='line'){
         const [x1,y1]=point(element.from),[x2,y2]=point(element.to);svg.appendChild(svgEl('line',{x1,y1,x2,y2,stroke:'#7c3aed','stroke-width':2,'stroke-dasharray':'4 2'}));
         addText(svg,(x1+x2)/2,Math.max(8,Math.min(y1,y2)-3),element.label,{size:4,bold:true,fill:'#6d28d9'});
@@ -64,12 +76,16 @@
     }
   }
 
-  function renderStep(step,index){
+  function renderStep(step,index,field){
     const card=htmlEl('section','rules-visual-step');
     const phase=htmlEl('div','rules-visual-phase');phase.textContent=String(step?.phase||`step ${index+1}`).toUpperCase();card.appendChild(phase);
     const svg=svgEl('svg',{viewBox:'0 0 100 100',role:'img','aria-label':text(step?.caption||step?.phase||'Play diagram')});
-    const defs=svgEl('defs');const marker=svgEl('marker',{id:'rulesArrow',markerWidth:6,markerHeight:6,refX:5,refY:3,orient:'auto',markerUnits:'strokeWidth'});marker.appendChild(svgEl('path',{d:'M0,0 L0,6 L6,3 z',fill:'#475569'}));defs.appendChild(marker);svg.appendChild(defs);
-    fieldBase(svg);(Array.isArray(step?.elements)?step.elements:[]).slice(0,40).forEach((el,i)=>renderElement(svg,el,i));card.appendChild(svg);
+    const arrowId=`rulesArrow-${++visualSequence}`;const defs=svgEl('defs');const marker=svgEl('marker',{id:arrowId,markerWidth:3,markerHeight:3,refX:2.5,refY:1.5,orient:'auto',markerUnits:'strokeWidth'});marker.appendChild(svgEl('path',{d:'M0,0 L0,3 L3,1.5 z',fill:'#475569'}));defs.appendChild(marker);svg.appendChild(defs);
+    if(field==='strike_zone_front')strikeZoneBase(svg);else fieldBase(svg);
+    const elements=(Array.isArray(step?.elements)?step.elements:[]).slice(0,40);
+    // Draw regions and paths behind people; keep the ball visible in possession.
+    const layers={zone:0,path:1,runner:2,fielder:2,ball:3,label:4,award:4};
+    elements.map((el,i)=>({el,i})).sort((a,b)=>(layers[a.el.type]??4)-(layers[b.el.type]??4)).forEach(({el,i})=>renderElement(svg,el,i,arrowId));card.appendChild(svg);
     if(step?.caption){const caption=htmlEl('div','rules-visual-caption');caption.textContent=text(step.caption);card.appendChild(caption);}return card;
   }
 
@@ -77,7 +93,8 @@
     if(!host)return false;host.replaceChildren();
     const data=definition&&typeof definition==='object'?definition:null,steps=Array.isArray(data?.steps)?data.steps.slice(0,6):[];
     if(!data||!steps.length){const empty=htmlEl('div','muted');empty.textContent='No visual steps are available for this ruling yet.';host.appendChild(empty);return false;}
-    const wrap=htmlEl('div','rules-visual-grid');steps.forEach((step,index)=>wrap.appendChild(renderStep(step,index)));host.appendChild(wrap);
+    const wrap=htmlEl('div','rules-visual-grid');steps.forEach((step,index)=>wrap.appendChild(renderStep(step,index,data.field)));host.appendChild(wrap);
+    const legend=htmlEl('p','rules-visual-alt');legend.textContent=data.field==='strike_zone_front'?'Front elevation • schematic, not to scale • orange = ball':'Home at bottom • schematic, not to scale • blue = runner • red = fielder • orange = ball';host.appendChild(legend);
     if(altText){const sr=htmlEl('p','rules-visual-alt');sr.textContent=text(altText);host.appendChild(sr);}return true;
   }
 

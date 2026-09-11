@@ -54,3 +54,9 @@
   #captainUmpireConsole .umpire-count strong { font-size: 28px; }
   #captainUmpireConsole .umpire-actions { grid-template-columns: minmax(0, 1fr); }
 }
+
+.captain-umpire-disclosure { min-width: 0; border: 1px solid #ddd3c0; border-radius: 16px; background: #fffaf0; }
+.captain-umpire-disclosure > summary { cursor: pointer; padding: 16px; min-height: 52px; color: #073d2c; font-size: 17px; font-weight: 800; }
+.captain-umpire-disclosure > summary:focus-visible { outline: 3px solid #d6a323; outline-offset: 2px; border-radius: 16px; }
+.captain-umpire-disclosure[open] > summary { border-bottom: 1px solid #ddd3c0; margin-bottom: 12px; }
+.captain-umpire-disclosure > #captainUmpireConsole { padding: 0 8px 8px; }

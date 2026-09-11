@@ -152,7 +152,22 @@ async function loadRuling(sql,versionId,scenarioId){
     ORDER BY s.display_priority DESC,s.title
     LIMIT 5
   `;
-  return {...ruling,sources,relatedCalls:related};
+  // Published v1 is immutable. Flag audited issues rather than silently rewriting history.
+  const [version]=await sql`SELECT rv.version,l.slug FROM ruleset_versions rv JOIN rulesets rs ON rs.id=rv.ruleset_id JOIN leagues l ON l.id=rs.league_id WHERE rv.id=${String(versionId)}::uuid`;
+  const legacyReview=Number(version?.version)===1&&version?.slug==='stonewall-sports-boston';
+  const reviewNotes={
+    'encroachment':'Clarification: first infraction always gets a team warning; replay only if defense benefited. Later infractions award first regardless of outcome.',
+    'overthrow-dead-ball':'Clarification: under 7.11.2.1, merely leaning against an obstruction is not dead if the ball remains easily and safely accessible.',
+    'overthrow-general':'Review needed: Rule 7.11.3 specifies fields 5/6 and more than 15 feet beyond the foul line. Confirm the pregame boundaries.',
+    'fair-foul-location':'Review needed: Rule 10.3 includes fielder-deflection and fair-ground-contact exceptions. Read the source before applying this summary.',
+    'strike-zone':'Review needed: check every ball condition in Rule 9.2 before calling an un-kicked pitch a strike.',
+    'force-outs':'Clarification: under Rule 7.7, the force begins when an uncaught kicked ball lands fair.',
+    'tag-up':'Clarification: on a caught fly, leaving early and failing to retouch are distinct from a legal retouch. Read Rule 7.9.'
+  };
+  return {...ruling,sources,relatedCalls:related,
+    review_note:legacyReview?reviewNotes[ruling.rule_key]||'':'',
+    visual_definition:legacyReview?null:ruling.visual_definition,
+    visual_review_note:legacyReview&&ruling.visual_definition?'The earlier diagram was withdrawn for accuracy review. Use the cited rule; corrected diagrams are being checked.':''};
 }
 
 async function loadSignals(sql,versionId){
