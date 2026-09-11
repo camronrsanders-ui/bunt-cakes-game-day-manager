@@ -60,3 +60,17 @@
 .captain-umpire-disclosure > summary:focus-visible { outline: 3px solid #d6a323; outline-offset: 2px; border-radius: 16px; }
 .captain-umpire-disclosure[open] > summary { border-bottom: 1px solid #ddd3c0; margin-bottom: 12px; }
 .captain-umpire-disclosure > #captainUmpireConsole { padding: 0 8px 8px; }
+
+/* Officiating is a live readout; contain long names and prevent reflow from moving the tab. */
+#officials { min-width: 0; max-width: 100%; overflow-x: hidden; overflow-anchor: none; }
+#officials > *, #officials .card, #officials .officiating-assignments, #officials .officiating-slot,
+#officials .officiating-summary-card, #officials #fairOfficiatingRotation { min-width: 0; max-width: 100%; box-sizing: border-box; }
+#officials .officiating-heading > div, #officials .officiating-slot-top > div { min-width: 0; }
+#officials .officiating-heading strong, #officials .officiating-slot strong,
+#officials .officiating-role strong { overflow-wrap: anywhere; }
+#officials .officiating-slot-top .type-chip { flex: 0 0 auto; }
+@media (max-width: 430px) {
+  #officials .officiating-heading, #officials .officiating-slot-top { flex-wrap: wrap; }
+  #officials .officiating-heading .pill, #officials .officiating-slot-top .type-chip { margin-left: auto; }
+  #officials #tracker { max-width: 100%; overflow-x: auto; }
+}

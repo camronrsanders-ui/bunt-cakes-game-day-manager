@@ -74,11 +74,15 @@
     enforceManualLineRefRule();
     renderPanel();
   }
+  let lastPanelFingerprint='';
   function renderPanel(){
     const section=document.getElementById('officials');if(!section||typeof state==='undefined'||!state)return;
     let panel=document.getElementById('fairOfficiatingRotation');
     if(!panel){panel=document.createElement('div');panel.id='fairOfficiatingRotation';panel.className='card';section.prepend(panel);}
     const umpires=(state.players||[]).filter(isUmpire),ctr=counts();
+    const fingerprint=JSON.stringify({players:state.players,events:(state.events||[]).filter(e=>e.type==='Officiating'),availability:state.availability});
+    if(panel.dataset.fingerprint===fingerprint)return;
+    panel.dataset.fingerprint=fingerprint;
     panel.innerHTML='<div class="row wrap"><div><strong>Fair Officiating Rotation</strong><div class="muted">Players who opt out are excluded for that date only. Umpire-role players remain reserved for umpiring and are never assigned as line refs.</div></div><button id="buildOfficiatingRotation" class="primary">Sync Fair Rotation</button></div><div class="officiating-pool">'+(umpires.length?umpires.map(p=>'<span class="pill">'+esc(p.name)+' • '+(ctr.get(p.name)?.umpire||0)+' ump'+(p.officiatingBackupOnly?' • backup':'')+'</span>').join(' '):'<span class="muted">No umpire roles set yet.</span>')+'</div>';
     panel.querySelector('#buildOfficiatingRotation').onclick=build;
     installManualRuleObserver();enforceManualLineRefRule();

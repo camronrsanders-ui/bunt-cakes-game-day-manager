@@ -29,6 +29,9 @@
     }
     const today=localDate();
     const all=assignments();
+    const fingerprint=JSON.stringify({events:all,availability:state.availability,players:state.players});
+    if(box.dataset.fingerprint===fingerprint)return;
+    box.dataset.fingerprint=fingerprint;
     const upcoming=all.filter(e=>!e.date||e.date>=today);
     const current=upcoming.length?upcoming:all.slice(-3);
     if(!current.length){
