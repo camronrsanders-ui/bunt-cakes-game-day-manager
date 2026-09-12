@@ -1,0 +1,27 @@
+const fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict');
+const source=fs.readFileSync('captain-attendance.js','utf8');
+let saves=0;const timers=[];
+const noop=()=>{};
+const context={state:{team:{timeZone:'UTC'},events:[{type:'Game',date:'2099-09-13'}],players:[{name:'Yes',present:false},{name:'No',present:true},{name:'Maybe'},{name:'Missing'}],availability:{'2099-09-13':{Yes:{status:'yes'},No:{status:'no'},Maybe:{status:'not_sure'}}},innings:{}},window:{addEventListener:noop,dispatchEvent:noop,buntCakesSaveNow:async()=>{saves++}},document:{getElementById:id=>id==='bunt-captain-attendance-style'?{}:null,addEventListener:noop},Intl,Date,Event:class{},CustomEvent:class{},setInterval:noop,clearInterval:noop,setTimeout:fn=>{timers.push(fn);return timers.length},clearTimeout:noop,queueSave:()=>saves++,renderRoster:noop,renderLineup:noop,renderKicking:noop};
+// Pick an actual future Sunday, avoiding dependence on the test execution date.
+context.state.events[0].date='2099-09-13';
+assert.equal(new Date('2099-09-13T12:00:00').getDay(),0);
+vm.createContext(context);vm.runInContext(source,context);
+const api=context.window.BuntGameDayEligibility;
+assert.equal(api.targetDate(),'2099-09-13');
+api.sync(undefined,false);
+assert.deepEqual(context.state.players.map(p=>p.present),[true,false,false,false]);
+api.setManualOverride('No',true);assert.equal(api.isActive('No'),true);
+context.state.availability['2099-09-13'].No.status='no';api.sync(undefined,false);assert.equal(api.isActive('No'),true);
+api.clearManualOverride('No');assert.equal(api.isActive('No'),false);
+api.setManualOverride('Yes',true);
+const before=timers.length;api.clearManualOverride('Yes');assert.equal(api.hasOverride('Yes'),false);
+assert.ok(timers.length>before, "Removing an override queues a save even when attendance stays the same");
+assert.match(source,/delete o\[playerName\];syncEligibility\(date,false\);scheduleEligibilitySave\(date\)/);
+context.state.events=[];api.setManualOverride('Missing',true);assert.equal(context.state.players[3].present,true);
+const html=fs.readFileSync('captain.html','utf8');
+for(const match of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g))new vm.Script(match[1]);
+assert.match(html,/<details class="roster-player-edit">/);
+assert.match(html,/window.BuntRosterAttendanceRefresh\?\.\(\)/);
+assert.ok(!fs.readFileSync('api/captain-field-page.js','utf8').includes('captain-roster-survey.js'));
+console.log('PASS RSVP attendance, manual priority, follow-RSVP reset, unscheduled attendance, collapsed editing, and script syntax');

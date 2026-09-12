@@ -131,7 +131,8 @@
     return changed;
   }
   function setManualOverride(playerName,present,date=target()){
-    if(!date||!playerName||!state)return;
+    if(!playerName||!state)return;
+    if(!date){const player=state.players.find(p=>p.name===playerName);if(player){player.present=!!present;queueSave();renderRoster();}return;}
     const o=overridesFor(date,true);o[playerName]=!!present;
     const player=(state.players||[]).find(p=>p&&p.name===playerName);if(player)player.present=!!present;
     pruneInactiveFromInnings(date);
@@ -145,7 +146,7 @@
   }
   function clearManualOverride(playerName,date=target()){
     const o=overridesFor(date,false);if(!Object.prototype.hasOwnProperty.call(o,playerName))return;
-    delete o[playerName];syncEligibility(date,true);render();
+    delete o[playerName];syncEligibility(date,false);scheduleEligibilitySave(date);render();
   }
 
   window.BuntGameDayEligibility={targetDate:target,isActive:activeFor,hasOverride,setManualOverride,clearManualOverride,sync:syncEligibility};
@@ -180,8 +181,29 @@
     filterLineupOptions();
   }
 
+  function refreshRosterAttendance(){
+    if(typeof state==='undefined'||!state)return;
+    const date=target(),responses=state.availability?.[date]||{};
+    const box=document.getElementById('players');if(!box)return;
+    let summary=document.getElementById('rosterAttendanceSummary');
+    if(!summary){summary=document.createElement('div');summary.id='rosterAttendanceSummary';summary.className='muted roster-attendance-summary';box.before(summary);}
+    const players=state.players||[];
+    summary.textContent=(date?pretty(date)+' • ':'')+players.filter(p=>activeFor(p.name,date)).length+' of '+players.length+' here • Updates from RSVPs';
+    [...box.children].forEach((card,index)=>{
+      const player=players[index];if(!player)return;
+      const status=effectivePlayerStatus(player.name,responses,responses._captains||{});
+      const manual=hasOverride(player.name,date),active=activeFor(player.name,date);
+      const label=card.querySelector('.roster-rsvp'),button=card.querySelector('.att'),follow=card.querySelector('.roster-follow');
+      if(label)label.textContent='RSVP: '+answerLabel(status)+(manual?' • Captain marked':'');
+      if(button){button.textContent=active?'Here':'Absent';button.classList.toggle('primary',active);button.setAttribute('aria-pressed',String(active));}
+      if(follow){follow.hidden=!manual;follow.onclick=()=>{clearManualOverride(player.name,date);if(typeof renderRoster==='function')renderRoster();};}
+    });
+  }
+  window.BuntRosterAttendanceRefresh=refreshRosterAttendance;
+
   function render(){
     if(typeof state==='undefined'||!state)return;
+    refreshRosterAttendance();
     const card=mount();if(!card)return;
     const date=target();
     if(!date){card.innerHTML='<strong>Sunday Availability</strong><div class="muted">No upcoming Sunday game is scheduled.</div>';return}

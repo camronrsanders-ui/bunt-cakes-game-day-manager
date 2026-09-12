@@ -74,3 +74,18 @@
   #officials .officiating-heading .pill, #officials .officiating-slot-top .type-chip { margin-left: auto; }
   #officials #tracker { max-width: 100%; overflow-x: auto; }
 }
+
+/* Roster is a quick attendance list; management stays collapsed. */
+#players { min-width:0; gap:8px; }
+#players .attendance-player { display:block; min-width:0; padding:12px 14px; }
+.attendance-player-row { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.attendance-player-info { min-width:0; }
+.attendance-player-info strong { overflow-wrap:anywhere; }
+#players .roster-rsvp { font-size:.82rem; margin-top:3px; }
+#players .att { flex:0 0 auto; min-width:88px; min-height:44px; }
+#players .roster-player-edit { margin-top:6px; }
+#players .roster-player-edit summary { cursor:pointer; font-size:.8rem; min-height:32px; padding:6px 0; color:var(--m); }
+#players .roster-player-edit .grid { margin-top:8px; }
+#players .roster-follow { font-size:.8rem; padding:6px 10px; min-height:44px; margin-top:6px; }
+#players .roster-follow[hidden] { display:none!important; }
+.roster-attendance-summary { padding:0 4px; font-size:.9rem; }
