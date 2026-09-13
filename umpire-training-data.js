@@ -5,8 +5,7 @@ window.UmpireTrainingData = {
     "rules": "https://drive.google.com/file/d/1H7kk-rCtM3zOudMHPHVBh6_gpIInT8CW/view",
     "slides": "https://docs.google.com/presentation/d/1P3oB_tEMecpWsMgnCP5163nIbIHfKymE/edit",
     "overthrows": "https://drive.google.com/file/d/1z-HMLh8lHgGX85vOBAPN7MoKxLdBlbwn/view",
-    "signals": "https://drive.google.com/file/d/1L9KTT58ZPBS0crAA8qpNakbf33KbwneX/view",
-    "video": "https://drive.google.com/file/d/1r2O8EWHLNMwtCj0nzxbB7CVrTUMyggoO/view"
+    "signals": "https://drive.google.com/file/d/1L9KTT58ZPBS0crAA8qpNakbf33KbwneX/view"
   },
   "cards": [
     {
