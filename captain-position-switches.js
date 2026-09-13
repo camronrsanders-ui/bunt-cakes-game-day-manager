@@ -4,6 +4,7 @@
   const MAX_SLOTS=4;
   const CUSTOM_VALUE='__custom__';
   let installed=false,saving=false,dirty=false;
+  let diagramInning=null;
 
   const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   const clean=v=>String(v??'').trim();
@@ -325,7 +326,36 @@
     psel.onchange=()=>{wrap.classList.toggle('hidden',psel.value!==CUSTOM_VALUE);if(psel.value===CUSTOM_VALUE)document.getElementById('switchQuickCustom')?.focus();};
     document.getElementById('switchQuickApply').onclick=quickMove;document.getElementById('switchClearOverride').onclick=clearLiveOverride;
   }
+  const FIELD_SPOTS=[
+    ['Left Field','LF',14,36],['Left Center Field','LCF',32,21],
+    ['Center Field','CF',50,7],['Right Center Field','RCF',68,21],['Right Field','RF',86,36],
+    ['Shortstop','SS',34,48],['Second Base','2B',66,48],
+    ['Third Base','3B',16,65],['First Base','1B',84,65],
+    ['Pitcher','P',50,67],['Catcher','C',50,92]
+  ];
+  function renderFieldDiagram(){
+    const box=document.getElementById('captainAssignmentDiagram');if(!box)return;
+    const inning=diagramInning||liveInning();
+    const line=(dirty?buildInnings()[inning]:state?.innings?.[inning])||buildInnings()[inning]||{};
+    box.innerHTML=`<div class="assignment-map-heading"><div><strong>Field layout</strong><div class="muted">${dirty?'Draft preview • tap Update live to share':'Assigned positions'}</div></div><label>Inning<select id="assignmentMapInning" aria-label="Field diagram inning">${Array.from({length:7},(_,i)=>`<option value="${i+1}" ${inning===i+1?'selected':''}>${i+1}</option>`).join('')}</select></label></div>
+      <div class="assignment-map" role="group" aria-label="Assigned fielders for inning ${inning}">
+      <svg viewBox="0 0 400 440" aria-hidden="true" focusable="false">
+        <path d="M200 374 L14 164 Q200 -95 386 164 Z" fill="#358353"/>
+        <path d="M200 365 L92 257 L200 149 L308 257 Z" fill="#d7bc87" stroke="#fff8" stroke-width="2"/>
+        <path d="M200 365 L20 185 M200 365 L380 185" fill="none" stroke="#fff" stroke-width="2"/>
+        <path d="M200 365 L92 257 L200 149 L308 257 Z" fill="none" stroke="#fff" stroke-width="2"/>
+        <circle cx="200" cy="277" r="16" fill="#b99360"/>
+        <path d="M195 273 H205" stroke="white" stroke-width="3"/>
+        <g fill="white"><path d="M200 143 l6 6 -6 6 -6 -6Z"/><path d="M308 251 l6 6 -6 6 -6 -6Z"/><path d="M92 251 l6 6 -6 6 -6 -6Z"/><path d="M194 360 h12 v6 l-6 5 -6 -5Z"/></g>
+      </svg>
+      ${FIELD_SPOTS.map(([position,short,x,y])=>{
+        const name=rosterPlayer(line[position])?.name||clean(line[position])||'Unassigned';
+        return `<div class="assignment-marker ${line[position]?'':'is-empty'}" style="left:${x}%;top:${y}%" title="${esc(position+': '+name)}"><span class="assignment-position">${short}</span><span class="assignment-name" aria-label="${esc(position+': '+name)}">${esc(name)}</span></div>`;
+      }).join('')}</div><div class="assignment-map-note">Positions are schematic; actual depth varies by play.</div>`;
+    document.getElementById('assignmentMapInning').onchange=event=>{diagramInning=Number(event.target.value);renderFieldDiagram();};
+  }
   function renderButtons(){
+    renderFieldDiagram();
     const pub=document.getElementById('switchPublish'),auto=document.getElementById('switchAuto');
     if(pub){pub.disabled=saving;pub.textContent=saving?'Saving…':'Update live';}
     if(auto)auto.disabled=saving;
@@ -339,7 +369,7 @@
   function mount(){
     const section=document.getElementById('pods');if(!section||!state)return false;ensureStyles();const tab=document.querySelector('[data-tab="pods"]');if(tab)tab.textContent='Fielding';
     config(true);
-    section.innerHTML=`<div class="card switch-hero"><h2 style="margin:.2rem 0">Fielding</h2><div id="switchRules"></div><div class="switch-actions"><button id="switchAuto">Auto assign from RSVPs</button><button id="switchPublish" class="primary">Update live</button></div><div id="switchStatus" class="switch-status">${dirty?'Unsaved fielding changes.':'Ready.'}</div></div><div id="switchQuick" class="card switch-quick"></div><div id="switchPositions" class="switch-grid"></div>`;
+    section.innerHTML=`<div class="card switch-hero"><h2 style="margin:.2rem 0">Fielding</h2><div id="switchRules"></div><div class="switch-actions"><button id="switchAuto">Auto assign from RSVPs</button><button id="switchPublish" class="primary">Update live</button></div><div id="switchStatus" class="switch-status">${dirty?'Unsaved fielding changes.':'Ready.'}</div></div><div id="captainAssignmentDiagram" class="card"></div><div id="switchQuick" class="card switch-quick"></div><div id="switchPositions" class="switch-grid"></div>`;
     document.getElementById('switchAuto').onclick=autoAssign;document.getElementById('switchPublish').onclick=publish;renderRules();renderQuick();renderPositions();renderButtons();return true;
   }
   function render(){if(!document.getElementById('pods'))return;mount();}
