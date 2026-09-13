@@ -16,6 +16,18 @@
       e.lineRef2&&{role:'Line Ref 2',name:e.lineRef2}
     ].filter(Boolean);
   }
+  function preserveViewport(update){
+    const scrolling=document.scrollingElement;
+    const top=scrolling?scrolling.scrollTop:(window.scrollY||0),left=scrolling?scrolling.scrollLeft:(window.scrollX||0);
+    const active=document.activeElement;
+    update();
+    const restore=()=>{
+      if(scrolling){scrolling.scrollTop=top;scrolling.scrollLeft=left;}
+      else if(typeof window.scrollTo==='function')window.scrollTo(left,top);
+      if(active&&active.isConnected&&typeof active.focus==='function')try{active.focus({preventScroll:true});}catch(_){active.focus();}
+    };
+    if(typeof requestAnimationFrame==='function')requestAnimationFrame(restore);else setTimeout(restore,0);
+  }
   function renderCards(){
     const section=document.getElementById('officials');
     const tracker=document.getElementById('tracker');
@@ -25,7 +37,7 @@
       box=document.createElement('div');
       box.id='officiatingAssignments';
       box.className='officiating-assignments';
-      tracker.closest('.card')?.insertAdjacentElement('beforebegin',box);
+      preserveViewport(()=>tracker.closest('.card')?.insertAdjacentElement('beforebegin',box));
     }
     const today=localDate();
     const all=assignments();
@@ -35,13 +47,13 @@
     const upcoming=all.filter(e=>!e.date||e.date>=today);
     const current=upcoming.length?upcoming:all.slice(-3);
     if(!current.length){
-      box.innerHTML='<div class="card officiating-summary-card"><strong>No officiating slots posted yet.</strong><div class="muted">Assignments will appear here when your captain posts them.</div></div>';
+      preserveViewport(()=>{box.innerHTML='<div class="card officiating-summary-card"><strong>No officiating slots posted yet.</strong><div class="muted">Assignments will appear here when your captain posts them.</div></div>';});
       return;
     }
-    box.innerHTML='<div class="card officiating-summary-card"><div class="officiating-heading"><div><div class="officiating-kicker">'+(upcoming.length?'UPCOMING OFFICIATING':'RECENT OFFICIATING')+'</div><strong>Who is working each slot</strong><div class="muted">'+(isCaptain()?'Edits made in Schedule save live to the team view.':'This updates automatically when a captain changes an assignment.')+'</div></div><span class="pill">'+current.length+' '+(current.length===1?'slot':'slots')+'</span></div></div>'+current.map(e=>{
+    preserveViewport(()=>{box.innerHTML='<div class="card officiating-summary-card"><div class="officiating-heading"><div><div class="officiating-kicker">'+(upcoming.length?'UPCOMING OFFICIATING':'RECENT OFFICIATING')+'</div><strong>Who is working each slot</strong><div class="muted">'+(isCaptain()?'Edits made in Schedule save live to the team view.':'This updates automatically when a captain changes an assignment.')+'</div></div><span class="pill">'+current.length+' '+(current.length===1?'slot':'slots')+'</span></div></div>'+current.map(e=>{
       const people=assignedNames(e);
       return '<div class="card officiating-slot"><div class="officiating-slot-top"><div><strong>'+esc(dateLabel(e.date))+'</strong><div class="muted">'+esc(time12(e.time))+(e.location?' • '+esc(e.location):'')+'</div></div><span class="type-chip type-officiating">OFFICIATING</span></div><div class="officiating-roles">'+(people.length?people.map(p=>'<div class="officiating-role"><span>'+esc(p.role)+'</span><strong>'+esc(p.name)+'</strong></div>').join(''):'<div class="officiating-unassigned">Assignments not set yet.</div>')+'</div></div>';
-    }).join('');
+    }).join('');});
   }
   function install(){
     if(typeof renderTracker==='function'&&!window.__officiatingTrackerWrapped){

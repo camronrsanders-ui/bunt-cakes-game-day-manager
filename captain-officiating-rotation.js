@@ -36,6 +36,18 @@
     new MutationObserver(()=>requestAnimationFrame(enforceManualLineRefRule)).observe(schedule,{childList:true,subtree:true});
     enforceManualLineRefRule();
   }
+  function preserveViewport(update){
+    const scrolling=document.scrollingElement;
+    const top=scrolling?scrolling.scrollTop:(window.scrollY||0),left=scrolling?scrolling.scrollLeft:(window.scrollX||0);
+    const active=document.activeElement;
+    update();
+    const restore=()=>{
+      if(scrolling){scrolling.scrollTop=top;scrolling.scrollLeft=left;}
+      else if(typeof window.scrollTo==='function')window.scrollTo(left,top);
+      if(active&&active.isConnected&&typeof active.focus==='function')try{active.focus({preventScroll:true});}catch(_){active.focus();}
+    };
+    if(typeof requestAnimationFrame==='function')requestAnimationFrame(restore);else setTimeout(restore,0);
+  }
   function build(){
     if(typeof state==='undefined'||!state)return;
     const events=(state.events||[]).filter(e=>e.type==='Officiating').sort((a,b)=>((a.date||'')+(a.time||'')).localeCompare((b.date||'')+(b.time||'')));
@@ -83,7 +95,7 @@
     const fingerprint=JSON.stringify({players:state.players,events:(state.events||[]).filter(e=>e.type==='Officiating'),availability:state.availability});
     if(panel.dataset.fingerprint===fingerprint)return;
     panel.dataset.fingerprint=fingerprint;
-    panel.innerHTML='<div class="row wrap"><div><strong>Fair Officiating Rotation</strong><div class="muted">Players who opt out are excluded for that date only. Umpire-role players remain reserved for umpiring and are never assigned as line refs.</div></div><button id="buildOfficiatingRotation" class="primary">Sync Fair Rotation</button></div><div class="officiating-pool">'+(umpires.length?umpires.map(p=>'<span class="pill">'+esc(p.name)+' • '+(ctr.get(p.name)?.umpire||0)+' ump'+(p.officiatingBackupOnly?' • backup':'')+'</span>').join(' '):'<span class="muted">No umpire roles set yet.</span>')+'</div>';
+    preserveViewport(()=>{panel.innerHTML='<div class="row wrap"><div><strong>Fair Officiating Rotation</strong><div class="muted">Players who opt out are excluded for that date only. Umpire-role players remain reserved for umpiring and are never assigned as line refs.</div></div><button id="buildOfficiatingRotation" class="primary">Sync Fair Rotation</button></div><div class="officiating-pool">'+(umpires.length?umpires.map(p=>'<span class="pill">'+esc(p.name)+' • '+(ctr.get(p.name)?.umpire||0)+' ump'+(p.officiatingBackupOnly?' • backup':'')+'</span>').join(' '):'<span class="muted">No umpire roles set yet.</span>')+'</div>';});
     panel.querySelector('#buildOfficiatingRotation').onclick=build;
     installManualRuleObserver();enforceManualLineRefRule();
   }
