@@ -132,57 +132,6 @@
   }
   installCaptainShare();
 
-  function installPilotInsights(){
-    if(!location.pathname.startsWith('/captain/')||document.getElementById('feildhausPilotInsights'))return;
-    const mount=async()=>{
-      const host=document.querySelector('.app')||document.body;
-      if(!host||document.getElementById('feildhausPilotInsights'))return;
-      const card=document.createElement('section');card.id='feildhausPilotInsights';card.className='card';card.style.margin='12px 0';
-      card.innerHTML='<div class="muted" style="font-weight:800;letter-spacing:.08em">PILOT INSIGHTS</div><strong style="display:block;margin-top:5px;font-size:1.05rem">How this team is using FeildHaus</strong><div class="muted" data-insights-status style="margin-top:5px">Loading pilot metrics…</div><div data-insights-grid style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px"></div>';
-      const share=document.getElementById('feildhausPilotShare');
-      if(share&&share.parentNode)share.insertAdjacentElement('afterend',card);else host.prepend(card);
-      const status=card.querySelector('[data-insights-status]'),grid=card.querySelector('[data-insights-grid]');
-      try{
-        const r=await fetch('/api/team-state?pilotInsights=1',{cache:'no-store'});
-        const j=await r.json();if(!r.ok)throw new Error(j.error||'Could not load pilot insights');
-        const m=j.metrics||{};
-        const items=[
-          ['Roster',m.rosterPlayers||0],
-          ['Active players',m.pairedPlayers||0],
-          ['Installed app',m.installedPlayers||0],
-          ['RSVP responses',m.availabilityResponses||0],
-          ['Upcoming games',m.upcomingGames||0],
-          ['Field assignments',m.assignedFieldSpots||0],
-          ['Feedback',m.feedbackTotal||0]
-        ];
-        grid.innerHTML=items.map(([label,value])=>'<div style="background:#f8fafc;border:1px solid #dbe5e8;border-radius:14px;padding:10px"><strong style="display:block;font-size:1.3rem">'+value+'</strong><span class="muted" style="font-size:.78rem">'+label+'</span></div>').join('');
-        status.textContent='Uses existing team data only — no extra tracking script.';
-      }catch(err){status.textContent=err.message}
-    };
-    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});else setTimeout(mount,0);
-  }
-  installPilotInsights();
-
-  function installPlatformAdminShortcut(){
-    if(slug!=='those-dirty-bunt-cakes'||!location.pathname.startsWith('/captain/'))return;
-    const tryMount=async()=>{
-      try{
-        const r=await fetch('/api/account?mode=admin',{credentials:'include',cache:'no-store'});
-        if(!r.ok)return;
-        if(document.getElementById('feildhausAdminShortcut'))return;
-        const host=document.querySelector('.app')||document.body;
-        const link=document.createElement('a');
-        link.id='feildhausAdminShortcut';
-        link.href='/admin';
-        link.textContent='⚙️ FeildHaus Admin';
-        link.style.cssText='position:fixed;left:14px;bottom:14px;z-index:9199;background:#071926;color:#fff;text-decoration:none;padding:10px 14px;border-radius:999px;font-weight:800;box-shadow:0 10px 28px rgba(7,25,38,.25)';
-        host.appendChild(link);
-      }catch(_){}
-    };
-    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',tryMount,{once:true});else setTimeout(tryMount,0);
-  }
-  installPlatformAdminShortcut();
-
   const nativeFetch=window.fetch.bind(window);
   window.fetch=function(input,init){
     try{
