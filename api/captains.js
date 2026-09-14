@@ -142,6 +142,7 @@ async function signup(req,res,sql){
 async function createCaptainInvite(req,res,sql){
   const teamSlug=requestedTeamSlug(req);
   const user=await requireTeamCaptain(req,res,teamSlug);if(!user)return;
+  if(user.role!=='owner') return res.status(403).json({error:'Only the team owner can invite another Captain'});
   const rawInviteToken=crypto.randomBytes(32).toString('base64url');
   const inviteHash=hashToken(rawInviteToken);
   const rows=await sql`
@@ -365,6 +366,7 @@ module.exports = async function handler(req,res){
       }
 
       if(action==='remove-member'){
+        if(user.role!=='owner') return res.status(403).json({error:'Only the team owner can remove Captain access'});
         const memberEmail=String(req.body&&req.body.email||'').trim().toLowerCase();
         if(!memberEmail) return res.status(400).json({error:'Captain email is required'});
         const target=await sql`
@@ -377,6 +379,7 @@ module.exports = async function handler(req,res){
         return res.status(200).json({ok:true});
       }
 
+      if(user.role!=='owner') return res.status(403).json({error:'Only the team owner can add Captain access'});
       const {email,displayName,password}=req.body||{};
       if(!email||!displayName) return res.status(400).json({error:'Email and name are required'});
       const normalizedEmail=String(email).trim().toLowerCase();

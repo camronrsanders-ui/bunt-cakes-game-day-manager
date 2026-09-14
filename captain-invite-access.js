@@ -2,6 +2,8 @@
   const TOKEN_RE=/^[A-Za-z0-9_-]{43}$/;
   const teamSlug=()=>String(window.__teamSlug||'').trim().toLowerCase();
   const captainPath=()=>window.__teamPath&&window.__teamPath.captain||('/captain/'+teamSlug());
+  let viewerRole='';
+  let roleLoading=false;
 
   async function jsonFetch(url,opt={}){
     const response=await fetch(url,{credentials:'include',cache:'no-store',headers:{'Content-Type':'application/json',...(opt.headers||{})},...opt});
@@ -87,9 +89,27 @@
     return true;
   }
 
+  async function loadViewerRole(){
+    if(viewerRole||roleLoading)return;
+    roleLoading=true;
+    try{
+      const data=await jsonFetch('/api/captains');
+      viewerRole=String(data.viewerRole||'');
+    }catch(_){viewerRole='captain'}
+    finally{roleLoading=false;}
+  }
+
+  function hideLegacyCaptainEditor(){
+    const save=document.getElementById('saveCaptain');
+    const card=save&&save.closest('.card');
+    if(card)card.style.display='none';
+  }
+
   function mountCreateCard(){
     const manager=document.getElementById('manager'),access=document.getElementById('access');
+    hideLegacyCaptainEditor();
     if(!manager||manager.classList.contains('hidden')||!access||document.getElementById('captainInviteCard'))return false;
+    if(viewerRole!=='owner'){loadViewerRole();return false;}
     const card=document.createElement('div');
     card.id='captainInviteCard';card.className='card';
     card.innerHTML=`<div class="row wrap"><div><strong>Captain invite link</strong><div class="muted">Create a one-time, 7-day link for a new or existing Captain. It grants access to this team only.</div></div><button id="createCaptainInvite" class="primary" type="button">Create & copy invite</button></div><div id="captainInviteNotice" class="muted" style="margin-top:8px"></div>`;
@@ -118,6 +138,8 @@
   }
 
   mountInviteAcceptance();
+  hideLegacyCaptainEditor();
+  loadViewerRole();
   const timer=setInterval(()=>{
     mountInviteAcceptance();
     if(mountCreateCard()&&!inviteToken())clearInterval(timer);
