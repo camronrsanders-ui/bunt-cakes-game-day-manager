@@ -18,7 +18,7 @@
       {key:'profile',label:'Add team name & branding',done:!!String(state?.team?.name||state?.team?.shortName||'').trim(),tab:'team-settings'},
       {key:'roster',label:'Add your roster',done:Array.isArray(state?.players)&&state.players.length>0,tab:'roster'},
       {key:'schedule',label:'Add an upcoming game',done:upcomingGame(),tab:'schedule'},
-      {key:'field',label:'Build your first field plan',done:hasFieldPlan(),tab:'lineup'},
+      {key:'field',label:'Build your first field plan',done:hasFieldPlan(),tab:'pods'},
       {key:'share',label:'Share the Player View',done:Object.values(state?.appAccess||{}).some(x=>x&&x.lastSeenAt),tab:'access'}
     ];
   }
