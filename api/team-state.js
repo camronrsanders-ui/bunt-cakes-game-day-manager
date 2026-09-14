@@ -616,7 +616,8 @@ module.exports = async function handler(req, res) {
         if(!/^\d{4}-\d{2}-\d{2}$/.test(gameDate))return res.status(400).json({error:'A valid game date is required'});
         if(!ATTENDANCE.has(status))return res.status(400).json({error:'Answer Yes, No, or Not sure'});
         const games=(state.events||[]).filter(e=>e&&e.type==='Game'&&e.date===gameDate);if(!games.length)return res.status(400).json({error:'No game is scheduled for that date'});
-        const note=String(req.body&&req.body.note||'').trim().slice(0,160);\n        const answer={status,respondedAt:new Date().toISOString(),...(note?{note}:{})},payload=JSON.stringify(answer);
+        const note=String(req.body&&req.body.note||'').trim().slice(0,160);
+        const answer={status,respondedAt:new Date().toISOString(),...(note?{note}:{})},payload=JSON.stringify(answer);
         await sql`UPDATE team_states SET state=jsonb_set(state,'{availability}',COALESCE(state->'availability','{}'::jsonb)||jsonb_build_object(${gameDate}::text,COALESCE(state->'availability'->(${gameDate}::text),'{}'::jsonb)||jsonb_build_object(${playerName}::text,${payload}::jsonb)),true),updated_at=now() WHERE team_id=${row.id}`;
         return res.status(200).json({ok:true,gameDate,playerName,status,note:answer.note||'',respondedAt:answer.respondedAt});
       }
