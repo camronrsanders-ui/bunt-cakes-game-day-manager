@@ -79,6 +79,34 @@
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',installPilotFeedback,{once:true});else setTimeout(installPilotFeedback,0);
 
+  function installCaptainShare(){
+    if(!location.pathname.startsWith('/captain/')||document.getElementById('feildhausPilotShare'))return;
+    const mount=()=>{
+      const host=document.querySelector('.app')||document.body;
+      if(!host||document.getElementById('feildhausPilotShare'))return;
+      const teamUrl=location.origin+window.__teamPath.team;
+      const card=document.createElement('section');
+      card.id='feildhausPilotShare';
+      card.className='card';
+      card.style.margin='12px 0';
+      card.innerHTML='<div class="muted" style="font-weight:800;letter-spacing:.08em">FEILDHAUS PILOT</div><div class="row wrap" style="margin-top:6px"><div><strong style="font-size:1.05rem">Invite your team</strong><div class="muted">Share the player view for this Haus.</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" data-copy>Copy Link</button><button type="button" data-share>Share</button><button type="button" data-qr>Show QR</button></div></div><div data-status class="muted" style="margin-top:8px"></div>';
+      host.prepend(card);
+      const status=card.querySelector('[data-status]');
+      card.querySelector('[data-copy]').onclick=async()=>{try{await navigator.clipboard.writeText(teamUrl);status.textContent='✓ Team link copied.'}catch(e){prompt('Copy this team link',teamUrl)}};
+      card.querySelector('[data-share]').onclick=async()=>{try{if(navigator.share)await navigator.share({title:'Join our team on FeildHaus',text:'Open our FeildHaus team page:',url:teamUrl});else{await navigator.clipboard.writeText(teamUrl);status.textContent='✓ Team link copied.'}}catch(e){}};
+      card.querySelector('[data-qr]').onclick=()=>{
+        let overlay=document.getElementById('feildhausQrOverlay');
+        if(overlay){overlay.remove();return}
+        overlay=document.createElement('div');overlay.id='feildhausQrOverlay';overlay.className='fh-feedback-overlay';
+        const qr='https://quickchart.io/qr?size=360&margin=2&text='+encodeURIComponent(teamUrl);
+        overlay.innerHTML='<div class="fh-feedback-sheet" style="text-align:center"><div class="muted">FEILDHAUS TEAM INVITE</div><h2 style="margin:.25rem 0 10px">Scan to join this Haus</h2><img src="'+qr+'" alt="QR code for team invite" style="width:min(320px,82vw);height:auto;border-radius:18px;border:1px solid #dbe5e8;background:#fff"><div class="muted" style="margin-top:10px;word-break:break-all">'+teamUrl.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</div><button type="button" data-close style="margin-top:12px;width:100%">Done</button></div>';
+        document.body.appendChild(overlay);overlay.querySelector('[data-close]').onclick=()=>overlay.remove();overlay.onclick=e=>{if(e.target===overlay)overlay.remove()};
+      };
+    };
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});else setTimeout(mount,0);
+  }
+  installCaptainShare();
+
   const nativeFetch=window.fetch.bind(window);
   window.fetch=function(input,init){
     try{
