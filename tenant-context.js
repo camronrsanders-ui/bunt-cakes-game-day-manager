@@ -142,7 +142,7 @@
     if(slug!=='those-dirty-bunt-cakes'||!location.pathname.startsWith('/captain/'))return;
     const tryMount=async()=>{
       try{
-        const r=await fetch('/api/admin',{credentials:'include',cache:'no-store'});
+        const r=await fetch('/api/account?mode=admin',{credentials:'include',cache:'no-store'});
         if(!r.ok)return;
         if(document.getElementById('feildhausAdminShortcut'))return;
         const host=document.querySelector('.app')||document.body;
