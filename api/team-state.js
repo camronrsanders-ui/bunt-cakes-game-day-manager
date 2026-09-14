@@ -157,7 +157,8 @@ async function sendAttendanceReminderForTeam(sql, row) {
   webpush.setVapidDetails('mailto:notifications@teamgameday.app', config.publicKey, config.privateKey);
   const times = games.map(g => time12(g.time)).filter(Boolean);
   const teamName = team.shortName || team.name || 'Team';
-  const dayName=new Date(gameDate+'T12:00:00Z').toLocaleDateString('en-US',{weekday:'long',timeZone:'UTC'});\n  const body = `Will you be at ${dayName}’s game${games.length > 1 ? 's' : ''}${times.length ? ` at ${times.join(' & ')}` : ''}? Tap to answer Yes, No, or Not sure.`;
+  const dayName=new Date(gameDate+'T12:00:00Z').toLocaleDateString('en-US',{weekday:'long',timeZone:'UTC'});
+  const body = `Will you be at ${dayName}’s game${games.length > 1 ? 's' : ''}${times.length ? ` at ${times.join(' & ')}` : ''}? Tap to answer Yes, No, or Not sure.`;
   let sent=0,failed=0;
   const cleaned={...subscriptions};
   for (const [playerName,entries] of Object.entries(subscriptions)) {
