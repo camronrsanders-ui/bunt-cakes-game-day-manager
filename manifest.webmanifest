@@ -1,9 +1,9 @@
 {
-  "id": "/team",
+  "id": "/start",
   "name": "FeildHaus",
   "short_name": "FeildHaus",
   "description": "Run the game. Build the community.",
-  "start_url": "/team",
+  "start_url": "/start",
   "scope": "/",
   "display": "standalone",
   "background_color": "#071926",
