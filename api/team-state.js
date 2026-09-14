@@ -44,6 +44,7 @@ function captainState(value) {
   delete state._pushSubscriptions;
   delete state._pushReminderLog;
   delete state._pilotFeedback;
+  delete state.__feildhaus_pilot_gate__;
   state.counts = normalizeCounts(state.counts);
   return state;
 }
@@ -613,7 +614,8 @@ module.exports = async function handler(req, res) {
             '_pushConfig',COALESCE(state->'_pushConfig','{}'::jsonb),
             '_pushSubscriptions',COALESCE(state->'_pushSubscriptions','{}'::jsonb),
             '_pushReminderLog',COALESCE(state->'_pushReminderLog','{}'::jsonb),
-            '_pilotFeedback',COALESCE(state->'_pilotFeedback','[]'::jsonb)
+            '_pilotFeedback',COALESCE(state->'_pilotFeedback','[]'::jsonb),
+            '__feildhaus_pilot_gate__',COALESCE(state->'__feildhaus_pilot_gate__','{}'::jsonb)
           ),updated_at=now()
           WHERE team_id=${row.id} AND updated_at=${expectedUpdatedAt}::timestamptz
           RETURNING to_char(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS updated_at
@@ -633,7 +635,8 @@ module.exports = async function handler(req, res) {
             '_pushConfig',COALESCE(state->'_pushConfig','{}'::jsonb),
             '_pushSubscriptions',COALESCE(state->'_pushSubscriptions','{}'::jsonb),
             '_pushReminderLog',COALESCE(state->'_pushReminderLog','{}'::jsonb),
-            '_pilotFeedback',COALESCE(state->'_pilotFeedback','[]'::jsonb)
+            '_pilotFeedback',COALESCE(state->'_pilotFeedback','[]'::jsonb),
+            '__feildhaus_pilot_gate__',COALESCE(state->'__feildhaus_pilot_gate__','{}'::jsonb)
           ),updated_at=now() WHERE team_id=${row.id} RETURNING to_char(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS updated_at
         `;
       }
