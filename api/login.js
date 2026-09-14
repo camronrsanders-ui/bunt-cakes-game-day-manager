@@ -3,6 +3,7 @@ const { getSql } = require('./_db');
 const { hashToken } = require('./_auth');
 
 module.exports = async function handler(req, res) {
+  res.setHeader('Cache-Control','private, no-store, max-age=0');
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   try {
     const { email, password } = req.body || {};

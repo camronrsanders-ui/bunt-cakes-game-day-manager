@@ -19,6 +19,7 @@ async function requirePlatformAdmin(req,res){
 }
 
 module.exports=async function adminHandler(req,res){
+  res.setHeader('Cache-Control','private, no-store, max-age=0');
   if(!['GET','POST'].includes(req.method)) return res.status(405).json({error:'Method not allowed'});
   const admin=await requirePlatformAdmin(req,res); if(!admin) return;
   const sql=getSql();

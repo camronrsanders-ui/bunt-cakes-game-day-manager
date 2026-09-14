@@ -8,6 +8,7 @@ function clearSessionCookie(res){
 }
 
 module.exports = async function handler(req,res){
+  res.setHeader('Cache-Control','private, no-store, max-age=0');
   if(String(req.query&&req.query.mode||'')==='umpire') return umpireGameHandler(req,res);
   if(String(req.query&&req.query.mode||'')==='admin') return adminHandler(req,res);
   if(req.method!=='POST') return res.status(405).json({error:'Method not allowed'});
