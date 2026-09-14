@@ -11,6 +11,21 @@ const {
 const ATTENDANCE = new Set(['yes','no','not_sure']);
 const CAPTAIN_INVITE_PLAYER_ID = '__captain_invite__';
 
+function normalizePilotCode(value){
+  return String(value||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
+}
+function pilotInviteConfigured(){
+  return normalizePilotCode(process.env.FEILDHAUS_PILOT_CODE).length>=6;
+}
+function pilotInviteMatches(value){
+  const expected=normalizePilotCode(process.env.FEILDHAUS_PILOT_CODE);
+  const provided=normalizePilotCode(value);
+  if(!expected||!provided)return false;
+  const a=Buffer.from(expected),b=Buffer.from(provided);
+  return a.length===b.length&&crypto.timingSafeEqual(a,b);
+}
+
+
 function safeTimeZone(value){
   const zone=String(value||'').trim();
   try{new Intl.DateTimeFormat('en-US',{timeZone:zone}).format(new Date());return zone||'UTC';}catch(_){return'UTC';}
@@ -86,7 +101,9 @@ async function createWorkspace(sql,captainId,timeZone='UTC'){
 }
 
 async function signup(req,res,sql){
-  const {email,displayName,password,timeZone}=req.body||{};
+  const {email,displayName,password,timeZone,pilotCode}=req.body||{};
+  if(!pilotInviteConfigured()) return res.status(503).json({error:'Founding Team enrollment is temporarily closed'});
+  if(!pilotInviteMatches(pilotCode)) return res.status(403).json({error:'A valid Founding Team invite code is required'});
   if(!email||!displayName||!password||String(password).length<10){
     return res.status(400).json({error:'Name, email, and a password of at least 10 characters are required'});
   }
@@ -249,11 +266,13 @@ module.exports = async function handler(req,res){
   try{
     const sql=getSql();
     const action=String(req.body&&req.body.action||'');
+    if(req.method==='GET'&&String(req.query&&req.query.action||'')==='pilot-status') return res.status(200).json({pilot:true,inviteRequired:true,enrollmentOpen:pilotInviteConfigured()});
     if(req.method==='POST'&&action==='signup') return signup(req,res,sql);
     if(req.method==='POST'&&action==='accept-invite') return acceptCaptainInvite(req,res,sql);
     if(req.method==='POST'&&action==='create-invite') return createCaptainInvite(req,res,sql);
 
     if(req.method==='POST'&&action==='create-team'){
+      if(!pilotInviteConfigured()||!pilotInviteMatches(req.body&&req.body.pilotCode)) return res.status(403).json({error:'A valid Founding Team invite code is required'});
       const account=await getCaptain(req);
       if(!account) return res.status(401).json({error:'Captain login required'});
       const workspace=await createWorkspace(sql,account.id,req.body&&req.body.timeZone);
