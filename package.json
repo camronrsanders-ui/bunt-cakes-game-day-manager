@@ -1,7 +1,7 @@
 {
-  "name": "bunt-cakes-game-day-manager",
+  "name": "feildhaus",
   "private": true,
-  "version": "1.0.0",
+  "version": "0.1.0-pilot",
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",
     "web-push": "^3.6.7"

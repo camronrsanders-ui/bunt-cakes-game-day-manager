@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">FeildHaus</title>
+  <desc id="desc">FeildHaus FH monogram inside a modern house and field badge.</desc>
+  <defs>
+    <linearGradient id="fhg" x1="72" y1="56" x2="440" y2="456" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#45F2A9"/>
+      <stop offset=".52" stop-color="#20CFA7"/>
+      <stop offset="1" stop-color="#1597E5"/>
+    </linearGradient>
+    <linearGradient id="fhi" x1="150" y1="142" x2="351" y2="366" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F8FAFC"/>
+      <stop offset="1" stop-color="#D8F7EE"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#071926"/>
+  <path d="M256 58 430 176v202L256 454 82 378V176L256 58Z" fill="#0B2232" stroke="url(#fhg)" stroke-width="24" stroke-linejoin="round"/>
+  <path d="M144 227 256 142l112 85v137H144V227Z" fill="none" stroke="url(#fhg)" stroke-width="22" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M173 189v178" stroke="#45F2A9" stroke-width="16" stroke-linecap="round" opacity=".9"/>
+  <path d="M339 189v178" stroke="#1597E5" stroke-width="16" stroke-linecap="round" opacity=".9"/>
+  <path d="M188 339c42-24 94-24 136 0" fill="none" stroke="url(#fhg)" stroke-width="10" stroke-linecap="round" opacity=".65"/>
+  <path d="M184 218h77v42h-38v36h34v40h-34v72h-39V218Z" fill="url(#fhi)"/>
+  <path d="M277 218h39v70h39v-70h39v190h-39v-79h-39v79h-39V218Z" fill="url(#fhi)"/>
+</svg>
