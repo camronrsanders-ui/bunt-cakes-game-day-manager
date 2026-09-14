@@ -68,9 +68,7 @@
     if(!roster){card.innerHTML='<div class="position-editor-kicker">MY LIVE FIELD POSITION</div><strong>Player access required</strong><div class="position-editor-note">Your paired player is no longer on this roster. Ask your captain for a new setup link.</div>';return;}
     const inning=liveInning();
     const current=currentPosition(name,inning);
-    card.innerHTML='<div class="position-editor-top"><div><div class="position-editor-kicker">MY LIVE FIELD POSITION</div><div><strong>'+escapeHtml(name)+'</strong> • Inning '+inning+'</div><div class="position-editor-current">'+escapeHtml(current||'Rest / not fielding')+'</div></div><span class="pill">Updates both views</span></div><label><span class="muted">Change my position</span><select id="teamPositionSelect" '+(saving?'disabled':'')+'>'+optionHtml(name,inning,current)+'</select></label><div id="teamPositionStatus" class="position-editor-status muted">Choose an open spot, or choose an occupied spot to swap positions.</div><div class="position-editor-note">Only your live-inning assignment changes. The captain sees the same lineup automatically.</div>';
-    const select=document.getElementById('teamPositionSelect');
-    if(select)select.onchange=()=>changePosition(select.value);
+    card.innerHTML='<div class="position-editor-top"><div><div class="position-editor-kicker">MY LIVE FIELD POSITION</div><div><strong>'+escapeHtml(name)+'</strong> • Inning '+inning+'</div><div class="position-editor-current">'+escapeHtml(current||'Rest / not fielding')+'</div></div><span class="pill">Captain controlled</span></div><div class="position-editor-note">Your captain controls live field assignments. This view updates automatically whenever the lineup changes.</div>';
   }
 
   async function changePosition(position){
