@@ -30,6 +30,42 @@ function isSafeExternalUrl(value) {
 
 function cloneObject(value){return value&&typeof value==='object'&&!Array.isArray(value)?JSON.parse(JSON.stringify(value)):{};}
 
+function pruneRemovedPlayerState(existingState,nextState){
+  const existing=existingState&&typeof existingState==='object'?existingState:{};
+  const next=nextState&&typeof nextState==='object'?nextState:{};
+  const activePlayers=Array.isArray(next.players)?next.players:[];
+  const activeIds=new Set(activePlayers.map(p=>String(p&&p.id||'')).filter(Boolean));
+  const activeNames=new Set(activePlayers.map(p=>String(p&&p.name||'')).filter(Boolean));
+  const existingPlayers=Array.isArray(existing.players)?existing.players:[];
+  const removed=existingPlayers.filter(p=>p&&p.id&&!activeIds.has(String(p.id))).map(p=>({id:String(p.id),name:String(p.name||'')}));
+  if(!removed.length)return removed;
+
+  if(Array.isArray(next.kickingOrder))next.kickingOrder=next.kickingOrder.filter(name=>activeNames.has(String(name||'')));
+  if(next.currentKicker&&!activeNames.has(String(next.currentKicker)))next.currentKicker='';
+  if(next.innings&&typeof next.innings==='object'){
+    for(const inning of Object.values(next.innings||{})){
+      if(!inning||typeof inning!=='object')continue;
+      for(const pos of Object.keys(inning))if(inning[pos]&&!activeNames.has(String(inning[pos])))inning[pos]='';
+    }
+  }
+  if(Array.isArray(next.events)){
+    for(const event of next.events){
+      if(!event||typeof event!=='object')continue;
+      for(const key of ['umpire','lineRef1','lineRef2'])if(event[key]&&!activeNames.has(String(event[key])))event[key]='';
+    }
+  }
+  if(next.captainPlayerLinks&&typeof next.captainPlayerLinks==='object'){
+    for(const email of Object.keys(next.captainPlayerLinks))if(!activeNames.has(String(next.captainPlayerLinks[email]||'')))delete next.captainPlayerLinks[email];
+  }
+  if(next.gameDayAttendanceOverrides&&typeof next.gameDayAttendanceOverrides==='object'){
+    for(const perDate of Object.values(next.gameDayAttendanceOverrides)){
+      if(!perDate||typeof perDate!=='object')continue;
+      for(const name of Object.keys(perDate))if(!activeNames.has(name))delete perDate[name];
+    }
+  }
+  return removed;
+}
+
 function preserveRenamedPlayerIdentity(existingState,nextState){
   const existing=existingState&&typeof existingState==='object'?existingState:{};
   const next=nextState&&typeof nextState==='object'?nextState:{};
@@ -50,6 +86,10 @@ function preserveRenamedPlayerIdentity(existingState,nextState){
   const appAccess=cloneObject(existing.appAccess);
   const availability=cloneObject(existing.availability);
   const pushSubscriptions=cloneObject(existing._pushSubscriptions);
+  const activeNames=new Set((Array.isArray(next.players)?next.players:[]).map(p=>String(p&&p.name||'')).filter(Boolean));
+  for(const key of Object.keys(appAccess))if(!activeNames.has(key))delete appAccess[key];
+  for(const key of Object.keys(pushSubscriptions))if(!activeNames.has(key))delete pushSubscriptions[key];
+  for(const answers of Object.values(availability))if(answers&&typeof answers==='object')for(const key of Object.keys(answers))if(key!=='_captains'&&!activeNames.has(key))delete answers[key];
   for(const [oldName,newName] of renames){
     moveKey(appAccess,oldName,newName);
     if(appAccess[newName]&&typeof appAccess[newName]==='object')appAccess[newName].playerName=newName;
@@ -624,6 +664,7 @@ module.exports = async function handler(req, res) {
         if(seenPlayerNames.has(nameKey))return res.status(400).json({error:'Player names must be unique within the team'});
         seenPlayerNames.add(nameKey);
       }
+      const removedPlayers=pruneRemovedPlayerState(row.state||{},next);
       const identity=preserveRenamedPlayerIdentity(row.state||{},next);
       const preservedAppAccess=JSON.stringify(identity.appAccess);
       const preservedAvailability=JSON.stringify(identity.availability);
@@ -666,7 +707,13 @@ module.exports = async function handler(req, res) {
           ),updated_at=now() WHERE team_id=${row.id} RETURNING to_char(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS updated_at
         `;
       }
-      return res.status(200).json({ok:true,updatedAt:rows[0]&&rows[0].updated_at,updatedBy:user.display_name,teamSlug});
+      if(rows.length&&removedPlayers.length){
+        for(const removed of removedPlayers){
+          await sql`UPDATE player_device_sessions SET revoked_at=now() WHERE team_id=${row.id} AND player_id=${removed.id} AND revoked_at IS NULL`;
+          await sql`UPDATE player_pairing_invites SET revoked_at=now() WHERE team_id=${row.id} AND player_id=${removed.id} AND used_at IS NULL AND revoked_at IS NULL`;
+        }
+      }
+      return res.status(200).json({ok:true,updatedAt:rows[0]&&rows[0].updated_at,updatedBy:user.display_name,teamSlug,removedPlayers:removedPlayers.map(p=>p.id)});
     }
 
     return res.status(405).json({error:'Method not allowed'});
