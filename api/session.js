@@ -1,6 +1,7 @@
 const { getCaptain, listCaptainTeams, requestedTeamSlug } = require('./_auth');
 
 module.exports = async function handler(req,res){
+  res.setHeader('Cache-Control','private, no-store, max-age=0');
   if(req.method!=='GET') return res.status(405).json({error:'Method not allowed'});
   try{
     const user=await getCaptain(req);
