@@ -138,6 +138,26 @@
   }
   installPilotInsights();
 
+  function installPlatformAdminShortcut(){
+    if(slug!=='those-dirty-bunt-cakes'||!location.pathname.startsWith('/captain/'))return;
+    const tryMount=async()=>{
+      try{
+        const r=await fetch('/api/admin',{credentials:'include',cache:'no-store'});
+        if(!r.ok)return;
+        if(document.getElementById('feildhausAdminShortcut'))return;
+        const host=document.querySelector('.app')||document.body;
+        const link=document.createElement('a');
+        link.id='feildhausAdminShortcut';
+        link.href='/admin';
+        link.textContent='⚙️ FeildHaus Admin';
+        link.style.cssText='position:fixed;left:14px;bottom:14px;z-index:9199;background:#071926;color:#fff;text-decoration:none;padding:10px 14px;border-radius:999px;font-weight:800;box-shadow:0 10px 28px rgba(7,25,38,.25)';
+        host.appendChild(link);
+      }catch(_){}
+    };
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',tryMount,{once:true});else setTimeout(tryMount,0);
+  }
+  installPlatformAdminShortcut();
+
   const nativeFetch=window.fetch.bind(window);
   window.fetch=function(input,init){
     try{
