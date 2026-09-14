@@ -5,6 +5,7 @@
   if(!btn)return;
 
   let lastVersion='';
+  let lastStateFingerprint='';
   let missingTeam=false;
   let activeController=null;
   let activeRequest=0;
@@ -33,6 +34,10 @@
   }
   function timeLabel(value){return new Date(value).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',second:'2-digit',hour12:true});}
   function showLiveCheck(serverUpdatedAt,prefix='Live'){if(!updated)return;lastSuccessfulCheck=new Date();updated.textContent=prefix+' • '+timeLabel(lastSuccessfulCheck);if(serverUpdatedAt){updated.title='Team data last changed '+new Date(serverUpdatedAt).toLocaleString();updated.dataset.serverUpdatedAt=String(serverUpdatedAt);}}
+  function liveFingerprint(value){
+    const v=value&&typeof value==='object'?value:{};
+    return JSON.stringify({score:v.score,gameInning:v.gameInning,fieldInning:v.fieldInning,half:v.half,innings:v.innings,kickingOrder:v.kickingOrder,currentKicker:v.currentKicker,events:v.events,players:v.players,availability:v.availability,pods:v.pods,gameDayPods:v.gameDayPods});
+  }
   function showManualStart(){clearTimeout(resetButtonTimer);btn.disabled=true;btn.textContent='Refreshing…';if(updated)updated.textContent='Checking live data…';}
   function showManualDone(){btn.disabled=false;btn.textContent='Updated ✓';clearTimeout(resetButtonTimer);resetButtonTimer=setTimeout(()=>{if(!missingTeam){btn.textContent='Refresh';btn.disabled=false;}},700);}
   async function refreshLiveTeam(manual=false){
@@ -41,9 +46,9 @@
     try{
       const r=await fetch('/api/team-state?fresh='+Date.now(),{cache:'no-store',signal:controller.signal,headers:{'Cache-Control':'no-cache, no-store, must-revalidate','Pragma':'no-cache'}}),j=await r.json();
       if(r.status===404){showMissingTeam(j.error);return;}if(!r.ok)throw new Error(j.error||'Could not refresh live team data');
-      const incoming=j.state||{},nextAccess=playerAccess(incoming.playerAccess),previousAccess=accessSignature(state&&state.playerAccess),accessChanged=previousAccess!==accessSignature(nextAccess),version=String(j.updatedAt||''),changed=!lastVersion||version!==lastVersion;
-      if(changed){state=incoming;state.playerAccess=nextAccess;const n=Number(state.gameInning||state.fieldInning||1);state.gameInning=n;state.fieldInning=n;canonicalizePlayer(nextAccess);if(typeof render==='function')render();window.dispatchEvent(new Event('buntpreferrednamesrefresh'));lastVersion=version;}
-      else if(state){state.playerAccess=nextAccess;canonicalizePlayer(nextAccess);}
+      const incoming=j.state||{},nextAccess=playerAccess(incoming.playerAccess),previousAccess=accessSignature(state&&state.playerAccess),accessChanged=previousAccess!==accessSignature(nextAccess),version=String(j.updatedAt||''),fingerprint=liveFingerprint(incoming),changed=!lastVersion||version!==lastVersion||fingerprint!==lastStateFingerprint;
+      if(changed){state=incoming;state.playerAccess=nextAccess;const n=Number(state.gameInning||state.fieldInning||1);state.gameInning=n;state.fieldInning=n;canonicalizePlayer(nextAccess);if(typeof render==='function')render();window.dispatchEvent(new Event('buntpreferrednamesrefresh'));window.dispatchEvent(new CustomEvent('teamlivestatechange',{detail:{updatedAt:j.updatedAt||null}}));lastVersion=version;lastStateFingerprint=fingerprint;}
+      else if(state){state.playerAccess=nextAccess;canonicalizePlayer(nextAccess);lastStateFingerprint=fingerprint;}
       if(accessChanged)window.dispatchEvent(new Event('teamplayeraccesschange'));if(error)error.classList.add('hidden');showLiveCheck(j.updatedAt,manual?'Refreshed':'Live');if(manual)showManualDone();
     }catch(e){if(e&&e.name==='AbortError')return;if(manual){if(error){error.textContent=e.message||'Could not refresh live team data';error.classList.remove('hidden');}if(updated)updated.textContent='Refresh failed';btn.disabled=false;btn.textContent='Try again';}}
     finally{if(requestId===activeRequest)activeController=null;}
@@ -59,7 +64,7 @@
   const helpers=[
     ['data-bunt-field-rotation','/team-field-rotation.js?v=9'],
     ['data-bunt-team-usability','/team-usability.js?v=3'],
-    ['data-team-officiating-view','/team-officiating-view.js?v=1'],
+    ['data-team-officiating-view','/team-officiating-view.js?v=2'],
     ['data-bunt-umpire-console','/umpire-console.js?v=1'],
     ['data-team-role-badges','/team-role-badges.js?v=1'],
     ['data-bunt-preferred-names','/preferred-names.js?v=2'],
