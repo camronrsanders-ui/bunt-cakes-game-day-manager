@@ -81,7 +81,8 @@
     const list=document.getElementById('kickList');
     if(!section||!list)return null;
     const intro=section.querySelector('.card');
-    if(intro&&!intro.dataset.kickReworked){intro.dataset.kickReworked='1';intro.innerHTML='<strong>Bunt Cakes Kicking Deck</strong><div class="muted">One glance tells you who is kicking now, who is on deck, and who needs to get ready.</div>';}
+    if(intro&&!intro.dataset.kickReworked){intro.dataset.kickReworked='1';const teamName=state?.team?.shortName||state?.team?.name||'Team';
+      intro.innerHTML='<strong>'+esc(teamName)+' Kicking Deck</strong><div class="muted">One glance tells you who is kicking now, who is on deck, and who needs to get ready.</div>';}
     let hero=document.getElementById('kickHero');
     if(!hero){hero=document.createElement('div');hero.id='kickHero';hero.className='card kick-hero';list.parentNode.insertBefore(hero,list);}
     return{hero,list};
