@@ -27,7 +27,7 @@
 
   function dates(){
     const t=today();
-    return [...new Set((state?.events||[]).filter(e=>e&&e.type==='Game'&&e.date>=t).map(e=>e.date).filter(d=>new Date(d+'T12:00:00').getDay()===0))].sort();
+    return [...new Set((state?.events||[]).filter(e=>e&&e.type==='Game'&&e.date>=t).map(e=>e.date))].sort();
   }
   function target(){return dates()[0]||''}
   function pretty(d){return new Date(d+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'})}
@@ -206,7 +206,7 @@
     refreshRosterAttendance();
     const card=mount();if(!card)return;
     const date=target();
-    if(!date){card.innerHTML='<strong>Sunday Availability</strong><div class="muted">No upcoming Sunday game is scheduled.</div>';return}
+    if(!date){card.innerHTML='<strong>Game Availability</strong><div class="muted">No upcoming game is scheduled.</div>';return}
 
     const responses=state.availability?.[date]||{};
     const players=state.players||[];
@@ -231,15 +231,15 @@
     const captainSection=unlinkedCaptains.length?`<div class="cap-section-title">Non-playing captains</div><div class="cap-att-list">${order.map(k=>'<div class="cap-att-row"><strong>'+answerLabel(k)+'</strong><span>'+esc(captainGroups[k].join(', ')||'—')+'</span></div>').join('')}</div>`:'';
     const captainCopyButton=unlinkedCaptains.length?'<button id="copyMissingCaptains">Copy unanswered captains</button>':'';
 
-    card.innerHTML=`<div class="row wrap"><div><div class="muted">SUNDAY GAME-DAY AVAILABILITY</div><h2 style="margin:.25rem 0">${esc(pretty(date))}</h2><div class="muted">Only RSVP Yes players are active automatically. Captain manual overrides win for this game.</div></div><span class="pill">${activeCount} active${manualCount?` • ${manualCount} override${manualCount===1?'':'s'}`:''}</span></div>
+    card.innerHTML=`<div class="row wrap"><div><div class="muted">GAME-DAY AVAILABILITY</div><h2 style="margin:.25rem 0">${esc(pretty(date))}</h2><div class="muted">Only RSVP Yes players are active automatically. Captain manual overrides win for this game.</div></div><span class="pill">${activeCount} active${manualCount?` • ${manualCount} override${manualCount===1?'':'s'}`:''}</span></div>
       ${session?.authenticated?`<div class="cap-vote"><div class="muted">YOUR AVAILABILITY${mePlayer?' • PLAYER + CAPTAIN':''}</div><strong>${esc(mePlayer||me?.display_name||session?.user?.displayName||'Captain')}, will you be there?</strong><div class="cap-vote-buttons"><button data-cap-vote="yes" class="${myAnswer==='yes'?'on':''}">✅ Yes</button><button data-cap-vote="no" class="no ${myAnswer==='no'?'on':''}">❌ No</button><button data-cap-vote="not_sure" class="maybe ${myAnswer==='not_sure'?'on':''}">🤔 Not sure</button></div>${myAnswer?`<div class="cap-vote-saved">Your vote is saved: ${answerLabel(myAnswer)}</div>`:''}</div>`:''}
       <div class="cap-att-grid"><div class="cap-att-stat"><strong>${total.yes}</strong>Yes</div><div class="cap-att-stat"><strong>${total.no}</strong>No</div><div class="cap-att-stat"><strong>${total.not_sure}</strong>Not sure</div><div class="cap-att-stat"><strong>${total.missing}</strong>No response</div></div>
       <div class="cap-section-title">Team</div><div class="cap-att-list">${order.map(k=>'<div class="cap-att-row"><strong>'+answerLabel(k)+'</strong><span>'+esc(playerGroups[k].join(', ')||'—')+'</span></div>').join('')}</div>
       ${captainSection}
-      <div class="cap-att-actions"><button id="applySundayAttendance" class="primary">Sync RSVPs to game-day lineup</button><button id="copyMissingAttendance">Copy unanswered team members</button>${captainCopyButton}</div>`;
+      <div class="cap-att-actions"><button id="applyGameAttendance" class="primary">Sync RSVPs to game-day lineup</button><button id="copyMissingAttendance">Copy unanswered team members</button>${captainCopyButton}</div>`;
 
     card.querySelectorAll('[data-cap-vote]').forEach(btn=>btn.onclick=()=>saveCaptainVote(btn.dataset.capVote,date));
-    document.getElementById('applySundayAttendance').onclick=()=>{
+    document.getElementById('applyGameAttendance').onclick=()=>{
       const changed=syncEligibility(date,true);
       if(typeof renderRoster==='function')renderRoster();
       render();
