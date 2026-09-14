@@ -22,8 +22,9 @@
     document.querySelectorAll('.brand-logo,.login-logo').forEach(img=>{img.src=logoSrc(t);img.alt=(t.name||'Team')+' logo'});
     const h=document.querySelector('#manager .brand h1');if(h)h.textContent=t.name||'Your Team';
     const loginTitle=document.querySelector('#login h1');if(loginTitle&&t.name)loginTitle.textContent=t.name+' Captain Access';
-    const manifest=document.querySelector('link[rel="manifest"]');if(manifest)manifest.href='/api/team-state?manifest=1';
-    const touch=document.querySelector('link[rel="apple-touch-icon"]');if(touch)touch.href='/api/team-state?logo=1';
+    const slug=String(window.__teamSlug||'those-dirty-bunt-cakes');
+    const manifest=document.querySelector('link[rel="manifest"]');if(manifest)manifest.href='/api/team-state?team='+encodeURIComponent(slug)+'&manifest=1';
+    const touch=document.querySelector('link[rel="apple-touch-icon"]');if(touch)touch.href='/api/team-state?team='+encodeURIComponent(slug)+'&logo=1';
     const cards=document.querySelectorAll('#dashboard .grid.g3 .card .muted');if(cards[0])cards[0].textContent=t.shortName||t.name||'Team';
   }
   function syncHalfOptions(t,save=false){
