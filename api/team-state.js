@@ -564,6 +564,8 @@ module.exports = async function handler(req, res) {
       if(!next||typeof next!=='object'||Array.isArray(next))return res.status(400).json({error:'A valid state object is required'});
       const nextTeam=next.team&&typeof next.team==='object'&&!Array.isArray(next.team)?next.team:{};
       const nextChatUrl=typeof nextTeam.chatUrl==='string'?nextTeam.chatUrl.trim():'';
+      const nextTimeZone=typeof nextTeam.timeZone==='string'?nextTeam.timeZone.trim():'';
+      if(nextTimeZone){try{new Intl.DateTimeFormat('en-US',{timeZone:nextTimeZone}).format(new Date());}catch(_){return res.status(400).json({error:'Team time zone is invalid'});}}
       if(nextChatUrl&&!isSafeExternalUrl(nextChatUrl))return res.status(400).json({error:'Team chat link must start with https:// or http://'});
       const nextResources=Array.isArray(next.resources)?next.resources:[];
       for(const resource of nextResources){
