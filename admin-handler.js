@@ -60,6 +60,27 @@ module.exports=async function adminHandler(req,res){
       const obj=safeObject(answers);
       return sum+Object.keys(obj).filter(k=>k!=='_captains').length+Object.keys(safeObject(obj._captains)).length;
     },0);
+    const teamInfo=safeObject(state.team);
+    const innings=safeObject(state.innings);
+    const assignedFieldSpots=Object.values(innings).reduce((sum,inning)=>sum+Object.values(safeObject(inning)).filter(Boolean).length,0);
+    const upcomingGames=events.filter(e=>e&&e.type==='Game'&&e.date&&e.date>=today).length;
+    const captainCount=Number(row.captain_count||0);
+    const checklist={
+      profile:Boolean(String(teamInfo.name||teamInfo.shortName||'').trim()),
+      roster:players.length>0,
+      schedule:upcomingGames>0,
+      fieldPlan:assignedFieldSpots>0,
+      owner:captainCount>0
+    };
+    const completed=Object.values(checklist).filter(Boolean).length;
+    const readiness=Math.round(completed/Object.keys(checklist).length*100);
+    const readinessStatus=readiness>=80?'Pilot ready':readiness>=40?'Setup in progress':'Needs setup';
+    const issues=[];
+    if(!checklist.profile)issues.push('Team profile');
+    if(!checklist.roster)issues.push('Roster');
+    if(!checklist.schedule)issues.push('Upcoming game');
+    if(!checklist.fieldPlan)issues.push('Field plan');
+    if(!checklist.owner)issues.push('Owner access');
     return {
       id:row.id,slug:row.slug,
       name:String(state.team&&state.team.name||state.team&&state.team.shortName||'Untitled Team'),
@@ -71,9 +92,14 @@ module.exports=async function adminHandler(req,res){
       activePlayers:Object.values(access).filter(x=>x&&x.lastSeenAt).length,
       installs:Object.values(access).filter(x=>x&&x.installedAt).length,
       rsvpResponses,
-      upcomingGames:events.filter(e=>e&&e.type==='Game'&&e.date&&e.date>=today).length,
+      upcomingGames,
+      assignedFieldSpots,
       feedbackCount:feedback.length,
-      captainCount:Number(row.captain_count||0),
+      captainCount,
+      readiness,
+      readinessStatus,
+      readinessChecklist:checklist,
+      readinessIssues:issues,
       updatedAt:row.updated_at||null
     };
   });
@@ -95,8 +121,9 @@ module.exports=async function adminHandler(req,res){
   const totals=teams.reduce((a,t)=>{
     a.teams++; a.rosterPlayers+=t.rosterPlayers; a.activePlayers+=t.activePlayers;
     a.installs+=t.installs; a.rsvpResponses+=t.rsvpResponses; a.upcomingGames+=t.upcomingGames; a.feedback+=t.feedbackCount;
+    if(t.readiness>=80)a.readyTeams++;
     return a;
-  },{teams:0,rosterPlayers:0,activePlayers:0,installs:0,rsvpResponses:0,upcomingGames:0,feedback:0});
+  },{teams:0,readyTeams:0,rosterPlayers:0,activePlayers:0,installs:0,rsvpResponses:0,upcomingGames:0,feedback:0});
   res.setHeader('Cache-Control','no-store');
   const founderState=rows.find(r=>r.slug===DEFAULT_TEAM_SLUG)&&safeObject(rows.find(r=>r.slug===DEFAULT_TEAM_SLUG).state)||{};
   const gate=safeObject(founderState.__feildhaus_pilot_gate__);
