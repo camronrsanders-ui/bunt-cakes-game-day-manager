@@ -202,6 +202,33 @@ async function ensurePushConfig(sql) {
   return config;
 }
 
+function scheduleEventKey(event){return event&&typeof event==='object'?String(event.sourceUid||event.id||'').trim():'';}
+function scheduleEventSnapshot(event){return {type:String(event&&event.type||''),title:String(event&&event.title||''),date:String(event&&event.date||''),time:String(event&&event.time||''),location:String(event&&event.location||'')};}
+function scheduleChanges(previous,next){
+  const oldMap=new Map((Array.isArray(previous&&previous.events)?previous.events:[]).map(e=>[scheduleEventKey(e),scheduleEventSnapshot(e)]).filter(([k])=>k));
+  const newMap=new Map((Array.isArray(next&&next.events)?next.events:[]).map(e=>[scheduleEventKey(e),scheduleEventSnapshot(e)]).filter(([k])=>k));
+  const changes=[];
+  for(const [key,before] of oldMap){
+    if(before.type!=='Game')continue;
+    const after=newMap.get(key);
+    if(!after){changes.push({key,kind:'cancelled',before,after:null});continue;}
+    const fields=['date','time','location','title'].filter(field=>before[field]!==after[field]);
+    if(fields.length)changes.push({key,kind:'changed',fields,before,after});
+  }
+  return changes;
+}
+async function sendScheduleChangeAlerts(sql,row,previous,next,changes){
+  if(!changes.length)return {sent:0,failed:0};
+  const subscriptions=(previous&&previous._pushSubscriptions)||{},roster=new Set((Array.isArray(next.players)?next.players:[]).map(p=>p&&p.name).filter(Boolean));
+  if(!Object.keys(subscriptions).length)return {sent:0,failed:0};
+  const config=await ensurePushConfig(sql);webpush.setVapidDetails('mailto:notifications@teamgameday.app',config.publicKey,config.privateKey);
+  const team=teamConfig(next),teamName=team.shortName||team.name||'Team';let sent=0,failed=0;
+  const describe=change=>{const game=change.after||change.before,date=game.date?new Date(game.date+'T12:00:00Z').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',timeZone:'UTC'}):'game day';if(change.kind==='cancelled')return (game.title||'Game')+' on '+date+' was removed from the schedule.';const bits=[];if(change.fields.includes('date'))bits.push('date');if(change.fields.includes('time'))bits.push('time');if(change.fields.includes('location'))bits.push('field/location');if(change.fields.includes('title'))bits.push('opponent/game');return (game.title||'Game')+' on '+date+': '+bits.join(', ')+' updated.';};
+  const body=changes.slice(0,2).map(describe).join(' ')+(changes.length>2?' +'+(changes.length-2)+' more update'+(changes.length-2===1?'':'s')+'.':'');
+  for(const [playerName,entries] of Object.entries(subscriptions)){if(!roster.has(playerName))continue;for(const entry of Array.isArray(entries)?entries:[]){if(!entry||!entry.subscription)continue;try{await webpush.sendNotification(entry.subscription,JSON.stringify({title:teamName+' • Schedule updated',body,url:'/team/'+row.slug,tag:'team-'+row.slug+'-schedule-'+Date.now()}),{TTL:86400,urgency:'high'});sent++;}catch(_){failed++;}}}
+  return {sent,failed};
+}
+
 function zonedParts(date = new Date(), timeZone = 'America/New_York') {
   let zone = timeZone || 'America/New_York';
   try { new Intl.DateTimeFormat('en-US', { timeZone: zone }).format(date); } catch (_) { zone = 'America/New_York'; }
@@ -665,7 +692,9 @@ module.exports = async function handler(req, res) {
         if(seenPlayerNames.has(nameKey))return res.status(400).json({error:'Player names must be unique within the team'});
         seenPlayerNames.add(nameKey);
       }
-      const removedPlayers=pruneRemovedPlayerState(row.state||{},next);
+      const previousState=row.state||{};
+      const scheduleChangeSet=scheduleChanges(previousState,next);
+      const removedPlayers=pruneRemovedPlayerState(previousState,next);
       const identity=preserveRenamedPlayerIdentity(row.state||{},next);
       const preservedAppAccess=JSON.stringify(identity.appAccess);
       const preservedAvailability=JSON.stringify(identity.availability);
@@ -714,7 +743,9 @@ module.exports = async function handler(req, res) {
           await sql`UPDATE player_pairing_invites SET revoked_at=now() WHERE team_id=${row.id} AND player_id=${removed.id} AND used_at IS NULL AND revoked_at IS NULL`;
         }
       }
-      return res.status(200).json({ok:true,updatedAt:rows[0]&&rows[0].updated_at,updatedBy:user.display_name,teamSlug,removedPlayers:removedPlayers.map(p=>p.id)});
+      let scheduleAlerts={sent:0,failed:0};
+      if(rows.length&&scheduleChangeSet.length){try{scheduleAlerts=await sendScheduleChangeAlerts(sql,row,previousState,next,scheduleChangeSet);}catch(error){scheduleAlerts={sent:0,failed:0,error:error.message||'Schedule alert failed'};}}
+      return res.status(200).json({ok:true,updatedAt:rows[0]&&rows[0].updated_at,updatedBy:user.display_name,teamSlug,removedPlayers:removedPlayers.map(p=>p.id),scheduleChanges:scheduleChangeSet.length,scheduleAlerts});
     }
 
     return res.status(405).json({error:'Method not allowed'});
