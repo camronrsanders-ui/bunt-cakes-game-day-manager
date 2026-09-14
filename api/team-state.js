@@ -143,10 +143,10 @@ async function sendAttendanceReminderForTeam(sql, row) {
   const state = row.state || {};
   const team = teamConfig(state);
   const local = zonedParts(new Date(), team.timeZone);
-  if (local.weekday !== 'Thu' || local.hour !== 18) return { slug:row.slug, ok:true, skipped:`Not Thursday at 6 PM in ${local.timeZone}` };
+  if (local.hour !== 18) return { slug:row.slug, ok:true, skipped:`Not 6 PM in ${local.timeZone}` };
   const gameDate = plusDays(local.date, 3);
   const games = (state.events || []).filter(e => e && e.type === 'Game' && e.date === gameDate).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
-  if (!games.length) return { slug:row.slug, ok:true, gameDate, skipped:'No Sunday game scheduled' };
+  if (!games.length) return { slug:row.slug, ok:true, gameDate, skipped:'No game scheduled three days from now' };
   if (state._pushReminderLog && state._pushReminderLog[gameDate] && state._pushReminderLog[gameDate].sentAt) {
     return { slug:row.slug, ok:true, gameDate, skipped:'Reminder already sent' };
   }
@@ -157,7 +157,8 @@ async function sendAttendanceReminderForTeam(sql, row) {
   webpush.setVapidDetails('mailto:notifications@teamgameday.app', config.publicKey, config.privateKey);
   const times = games.map(g => time12(g.time)).filter(Boolean);
   const teamName = team.shortName || team.name || 'Team';
-  const body = `Will you be at Sunday’s game${games.length > 1 ? 's' : ''}${times.length ? ` at ${times.join(' & ')}` : ''}? Tap to answer Yes, No, or Not sure.`;
+  const dayName=new Date(gameDate+'T12:00:00Z').toLocaleDateString('en-US',{weekday:'long',timeZone:'UTC'});
+  const body = `Will you be at ${dayName}’s game${games.length > 1 ? 's' : ''}${times.length ? ` at ${times.join(' & ')}` : ''}? Tap to answer Yes, No, or Not sure.`;
   let sent=0,failed=0;
   const cleaned={...subscriptions};
   for (const [playerName,entries] of Object.entries(subscriptions)) {
@@ -167,7 +168,7 @@ async function sendAttendanceReminderForTeam(sql, row) {
       if(!entry||!entry.subscription)continue;
       try{
         await webpush.sendNotification(entry.subscription,JSON.stringify({
-          title:`${teamName} • Sunday availability`,body,
+          title:`${teamName} • ${dayName} availability`,body,
           url:`/team/${row.slug}?player=${encodeURIComponent(playerName)}&availability=${gameDate}`,
           tag:`team-${row.slug}-attendance-${gameDate}`,gameDate
         }),{TTL:259200,urgency:'normal'});
@@ -537,7 +538,7 @@ module.exports = async function handler(req, res) {
 
       if(action==='attendance-response'){
         const gameDate=String(req.body&&req.body.gameDate||''),status=String(req.body&&req.body.status||'');
-        if(!/^\d{4}-\d{2}-\d{2}$/.test(gameDate))return res.status(400).json({error:'A valid Sunday game date is required'});
+        if(!/^\d{4}-\d{2}-\d{2}$/.test(gameDate))return res.status(400).json({error:'A valid game date is required'});
         if(!ATTENDANCE.has(status))return res.status(400).json({error:'Answer Yes, No, or Not sure'});
         const games=(state.events||[]).filter(e=>e&&e.type==='Game'&&e.date===gameDate);if(!games.length)return res.status(400).json({error:'No game is scheduled for that date'});
         const answer={status,respondedAt:new Date().toISOString()},payload=JSON.stringify(answer);
