@@ -546,30 +546,7 @@ module.exports = async function handler(req, res) {
       }
 
       if(action==='field-position'){
-        const requested=String(req.body&&req.body.position||'').trim();
-        if(requested!=='Rest'&&!FIELD_POSITIONS.includes(requested))return res.status(400).json({error:'Choose a valid field position or Rest'});
-        const inning=Math.min(7,Math.max(1,Number(state.gameInning)||1));
-        const inningKey=String(inning);
-        const currentInning={...((state.innings&&state.innings[inningKey])||{})};
-        const previousPosition=FIELD_POSITIONS.find(pos=>currentInning[pos]===playerName)||'';
-        const target=requested==='Rest'?'':requested;
-        const occupiedBy=target&&currentInning[target]&&currentInning[target]!==playerName?currentInning[target]:'';
-        if(occupiedBy&&!previousPosition)return res.status(409).json({error:`${target} is currently assigned to ${occupiedBy}. Choose an open position because you are not currently fielding.`});
-        FIELD_POSITIONS.forEach(pos=>{if(currentInning[pos]===playerName)currentInning[pos]='';});
-        let swappedWith='';
-        if(target){
-          if(occupiedBy&&previousPosition){currentInning[previousPosition]=occupiedBy;swappedWith=occupiedBy;}
-          currentInning[target]=playerName;
-        }
-        const payload=JSON.stringify(currentInning);
-        const rows=await sql`
-          UPDATE team_states
-          SET state=jsonb_set(state,ARRAY['innings',${inningKey}]::text[],${payload}::jsonb,true),updated_at=now()
-          WHERE team_id=${row.id} AND updated_at=${row.updated_at}
-          RETURNING to_char(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS updated_at
-        `;
-        if(!rows.length)return res.status(409).json({error:'The lineup changed while you were editing. Refresh and choose your position again.'});
-        return res.status(200).json({ok:true,action:'field-position',playerName,playerId,inning,previousPosition,position:target||'Rest',swappedWith,inningState:currentInning,updatedAt:rows[0].updated_at});
+        return res.status(403).json({error:'Live field assignments are Captain-controlled. Refresh Player View to see the latest lineup.'});
       }
 
       const accessStatus=req.body&&req.body.accessStatus==='installed'?'installed':'browser';
