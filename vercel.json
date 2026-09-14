@@ -2,12 +2,12 @@
   "redirects": [
     {
       "source": "/",
-      "destination": "/team",
+      "destination": "/start",
       "permanent": false
     },
     {
       "source": "/apple-touch-icon.png",
-      "destination": "/logo.svg",
+      "destination": "/feildhaus-mark.svg",
       "permanent": false
     }
   ],
