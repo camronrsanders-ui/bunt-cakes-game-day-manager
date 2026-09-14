@@ -34,13 +34,15 @@
   function targetDate(){const requested=new URLSearchParams(location.search).get('availability'),dates=gameDates();return requested&&dates.includes(requested)?requested:(dates[0]||'')}
   function gamesFor(date){return(state?.events||[]).filter(e=>e&&e.type==='Game'&&e.date===date).sort((a,b)=>(a.time||'').localeCompare(b.time||''))}
   function prettyDate(date){return new Date(date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})}
-  function responseEntry(date,name){return state?.availability?.[date]?.[name]||{}}\n  function responseFor(date,name){return responseEntry(date,name).status||''}
+  function responseEntry(date,name){return state?.availability?.[date]?.[name]||{}}
+  function responseFor(date,name){return responseEntry(date,name).status||''}
   function statusLabel(v){return v==='yes'?'Going':v==='no'?'Opted out':v==='not_sure'?'Not sure':'No response'}
   function mount(){const home=document.getElementById('home');if(!home)return null;let card=document.getElementById('weeklyAttendanceCard');if(!card){card=document.createElement('div');card.id='weeklyAttendanceCard';card.className='card attendance-card';const reminder=home.querySelector('.reminder-card');if(reminder)reminder.insertAdjacentElement('beforebegin',card);else home.prepend(card)}return card}
   function notificationBlock(){return '<div class="attendance-notify"><strong>🔔 Game availability reminders</strong><div id="attendanceNotifyText" class="muted">Get a reminder three days before your next scheduled game.</div><button id="enableAttendancePush">Set Up Game Reminders</button></div>'}
   function accessRequiredBlock(){return accessRejected?'<div class="attendance-access-required"><strong>Player access needs to reconnect on this phone/app.</strong><div style="margin-top:6px">Ask your captain for a new setup link, then open that link in this same app or browser. You do not need a full access reset unless your captain specifically chooses one.</div></div>':'<div class="attendance-access-required">Player access needs to be set up. Ask your captain for your setup link.</div>'}
   function rejectAccess(){accessRejected=true;if(typeof state!=='undefined'&&state)state.playerAccess={paired:false};renderCard();window.dispatchEvent(new Event('teamplayeraccesschange'))}
-  function noteField(date,name,compact=false){const note=String(responseEntry(date,name).note||'');return `<div class="attendance-note"><input data-note-date="${esc(date)}" maxlength="160" value="${esc(note)}" placeholder="Optional note — e.g. Running 10 min late${compact?'':' or can only make Game 2'}"></div>`}\n  function answerButtons(date,answer,compact=false){
+  function noteField(date,name,compact=false){const note=String(responseEntry(date,name).note||'');return `<div class="attendance-note"><input data-note-date="${esc(date)}" maxlength="160" value="${esc(note)}" placeholder="Optional note — e.g. Running 10 min late${compact?'':' or can only make Game 2'}"></div>`}
+  function answerButtons(date,answer,compact=false){
     const cls=compact?'attendance-future-actions':'attendance-answer';
     return `<div class="${cls}"><button data-answer="yes" data-date="${esc(date)}" class="${answer==='yes'?'on':''}">✅ ${compact?'Going':'Yes'}</button><button data-answer="no" data-date="${esc(date)}" class="no ${answer==='no'?'on':''}">❌ ${compact?'Opt out':'No'}</button><button data-answer="not_sure" data-date="${esc(date)}" class="maybe ${answer==='not_sure'?'on':''}">🤔 Not sure</button></div>`;
   }
@@ -60,7 +62,9 @@
 
   function bindCard(){document.querySelectorAll('#weeklyAttendanceCard [data-answer][data-date]').forEach(btn=>btn.onclick=()=>saveAnswer(btn.dataset.answer,btn.dataset.date));document.querySelectorAll('#weeklyAttendanceCard [data-note-date]').forEach(input=>input.onchange=()=>saveNote(input.dataset.noteDate,input.value));const push=document.getElementById('enableAttendancePush');if(push)push.onclick=enablePush;refreshPushStatus()}
 
-  async function saveNote(date,note){const name=playerName();if(!name||!date||working)return;const current=responseFor(date,name);if(!current){alert('Choose Yes, No, or Not sure before adding a note.');renderCard();return}await saveAnswer(current,date,note)}\n\n  async function saveAnswer(status,date=targetDate(),noteOverride){
+  async function saveNote(date,note){const name=playerName();if(!name||!date||working)return;const current=responseFor(date,name);if(!current){alert('Choose Yes, No, or Not sure before adding a note.');renderCard();return}await saveAnswer(current,date,note)}
+
+  async function saveAnswer(status,date=targetDate(),noteOverride){
     const name=playerName();if(!name){renderCard();return}if(!date||working)return;working=true;
     try{
       const r=await fetch('/api/team-state',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'attendance-response',playerName:name,gameDate:date,status,note:noteOverride===undefined?String(responseEntry(date,name).note||''):String(noteOverride||'').trim().slice(0,160)})});
