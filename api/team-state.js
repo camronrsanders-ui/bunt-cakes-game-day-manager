@@ -242,6 +242,36 @@ module.exports = async function handler(req, res) {
     if(!row) return res.status(404).json({error:'Team was not found'});
 
     if (req.method === 'GET') {
+      if (String(req.query && req.query.pilotInsights || '') === '1') {
+        const user=await requireTeamCaptain(req,res,teamSlug);if(!user)return;
+        const state=row.state||{};
+        const players=Array.isArray(state.players)?state.players:[];
+        const events=Array.isArray(state.events)?state.events:[];
+        const appAccess=state.appAccess&&typeof state.appAccess==='object'?state.appAccess:{};
+        const availability=state.availability&&typeof state.availability==='object'?state.availability:{};
+        const feedback=Array.isArray(state._pilotFeedback)?state._pilotFeedback:[];
+        const pairedPlayers=Object.values(appAccess).filter(x=>x&&x.lastSeenAt).length;
+        const installedPlayers=Object.values(appAccess).filter(x=>x&&x.installedAt).length;
+        const responseCount=Object.values(availability).reduce((sum,answers)=>sum+Object.keys(answers&&typeof answers==='object'?answers:{}).length,0);
+        const upcomingGames=events.filter(e=>e&&e.type==='Game'&&e.date&&e.date>=new Date().toLocaleDateString('en-CA',{timeZone:(state.team&&state.team.timeZone)||'America/New_York'})).length;
+        const assignedFieldSpots=Object.values(state.innings||{}).reduce((sum,inning)=>sum+Object.values(inning&&typeof inning==='object'?inning:{}).filter(Boolean).length,0);
+        const feedbackByCategory=feedback.reduce((acc,item)=>{const k=String(item&&item.category||'other');acc[k]=(acc[k]||0)+1;return acc},{});
+        res.setHeader('Cache-Control','no-store');
+        return res.status(200).json({
+          ok:true,
+          teamSlug,
+          metrics:{
+            rosterPlayers:players.length,
+            pairedPlayers,
+            installedPlayers,
+            availabilityResponses:responseCount,
+            upcomingGames,
+            assignedFieldSpots,
+            feedbackTotal:feedback.length,
+            feedbackByCategory
+          }
+        });
+      }
       if (String(req.query && req.query.playerAccess || '') === '1') {
         const user=await requireTeamCaptain(req,res,teamSlug);if(!user)return;
         const accessRows=await sql`
