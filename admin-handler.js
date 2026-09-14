@@ -68,6 +68,10 @@ module.exports=async function adminHandler(req,res){
     const gameResults=safeArray(state.gameResults);
     const completedGames=gameResults.length;
     const lastGameDate=gameResults.map(r=>String(r&&r.date||'')).filter(Boolean).sort().pop()||'';
+    const nextGameDate=events.filter(e=>e&&e.type==='Game'&&e.date&&e.date>=today).map(e=>String(e.date)).sort()[0]||'';
+    const pairedPlayers=Object.values(access).filter(x=>x&&x.lastSeenAt).length;
+    const rosterPairRate=players.length?Math.round(pairedPlayers/players.length*100):0;
+    const latestActivity=[row.updated_at,lastGameDate,...feedback.map(x=>x&&x.createdAt),...Object.values(access).map(x=>x&&x.lastSeenAt)].filter(Boolean).sort().pop()||null;
     const captainCount=Number(row.captain_count||0);
     const checklist={
       profile:Boolean(String(teamInfo.name||teamInfo.shortName||'').trim()),
@@ -99,6 +103,9 @@ module.exports=async function adminHandler(req,res){
       upcomingGames,
       completedGames,
       lastGameDate,
+      nextGameDate,
+      rosterPairRate,
+      latestActivity,
       assignedFieldSpots,
       feedbackCount:feedback.length,
       captainCount,
@@ -127,9 +134,12 @@ module.exports=async function adminHandler(req,res){
   const totals=teams.reduce((a,t)=>{
     a.teams++; a.rosterPlayers+=t.rosterPlayers; a.activePlayers+=t.activePlayers;
     a.installs+=t.installs; a.rsvpResponses+=t.rsvpResponses; a.upcomingGames+=t.upcomingGames; a.completedGames+=t.completedGames; a.feedback+=t.feedbackCount;
+    if(!t.foundingTeam)a.outsideTeams++;
+    if(!t.foundingTeam&&t.readiness>=80)a.outsideReady++;
+    if(!t.foundingTeam&&t.completedGames>0)a.outsideGameTested++;
     if(t.readiness>=80)a.readyTeams++;
     return a;
-  },{teams:0,readyTeams:0,rosterPlayers:0,activePlayers:0,installs:0,rsvpResponses:0,upcomingGames:0,completedGames:0,feedback:0});
+  },{teams:0,readyTeams:0,rosterPlayers:0,activePlayers:0,installs:0,rsvpResponses:0,upcomingGames:0,completedGames:0,feedback:0,outsideTeams:0,outsideReady:0,outsideGameTested:0});
   res.setHeader('Cache-Control','no-store');
   const founderState=rows.find(r=>r.slug===DEFAULT_TEAM_SLUG)&&safeObject(rows.find(r=>r.slug===DEFAULT_TEAM_SLUG).state)||{};
   const gate=safeObject(founderState.__feildhaus_pilot_gate__);
