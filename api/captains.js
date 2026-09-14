@@ -359,6 +359,24 @@ module.exports = async function handler(req,res){
         if(user.role!=='owner') return res.status(403).json({error:'Only the team owner can change the team link'});
         const next=normalizeTeamSlug(req.body&&req.body.slug);
         if(!next) return res.status(400).json({error:'Use 3–64 lowercase letters, numbers, or hyphens for the team link'});
+        if(next===teamSlug) return res.status(200).json({ok:true,teamSlug,teamUrl:`/team/${teamSlug}`,captainUrl:`/captain/${teamSlug}`});
+        const setup=await sql`
+          SELECT ts.state->'appAccess' AS app_access,
+                 EXISTS(
+                   SELECT 1 FROM player_device_sessions pds
+                   WHERE pds.team_id=${user.team_id}
+                     AND pds.revoked_at IS NULL
+                     AND pds.expires_at>now()
+                 ) AS has_active_player_sessions
+          FROM team_states ts
+          WHERE ts.team_id=${user.team_id}
+          LIMIT 1
+        `;
+        const appAccess=setup[0]&&setup[0].app_access&&typeof setup[0].app_access==='object'?setup[0].app_access:{};
+        const hasInstalledPlayers=Object.values(appAccess).some(item=>item&&item.installedAt);
+        if((setup[0]&&setup[0].has_active_player_sessions)||hasInstalledPlayers){
+          return res.status(409).json({error:'This team link is locked because player access has already been connected. Keeping the current link prevents paired devices and Home Screen apps from breaking.'});
+        }
         const taken=await sql`SELECT id FROM teams WHERE slug=${next} AND id<>${user.team_id} LIMIT 1`;
         if(taken.length) return res.status(409).json({error:'That team link is already in use'});
         await sql`UPDATE teams SET slug=${next} WHERE id=${user.team_id}`;
