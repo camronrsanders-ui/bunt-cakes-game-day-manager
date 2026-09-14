@@ -11,6 +11,7 @@
   function eventKey(e){return e?.sourceUid||e?.id||'';}
   function outcome(r){const a=Number(r.teamScore||0),b=Number(r.opponentScore||0);return a>b?'Win':a<b?'Loss':'Tie';}
   function record(){let w=0,l=0,t=0;(state.gameResults||[]).forEach(r=>{const o=outcome(r);o==='Win'?w++:o==='Loss'?l++:t++});return `${w}-${l}${t?'-'+t:''}`;}
+  function teamName(){return state?.team?.shortName||state?.team?.name||'Team';}
   function shortTitle(e){if(!e)return'Game';return (e.title||'Game').replace(/\s*\(Boston - Kickball - Fall 2026\)\s*$/,'');}
   function defaultGame(){const all=games();if(!all.length)return'';const today=new Date().toLocaleDateString('en-CA',{timeZone:'America/New_York'});const same=all.find(e=>e.date===today);if(same)return eventKey(same);const future=all.find(e=>e.date>=today);return eventKey(future||all[all.length-1]);}
 
@@ -25,14 +26,14 @@
     card.innerHTML='<div class="results-head"><div><strong>Weekly Game Results</strong><div class="muted">When the game is over, choose it below and save the score shown on the Dashboard.</div></div><div class="results-record">Record '+esc(record())+'</div></div><label style="display:block;margin-top:10px">Game<select id="resultGame">'+(all.length?all.map(e=>'<option value="'+esc(eventKey(e))+'" '+(eventKey(e)===selected?'selected':'')+'>'+esc(e.date||'')+' • '+esc(shortTitle(e))+'</option>').join(''):'<option value="">No scheduled games</option>')+'</select></label><div class="results-actions"><button type="button" id="saveFinalResult" class="primary">Save This Final Score</button><button type="button" id="clearLiveScore">Reset Scoreboard to 0-0</button></div><div id="savedResultsList" style="margin-top:10px"></div>';
     const list=card.querySelector('#savedResultsList');
     const rows=state.gameResults.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-    list.innerHTML=rows.length?rows.map(r=>{const o=outcome(r),cls=o==='Win'?'results-win':o==='Loss'?'results-loss':'results-tie';return '<div class="results-row"><div><strong>'+esc(r.date||'')+' • '+esc(r.title||'Game')+'</strong><div class="muted">'+esc(o)+'</div></div><div><span class="results-score '+cls+'">Bunt Cakes '+esc(r.teamScore)+' — '+esc(r.opponentScore)+'</span> <button type="button" class="result-delete" data-delete-result="'+esc(r.key||'')+'">Delete Result</button></div></div>'}).join(''):'<div class="muted">No final game scores saved yet.</div>';
+    list.innerHTML=rows.length?rows.map(r=>{const o=outcome(r),cls=o==='Win'?'results-win':o==='Loss'?'results-loss':'results-tie';return '<div class="results-row"><div><strong>'+esc(r.date||'')+' • '+esc(r.title||'Game')+'</strong><div class="muted">'+esc(o)+'</div></div><div><span class="results-score '+cls+'">'+esc(teamName())+' '+esc(r.teamScore)+' — '+esc(r.opponentScore)+'</span> <button type="button" class="result-delete" data-delete-result="'+esc(r.key||'')+'">Delete Result</button></div></div>'}).join(''):'<div class="muted">No final game scores saved yet.</div>';
     card.querySelector('#saveFinalResult').disabled=!all.length;
     card.querySelector('#saveFinalResult').onclick=()=>{
       const key=card.querySelector('#resultGame').value;
       const e=all.find(x=>eventKey(x)===key);if(!e)return;
       const team=Number(state.score?.team||0),opponent=Number(state.score?.opponent||0);
       const idx=state.gameResults.findIndex(r=>r.key===key);
-      if(idx>=0&&!confirm('A final score is already saved for this game. Replace it with Bunt Cakes '+team+' — '+opponent+'?'))return;
+      if(idx>=0&&!confirm('A final score is already saved for this game. Replace it with '+teamName()+' '+team+' — '+opponent+'?'))return;
       const row={key,date:e.date,title:shortTitle(e),teamScore:team,opponentScore:opponent,savedAt:new Date().toISOString()};
       if(idx>=0)state.gameResults[idx]=row;else state.gameResults.push(row);
       queueSave();mount();
