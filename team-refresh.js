@@ -36,7 +36,7 @@
   function showLiveCheck(serverUpdatedAt,prefix='Live'){if(!updated)return;lastSuccessfulCheck=new Date();updated.textContent=prefix+' • '+timeLabel(lastSuccessfulCheck);if(serverUpdatedAt){updated.title='Team data last changed '+new Date(serverUpdatedAt).toLocaleString();updated.dataset.serverUpdatedAt=String(serverUpdatedAt);}}
   function liveFingerprint(value){
     const v=value&&typeof value==='object'?value:{};
-    return JSON.stringify({score:v.score,gameInning:v.gameInning,fieldInning:v.fieldInning,half:v.half,innings:v.innings,kickingOrder:v.kickingOrder,currentKicker:v.currentKicker,events:v.events,players:v.players,availability:v.availability,pods:v.pods,gameDayPods:v.gameDayPods});
+    return JSON.stringify({score:v.score,gameInning:v.gameInning,fieldInning:v.fieldInning,half:v.half,innings:v.innings,kickingOrder:v.kickingOrder,currentKicker:v.currentKicker,events:v.events,players:v.players,availability:v.availability,pods:v.pods,gameDayPods:v.gameDayPods,captainAlerts:v.captainAlerts});
   }
   function showManualStart(){clearTimeout(resetButtonTimer);btn.disabled=true;btn.textContent='Refreshing…';if(updated)updated.textContent='Checking live data…';}
   function showManualDone(){btn.disabled=false;btn.textContent='Updated ✓';clearTimeout(resetButtonTimer);resetButtonTimer=setTimeout(()=>{if(!missingTeam){btn.textContent='Refresh';btn.disabled=false;}},700);}
@@ -71,7 +71,8 @@
     ['data-bunt-attendance','/team-attendance.js?v=6'],
     ['data-bunt-access-checkin','/team-access-checkin.js?v=4'],
     ['data-team-branding','/team-branding.js?v=3'],
-    ['data-team-onboarding','/team-onboarding.js?v=3']
+    ['data-team-onboarding','/team-onboarding.js?v=3'],
+    ['data-team-captain-alerts','/team-captain-alerts.js?v=1']
   ];
   helpers.forEach(([attr,src])=>{if(document.querySelector('script['+attr+']'))return;const script=document.createElement('script');script.async=false;script.src=src;script.setAttribute(attr,'1');document.head.appendChild(script);});
 })();

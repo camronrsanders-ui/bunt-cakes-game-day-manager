@@ -119,7 +119,10 @@ function captainState(value) {
   delete state._pushSubscriptions;
   delete state._pushReminderLog;
   delete state._pilotFeedback;
+  const alerts=Array.isArray(state._captainAlerts)?state._captainAlerts.slice(-10):[];
+  delete state._captainAlerts;
   delete state.__feildhaus_pilot_gate__;
+  state.captainAlerts=alerts;
   state.counts = normalizeCounts(state.counts);
   return state;
 }
@@ -169,7 +172,8 @@ function publicState(value, playerName = '') {
     events: Array.isArray(raw.events) ? raw.events : [],
     season: raw.season || {},
     lastLeagueSync: raw.lastLeagueSync || null,
-    availability: publicAvailability(raw, playerName)
+    availability: publicAvailability(raw, playerName),
+    captainAlerts: Array.isArray(raw._captainAlerts)?raw._captainAlerts.slice(-10):[]
   };
 }
 
@@ -479,6 +483,45 @@ module.exports = async function handler(req, res) {
         return res.status(200).json({ok:true,id:item.id});
       }
 
+      if(action==='captain-alert'){
+        const user=await requireTeamCaptain(req,res,teamSlug);if(!user)return;
+        const message=String(req.body&&req.body.message||'').trim().slice(0,240);
+        if(!message)return res.status(400).json({error:'Write a short alert before sending'});
+        const requestId=String(req.body&&req.body.requestId||'').trim().slice(0,120);
+        const existingAlerts=Array.isArray(state._captainAlerts)?state._captainAlerts:[];
+        if(requestId){
+          const existing=existingAlerts.find(item=>item&&item.requestId===requestId);
+          if(existing)return res.status(200).json({ok:true,deduped:true,alert:existing,sent:Number(existing.sent||0),failed:Number(existing.failed||0)});
+        }
+        const team=teamConfig(state),teamName=team.shortName||team.name||'Team';
+        const subscriptions=state._pushSubscriptions||{};
+        const roster=new Set((state.players||[]).map(p=>p&&p.name).filter(Boolean));
+        let sent=0,failed=0;
+        try{
+          const config=await ensurePushConfig(sql);
+          webpush.setVapidDetails('mailto:notifications@teamgameday.app',config.publicKey,config.privateKey);
+          for(const [playerName,entries] of Object.entries(subscriptions)){
+            if(!roster.has(playerName))continue;
+            for(const entry of Array.isArray(entries)?entries:[]){
+              if(!entry||!entry.subscription)continue;
+              try{
+                await webpush.sendNotification(entry.subscription,JSON.stringify({
+                  title:teamName+' • Captain Alert',
+                  body:message,
+                  url:'/team/'+row.slug,
+                  tag:'team-'+row.slug+'-captain-alert'
+                }),{TTL:21600,urgency:'high'});
+                sent++;
+              }catch(_){failed++;}
+            }
+          }
+        }catch(error){failed++;}
+        const item={id:crypto.randomUUID(),requestId:requestId||crypto.randomUUID(),message,createdAt:new Date().toISOString(),createdBy:user.display_name||'Captain',sent,failed};
+        const payload=JSON.stringify([...existingAlerts,item].slice(-30));
+        await sql`UPDATE team_states SET state=jsonb_set(state,'{_captainAlerts}',${payload}::jsonb,true),updated_at=now() WHERE team_id=${row.id}`;
+        return res.status(200).json({ok:true,alert:item,sent,failed});
+      }
+
       if(action==='create-player-invite'){
         const user=await requireTeamCaptain(req,res,teamSlug);if(!user)return;
         const playerId=String(req.body&&req.body.playerId||'').trim().slice(0,120);
@@ -712,6 +755,7 @@ module.exports = async function handler(req, res) {
             '_pushSubscriptions',${preservedPushSubscriptions}::jsonb,
             '_pushReminderLog',COALESCE(state->'_pushReminderLog','{}'::jsonb),
             '_pilotFeedback',COALESCE(state->'_pilotFeedback','[]'::jsonb),
+            '_captainAlerts',COALESCE(state->'_captainAlerts','[]'::jsonb),
             '__feildhaus_pilot_gate__',COALESCE(state->'__feildhaus_pilot_gate__','{}'::jsonb)
           ),updated_at=now()
           WHERE team_id=${row.id} AND updated_at=${expectedUpdatedAt}::timestamptz
@@ -733,6 +777,7 @@ module.exports = async function handler(req, res) {
             '_pushSubscriptions',${preservedPushSubscriptions}::jsonb,
             '_pushReminderLog',COALESCE(state->'_pushReminderLog','{}'::jsonb),
             '_pilotFeedback',COALESCE(state->'_pilotFeedback','[]'::jsonb),
+            '_captainAlerts',COALESCE(state->'_captainAlerts','[]'::jsonb),
             '__feildhaus_pilot_gate__',COALESCE(state->'__feildhaus_pilot_gate__','{}'::jsonb)
           ),updated_at=now() WHERE team_id=${row.id} RETURNING to_char(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS updated_at
         `;
