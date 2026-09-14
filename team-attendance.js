@@ -11,7 +11,7 @@
       .attendance-answer{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}
       .attendance-answer button{font-weight:900;background:#fff}.attendance-answer button.on{background:var(--a,#15803d);color:#fff;border-color:var(--a,#15803d)}
       .attendance-answer button.no.on{background:#b91c1c;border-color:#b91c1c}.attendance-answer button.maybe.on{background:#a16207;border-color:#a16207}
-      .attendance-saved{font-weight:800;color:#166534;margin-top:8px}
+      .attendance-saved{font-weight:800;color:#166534;margin-top:8px}.attendance-note{margin-top:9px}.attendance-note input{width:100%;padding:10px;border:1px solid #bbf7d0;border-radius:10px;font:inherit}
       .attendance-future{margin-top:14px;padding-top:12px;border-top:1px solid #bbf7d0}.attendance-future h3{margin:.2rem 0}.attendance-future-list{display:grid;gap:9px;margin-top:9px}
       .attendance-future-row{background:#fff;border:1px solid #d1fae5;border-radius:13px;padding:10px}.attendance-future-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}.attendance-future-games{font-size:.86rem;color:#6b7280;margin-top:3px}
       .attendance-future-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:8px}.attendance-future-actions button{padding:8px;font-weight:800}.attendance-future-actions button.on{background:var(--a,#15803d);color:#fff}.attendance-future-actions button.no.on{background:#b91c1c;border-color:#b91c1c}.attendance-future-actions button.maybe.on{background:#a16207;border-color:#a16207}
@@ -34,38 +34,42 @@
   function targetDate(){const requested=new URLSearchParams(location.search).get('availability'),dates=gameDates();return requested&&dates.includes(requested)?requested:(dates[0]||'')}
   function gamesFor(date){return(state?.events||[]).filter(e=>e&&e.type==='Game'&&e.date===date).sort((a,b)=>(a.time||'').localeCompare(b.time||''))}
   function prettyDate(date){return new Date(date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})}
-  function responseFor(date,name){return state?.availability?.[date]?.[name]?.status||''}
+  function responseEntry(date,name){return state?.availability?.[date]?.[name]||{}}
+  function responseFor(date,name){return responseEntry(date,name).status||''}
   function statusLabel(v){return v==='yes'?'Going':v==='no'?'Opted out':v==='not_sure'?'Not sure':'No response'}
   function mount(){const home=document.getElementById('home');if(!home)return null;let card=document.getElementById('weeklyAttendanceCard');if(!card){card=document.createElement('div');card.id='weeklyAttendanceCard';card.className='card attendance-card';const reminder=home.querySelector('.reminder-card');if(reminder)reminder.insertAdjacentElement('beforebegin',card);else home.prepend(card)}return card}
   function notificationBlock(){return '<div class="attendance-notify"><strong>🔔 Game availability reminders</strong><div id="attendanceNotifyText" class="muted">Get a reminder three days before your next scheduled game.</div><button id="enableAttendancePush">Set Up Game Reminders</button></div>'}
   function accessRequiredBlock(){return accessRejected?'<div class="attendance-access-required"><strong>Player access needs to reconnect on this phone/app.</strong><div style="margin-top:6px">Ask your captain for a new setup link, then open that link in this same app or browser. You do not need a full access reset unless your captain specifically chooses one.</div></div>':'<div class="attendance-access-required">Player access needs to be set up. Ask your captain for your setup link.</div>'}
   function rejectAccess(){accessRejected=true;if(typeof state!=='undefined'&&state)state.playerAccess={paired:false};renderCard();window.dispatchEvent(new Event('teamplayeraccesschange'))}
+  function noteField(date,name,compact=false){const note=String(responseEntry(date,name).note||'');return `<div class="attendance-note"><input data-note-date="${esc(date)}" maxlength="160" value="${esc(note)}" placeholder="Optional note — e.g. Running 10 min late${compact?'':' or can only make Game 2'}"></div>`}
   function answerButtons(date,answer,compact=false){
     const cls=compact?'attendance-future-actions':'attendance-answer';
     return `<div class="${cls}"><button data-answer="yes" data-date="${esc(date)}" class="${answer==='yes'?'on':''}">✅ ${compact?'Going':'Yes'}</button><button data-answer="no" data-date="${esc(date)}" class="no ${answer==='no'?'on':''}">❌ ${compact?'Opt out':'No'}</button><button data-answer="not_sure" data-date="${esc(date)}" class="maybe ${answer==='not_sure'?'on':''}">🤔 Not sure</button></div>`;
   }
   function futureBlock(name,currentDate){
     const dates=gameDates().filter(d=>d!==currentDate);if(!dates.length)return'';
-    return `<div class="attendance-future"><div class="muted">PLAN AHEAD</div><h3>Future game availability</h3><div class="muted">Opt out now for any future game you already know you cannot attend. A No is date-specific and removes you from that date’s officiating pool.</div><div class="attendance-future-list">${dates.map(date=>{const answer=responseFor(date,name),games=gamesFor(date),times=games.map(g=>time12(g.time)).filter(Boolean).join(' & ');return `<div class="attendance-future-row"><div class="attendance-future-top"><div><strong>${esc(prettyDate(date))}</strong><div class="attendance-future-games">${esc(times||'Game time TBD')}</div></div><span class="pill">${esc(statusLabel(answer))}</span></div>${answerButtons(date,answer,true)}</div>`}).join('')}</div></div>`;
+    return `<div class="attendance-future"><div class="muted">PLAN AHEAD</div><h3>Future game availability</h3><div class="muted">Opt out now for any future game you already know you cannot attend. A No is date-specific and removes you from that date’s officiating pool.</div><div class="attendance-future-list">${dates.map(date=>{const answer=responseFor(date,name),games=gamesFor(date),times=games.map(g=>time12(g.time)).filter(Boolean).join(' & ');return `<div class="attendance-future-row"><div class="attendance-future-top"><div><strong>${esc(prettyDate(date))}</strong><div class="attendance-future-games">${esc(times||'Game time TBD')}</div></div><span class="pill">${esc(statusLabel(answer))}</span></div>${answerButtons(date,answer,true)}${noteField(date,name,true)}</div>`}).join('')}</div></div>`;
   }
 
   function renderCard(){
     if(typeof state==='undefined'||!state)return;const card=mount();if(!card)return;const date=targetDate(),name=playerName(),paired=!!name;
     if(!date){card.innerHTML='<div class="attendance-head"><div><div class="muted">GAME AVAILABILITY</div><h2 style="margin:.25rem 0">Game Availability</h2><div class="muted">No upcoming game is posted yet.</div></div></div>'+(paired?notificationBlock():accessRequiredBlock());bindCard();return;}
     const games=gamesFor(date),answer=paired?responseFor(date,name):'',gameText=games.map(g=>'<div><strong>'+time12(g.time)+'</strong> — '+esc(g.title||'Game')+'</div>').join('');
-    card.innerHTML=`<div class="attendance-head"><div><div class="muted">NEXT GAME CHECK-IN</div><h2 style="margin:.25rem 0">Will you be there?</h2><div>${esc(prettyDate(date))}</div></div><span class="attendance-badge">GAME RSVP</span></div><div class="attendance-games">${gameText}</div>${paired?'<div><strong>'+esc(name)+', choose your answer:</strong></div>'+answerButtons(date,answer,false):accessRequiredBlock()}${answer?'<div class="attendance-saved">Saved: '+statusLabel(answer)+' • Captain View updates automatically.</div>':''}${paired?futureBlock(name,date)+notificationBlock():''}`;
+    card.innerHTML=`<div class="attendance-head"><div><div class="muted">NEXT GAME CHECK-IN</div><h2 style="margin:.25rem 0">Will you be there?</h2><div>${esc(prettyDate(date))}</div></div><span class="attendance-badge">GAME RSVP</span></div><div class="attendance-games">${gameText}</div>${paired?'<div><strong>'+esc(name)+', choose your answer:</strong></div>'+answerButtons(date,answer,false)+noteField(date,name,false):accessRequiredBlock()}${answer?'<div class="attendance-saved">Saved: '+statusLabel(answer)+' • Captain View updates automatically.</div>':''}${paired?futureBlock(name,date)+notificationBlock():''}`;
     bindCard();
     if(new URLSearchParams(location.search).get('availability')===date)setTimeout(()=>card.scrollIntoView({behavior:'smooth',block:'center'}),150)
   }
 
-  function bindCard(){document.querySelectorAll('#weeklyAttendanceCard [data-answer][data-date]').forEach(btn=>btn.onclick=()=>saveAnswer(btn.dataset.answer,btn.dataset.date));const push=document.getElementById('enableAttendancePush');if(push)push.onclick=enablePush;refreshPushStatus()}
+  function bindCard(){document.querySelectorAll('#weeklyAttendanceCard [data-answer][data-date]').forEach(btn=>btn.onclick=()=>saveAnswer(btn.dataset.answer,btn.dataset.date));document.querySelectorAll('#weeklyAttendanceCard [data-note-date]').forEach(input=>input.onchange=()=>saveNote(input.dataset.noteDate,input.value));const push=document.getElementById('enableAttendancePush');if(push)push.onclick=enablePush;refreshPushStatus()}
 
-  async function saveAnswer(status,date=targetDate()){
+  async function saveNote(date,note){const name=playerName();if(!name||!date||working)return;const current=responseFor(date,name);if(!current){alert('Choose Yes, No, or Not sure before adding a note.');renderCard();return}await saveAnswer(current,date,note)}
+
+  async function saveAnswer(status,date=targetDate(),noteOverride){
     const name=playerName();if(!name){renderCard();return}if(!date||working)return;working=true;
     try{
-      const r=await fetch('/api/team-state',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'attendance-response',playerName:name,gameDate:date,status})});
+      const r=await fetch('/api/team-state',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'attendance-response',playerName:name,gameDate:date,status,note:noteOverride===undefined?String(responseEntry(date,name).note||''):String(noteOverride||'').trim().slice(0,160)})});
       const j=await r.json().catch(()=>({}));if(r.status===401&&j&&j.playerAccessRequired){rejectAccess();return}if(!r.ok)throw new Error(j.error||'Could not save attendance');
-      accessRejected=false;state.availability=state.availability||{};state.availability[date]=state.availability[date]||{};state.availability[date][name]={status,respondedAt:j.respondedAt};renderCard();
+      accessRejected=false;state.availability=state.availability||{};state.availability[date]=state.availability[date]||{};state.availability[date][name]={status,respondedAt:j.respondedAt,note:j.note||''};renderCard();
     }catch(e){alert(e.message||'Could not save your answer')}finally{working=false}
   }
   function b64ToBytes(value){const pad='='.repeat((4-value.length%4)%4),base64=(value+pad).replace(/-/g,'+').replace(/_/g,'/'),raw=atob(base64);return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)))}
