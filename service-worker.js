@@ -1,5 +1,5 @@
-const CACHE='team-game-day-v18';
-const CORE=['/manifest.webmanifest','/generic-team-icon.svg'];
+const CACHE='feildhaus-pilot-v1';
+const CORE=['/manifest.webmanifest','/feildhaus-mark.svg','/generic-team-icon.svg'];
 
 self.addEventListener('install',event=>{
   self.skipWaiting();
@@ -53,11 +53,11 @@ async function fastNavigation(request,event){
 self.addEventListener('push',event=>{
   let data={};
   try{data=event.data?event.data.json():{}}catch(e){data={body:event.data?event.data.text():''}}
-  const title=data.title||'Team Game Day';
+  const title=data.title||'FeildHaus';
   event.waitUntil(self.registration.showNotification(title,{
-    body:data.body||'Open the team app for an update.',
-    icon:data.icon||'/generic-team-icon.svg',
-    badge:'/generic-team-icon.svg',
+    body:data.body||'Open FeildHaus for your team update.',
+    icon:data.icon||'/feildhaus-mark.svg',
+    badge:'/feildhaus-mark.svg',
     tag:data.tag||'team-game-day-update',
     renotify:true,
     data:{url:data.url||'/team'}
@@ -91,7 +91,7 @@ self.addEventListener('fetch',event=>{
         const cache=await caches.open(CACHE);
         const exact=(await cache.match(request))||(await cache.match(request,{ignoreSearch:true}));
         if(exact)return exact;
-        return new Response('The team app is offline. Reconnect and reopen it.',{status:503,headers:{'Content-Type':'text/plain; charset=utf-8'}});
+        return new Response('FeildHaus is offline. Reconnect and reopen it.',{status:503,headers:{'Content-Type':'text/plain; charset=utf-8'}});
       }
     })());
     return;
