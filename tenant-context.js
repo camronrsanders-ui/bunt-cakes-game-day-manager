@@ -7,6 +7,31 @@
   window.__teamPath={team:`/team/${slug}`,captain:`/captain/${slug}`,calendar:`/calendar/${slug}.ics`};
   window.__teamStorageKey=(name)=>`teamgameday:${slug}:${name}`;
 
+  // Every team-scoped API request must carry the Haus slug. Without this,
+  // direct /api/* calls fall back to the founding team workspace.
+  if(!window.__feildhausTenantFetchInstalled){
+    window.__feildhausTenantFetchInstalled=true;
+    const nativeFetch=window.fetch.bind(window);
+    window.fetch=function(input,init){
+      try{
+        const requestUrl=typeof input==='string'||input instanceof URL
+          ? new URL(String(input),location.origin)
+          : new URL(input.url,location.origin);
+        if(requestUrl.origin===location.origin&&requestUrl.pathname.startsWith('/api/')){
+          const nextInit={...(init||{})};
+          const sourceHeaders=(input&&typeof input==='object'&&input.headers)?input.headers:undefined;
+          const headers=new Headers(sourceHeaders||{});
+          if(init&&init.headers)new Headers(init.headers).forEach((v,k)=>headers.set(k,v));
+          headers.set('X-Team-Slug',slug);
+          nextInit.headers=headers;
+          if(typeof input==='string'||input instanceof URL)return nativeFetch(input,nextInit);
+          return nativeFetch(new Request(input,nextInit));
+        }
+      }catch(_){}
+      return nativeFetch(input,init);
+    };
+  }
+
   // Design-only skin. Do not inject scripts that reorder, rename, hide, or add controls.
   if(!document.querySelector('link[data-premium-team-theme]')){
     const theme=document.createElement('link');
