@@ -271,6 +271,7 @@ async function acceptCaptainInvite(req,res,sql){
 }
 
 module.exports = async function handler(req,res){
+  res.setHeader('Cache-Control','private, no-store, max-age=0');
   try{
     const sql=getSql();
     const action=String(req.body&&req.body.action||'');
