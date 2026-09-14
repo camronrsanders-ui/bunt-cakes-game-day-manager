@@ -43,6 +43,7 @@ function captainState(value) {
   delete state._pushConfig;
   delete state._pushSubscriptions;
   delete state._pushReminderLog;
+  delete state._pilotFeedback;
   state.counts = normalizeCounts(state.counts);
   return state;
 }
@@ -319,6 +320,31 @@ module.exports = async function handler(req, res) {
       const state=row.state||{};
       const action=String(req.body&&req.body.action||'access');
 
+      if(action==='pilot-feedback'){
+        const category=String(req.body&&req.body.category||'').trim().toLowerCase();
+        const allowed=new Set(['bug','confusing','idea','love']);
+        if(!allowed.has(category))return res.status(400).json({error:'Choose a valid feedback category'});
+        const message=String(req.body&&req.body.message||'').trim().slice(0,1200);
+        if(!message)return res.status(400).json({error:'Tell us what you noticed'});
+        const captain=await getCaptainTeam(req,teamSlug);
+        const player=captain?null:await resolveAuthenticatedPlayer(req,row,state);
+        if(!captain&&!player)return res.status(401).json({error:'Sign in or pair your player access before sending feedback'});
+        const item={
+          id:crypto.randomUUID(),
+          category,
+          message,
+          screen:String(req.body&&req.body.screen||'').trim().slice(0,160),
+          actor:captain?'captain':'player',
+          createdAt:new Date().toISOString()
+        };
+        const payload=JSON.stringify([item]);
+        await sql`UPDATE team_states
+          SET state=jsonb_set(state,'{_pilotFeedback}',COALESCE(state->'_pilotFeedback','[]'::jsonb)||${payload}::jsonb,true),
+              updated_at=now()
+          WHERE team_id=${row.id}`;
+        return res.status(200).json({ok:true,id:item.id});
+      }
+
       if(action==='create-player-invite'){
         const user=await requireTeamCaptain(req,res,teamSlug);if(!user)return;
         const playerId=String(req.body&&req.body.playerId||'').trim().slice(0,120);
@@ -556,7 +582,8 @@ module.exports = async function handler(req, res) {
             'availability',COALESCE(state->'availability','{}'::jsonb),
             '_pushConfig',COALESCE(state->'_pushConfig','{}'::jsonb),
             '_pushSubscriptions',COALESCE(state->'_pushSubscriptions','{}'::jsonb),
-            '_pushReminderLog',COALESCE(state->'_pushReminderLog','{}'::jsonb)
+            '_pushReminderLog',COALESCE(state->'_pushReminderLog','{}'::jsonb),
+            '_pilotFeedback',COALESCE(state->'_pilotFeedback','[]'::jsonb)
           ),updated_at=now()
           WHERE team_id=${row.id} AND updated_at=${expectedUpdatedAt}::timestamptz
           RETURNING to_char(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS updated_at
@@ -575,7 +602,8 @@ module.exports = async function handler(req, res) {
             'availability',COALESCE(state->'availability','{}'::jsonb),
             '_pushConfig',COALESCE(state->'_pushConfig','{}'::jsonb),
             '_pushSubscriptions',COALESCE(state->'_pushSubscriptions','{}'::jsonb),
-            '_pushReminderLog',COALESCE(state->'_pushReminderLog','{}'::jsonb)
+            '_pushReminderLog',COALESCE(state->'_pushReminderLog','{}'::jsonb),
+            '_pilotFeedback',COALESCE(state->'_pilotFeedback','[]'::jsonb)
           ),updated_at=now() WHERE team_id=${row.id} RETURNING to_char(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS updated_at
         `;
       }
