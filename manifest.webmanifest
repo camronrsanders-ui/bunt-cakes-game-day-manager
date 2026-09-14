@@ -1,15 +1,16 @@
 {
   "id": "/team",
-  "name": "Team Game Day Manager",
-  "short_name": "Game Day",
+  "name": "FeildHaus",
+  "short_name": "FeildHaus",
+  "description": "Run the game. Build the community.",
   "start_url": "/team",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#f7fff8",
-  "theme_color": "#15803d",
+  "background_color": "#071926",
+  "theme_color": "#071926",
   "icons": [
     {
-      "src": "/generic-team-icon.svg",
+      "src": "/feildhaus-mark.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
