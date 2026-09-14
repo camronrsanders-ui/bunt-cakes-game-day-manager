@@ -28,6 +28,41 @@ function isSafeExternalUrl(value) {
   }
 }
 
+function cloneObject(value){return value&&typeof value==='object'&&!Array.isArray(value)?JSON.parse(JSON.stringify(value)):{};}
+
+function preserveRenamedPlayerIdentity(existingState,nextState){
+  const existing=existingState&&typeof existingState==='object'?existingState:{};
+  const next=nextState&&typeof nextState==='object'?nextState:{};
+  const oldById=new Map((Array.isArray(existing.players)?existing.players:[]).filter(p=>p&&p.id).map(p=>[String(p.id),String(p.name||'')]));
+  const renames=new Map();
+  for(const player of Array.isArray(next.players)?next.players:[]){
+    const id=String(player&&player.id||''),newName=String(player&&player.name||'');
+    const oldName=oldById.get(id)||'';
+    if(oldName&&newName&&oldName!==newName)renames.set(oldName,newName);
+  }
+  const moveKey=(obj,oldName,newName)=>{
+    if(!obj||typeof obj!=='object'||Array.isArray(obj)||!Object.prototype.hasOwnProperty.call(obj,oldName))return;
+    const oldValue=obj[oldName];
+    if(!Object.prototype.hasOwnProperty.call(obj,newName))obj[newName]=oldValue;
+    else if(obj[newName]&&oldValue&&typeof obj[newName]==='object'&&typeof oldValue==='object'&&!Array.isArray(obj[newName])&&!Array.isArray(oldValue))obj[newName]={...oldValue,...obj[newName]};
+    delete obj[oldName];
+  };
+  const appAccess=cloneObject(existing.appAccess);
+  const availability=cloneObject(existing.availability);
+  const pushSubscriptions=cloneObject(existing._pushSubscriptions);
+  for(const [oldName,newName] of renames){
+    moveKey(appAccess,oldName,newName);
+    if(appAccess[newName]&&typeof appAccess[newName]==='object')appAccess[newName].playerName=newName;
+    moveKey(pushSubscriptions,oldName,newName);
+    for(const answers of Object.values(availability))moveKey(answers,oldName,newName);
+    const links=next.captainPlayerLinks&&typeof next.captainPlayerLinks==='object'?next.captainPlayerLinks:null;
+    if(links)for(const email of Object.keys(links))if(links[email]===oldName)links[email]=newName;
+    const overrides=next.gameDayAttendanceOverrides&&typeof next.gameDayAttendanceOverrides==='object'?next.gameDayAttendanceOverrides:null;
+    if(overrides)for(const perDate of Object.values(overrides))moveKey(perDate,oldName,newName);
+  }
+  return {renames,appAccess,availability,pushSubscriptions};
+}
+
 function normalizeCounts(value) {
   const counts = value && typeof value === 'object' ? value : {};
   return {
@@ -574,6 +609,7 @@ module.exports = async function handler(req, res) {
       }
       if(!Array.isArray(next.players))return res.status(400).json({error:'A valid roster array is required'});
       const seenPlayerIds=new Set();
+      const seenPlayerNames=new Set();
       for(const player of next.players){
         if(!player||typeof player!=='object'||Array.isArray(player))return res.status(400).json({error:'Every roster player must be an object'});
         const rawId=typeof player.id==='string'?player.id.trim():'';
@@ -581,7 +617,17 @@ module.exports = async function handler(req, res) {
         if(player.id!==rawId)return res.status(400).json({error:'Player IDs must not have surrounding whitespace'});
         if(seenPlayerIds.has(rawId))return res.status(400).json({error:'Player IDs must be unique within the team'});
         seenPlayerIds.add(rawId);
+        const rawName=typeof player.name==='string'?player.name.trim():'';
+        if(!rawName)return res.status(400).json({error:'Every roster player must have a name'});
+        if(player.name!==rawName)return res.status(400).json({error:'Player names must not have surrounding whitespace'});
+        const nameKey=rawName.toLocaleLowerCase('en-US');
+        if(seenPlayerNames.has(nameKey))return res.status(400).json({error:'Player names must be unique within the team'});
+        seenPlayerNames.add(nameKey);
       }
+      const identity=preserveRenamedPlayerIdentity(row.state||{},next);
+      const preservedAppAccess=JSON.stringify(identity.appAccess);
+      const preservedAvailability=JSON.stringify(identity.availability);
+      const preservedPushSubscriptions=JSON.stringify(identity.pushSubscriptions);
       const expectedUpdatedAt=String(req.body&&req.body.expectedUpdatedAt||'').trim();
       if(expectedUpdatedAt&&Number.isNaN(Date.parse(expectedUpdatedAt)))return res.status(400).json({error:'The expected team-state version is invalid'});
       const payload=JSON.stringify(next);if(payload.length>1000000)return res.status(413).json({error:'Team state is too large'});
@@ -589,10 +635,10 @@ module.exports = async function handler(req, res) {
       if(expectedUpdatedAt){
         rows=await sql`
           UPDATE team_states SET state=${payload}::jsonb||jsonb_build_object(
-            'appAccess',COALESCE(state->'appAccess','{}'::jsonb),
-            'availability',COALESCE(state->'availability','{}'::jsonb),
+            'appAccess',${preservedAppAccess}::jsonb,
+            'availability',${preservedAvailability}::jsonb,
             '_pushConfig',COALESCE(state->'_pushConfig','{}'::jsonb),
-            '_pushSubscriptions',COALESCE(state->'_pushSubscriptions','{}'::jsonb),
+            '_pushSubscriptions',${preservedPushSubscriptions}::jsonb,
             '_pushReminderLog',COALESCE(state->'_pushReminderLog','{}'::jsonb),
             '_pilotFeedback',COALESCE(state->'_pilotFeedback','[]'::jsonb),
             '__feildhaus_pilot_gate__',COALESCE(state->'__feildhaus_pilot_gate__','{}'::jsonb)
@@ -610,10 +656,10 @@ module.exports = async function handler(req, res) {
       }else{
         rows=await sql`
           UPDATE team_states SET state=${payload}::jsonb||jsonb_build_object(
-            'appAccess',COALESCE(state->'appAccess','{}'::jsonb),
-            'availability',COALESCE(state->'availability','{}'::jsonb),
+            'appAccess',${preservedAppAccess}::jsonb,
+            'availability',${preservedAvailability}::jsonb,
             '_pushConfig',COALESCE(state->'_pushConfig','{}'::jsonb),
-            '_pushSubscriptions',COALESCE(state->'_pushSubscriptions','{}'::jsonb),
+            '_pushSubscriptions',${preservedPushSubscriptions}::jsonb,
             '_pushReminderLog',COALESCE(state->'_pushReminderLog','{}'::jsonb),
             '_pilotFeedback',COALESCE(state->'_pilotFeedback','[]'::jsonb),
             '__feildhaus_pilot_gate__',COALESCE(state->'__feildhaus_pilot_gate__','{}'::jsonb)
