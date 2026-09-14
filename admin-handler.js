@@ -64,6 +64,8 @@ module.exports=async function adminHandler(req,res){
     const innings=safeObject(state.innings);
     const assignedFieldSpots=Object.values(innings).reduce((sum,inning)=>sum+Object.values(safeObject(inning)).filter(Boolean).length,0);
     const upcomingGames=events.filter(e=>e&&e.type==='Game'&&e.date&&e.date>=today).length;
+    const completedGames=events.filter(e=>e&&e.type==='Game'&&e.date&&e.date<today).length;
+    const lastGameDate=events.filter(e=>e&&e.type==='Game'&&e.date&&e.date<today).map(e=>e.date).sort().pop()||'';
     const captainCount=Number(row.captain_count||0);
     const checklist={
       profile:Boolean(String(teamInfo.name||teamInfo.shortName||'').trim()),
@@ -93,6 +95,8 @@ module.exports=async function adminHandler(req,res){
       installs:Object.values(access).filter(x=>x&&x.installedAt).length,
       rsvpResponses,
       upcomingGames,
+      completedGames,
+      lastGameDate,
       assignedFieldSpots,
       feedbackCount:feedback.length,
       captainCount,
@@ -120,10 +124,10 @@ module.exports=async function adminHandler(req,res){
   `;
   const totals=teams.reduce((a,t)=>{
     a.teams++; a.rosterPlayers+=t.rosterPlayers; a.activePlayers+=t.activePlayers;
-    a.installs+=t.installs; a.rsvpResponses+=t.rsvpResponses; a.upcomingGames+=t.upcomingGames; a.feedback+=t.feedbackCount;
+    a.installs+=t.installs; a.rsvpResponses+=t.rsvpResponses; a.upcomingGames+=t.upcomingGames; a.completedGames+=t.completedGames; a.feedback+=t.feedbackCount;
     if(t.readiness>=80)a.readyTeams++;
     return a;
-  },{teams:0,readyTeams:0,rosterPlayers:0,activePlayers:0,installs:0,rsvpResponses:0,upcomingGames:0,feedback:0});
+  },{teams:0,readyTeams:0,rosterPlayers:0,activePlayers:0,installs:0,rsvpResponses:0,upcomingGames:0,completedGames:0,feedback:0});
   res.setHeader('Cache-Control','no-store');
   const founderState=rows.find(r=>r.slug===DEFAULT_TEAM_SLUG)&&safeObject(rows.find(r=>r.slug===DEFAULT_TEAM_SLUG).state)||{};
   const gate=safeObject(founderState.__feildhaus_pilot_gate__);
