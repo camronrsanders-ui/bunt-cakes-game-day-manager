@@ -2,7 +2,14 @@
   const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[ch]));
   const rolesOf=p=>window.BuntRoles?.normalizedRoles?window.BuntRoles.normalizedRoles(p):(Array.isArray(p?.roles)?p.roles:String(p?.role||'').split(/\s*(?:\/|,|•|\|)\s*/).filter(Boolean));
   const isUmpire=p=>!!p&&rolesOf(p).includes('Umpire');
-  const isAvailable=(name,date)=>state?.availability?.[date]?.[name]?.status!=='no';
+  const isAvailable=(name,date)=>{
+    if(window.BuntGameDayEligibility?.isActive)return !!window.BuntGameDayEligibility.isActive(name,date);
+    const player=(state?.players||[]).find(p=>p&&p.name===name);
+    const responses=state?.availability?.[date]||{};
+    const answer=responses?.[name]?.status;
+    if(answer)return answer==='yes';
+    return !!player&&player.present!==false;
+  };
 
   function counts(){
     const out=new Map((state.players||[]).map(p=>[p.name,{umpire:0,line:0,total:0}]));
@@ -95,7 +102,7 @@
     const fingerprint=JSON.stringify({players:state.players,events:(state.events||[]).filter(e=>e.type==='Officiating'),availability:state.availability});
     if(panel.dataset.fingerprint===fingerprint)return;
     panel.dataset.fingerprint=fingerprint;
-    preserveViewport(()=>{panel.innerHTML='<div class="row wrap"><div><strong>Fair Officiating Rotation</strong><div class="muted">Players who opt out are excluded for that date only. Umpire-role players remain reserved for umpiring and are never assigned as line refs.</div></div><button id="buildOfficiatingRotation" class="primary">Sync Fair Rotation</button></div><div class="officiating-pool">'+(umpires.length?umpires.map(p=>'<span class="pill">'+esc(p.name)+' • '+(ctr.get(p.name)?.umpire||0)+' ump'+(p.officiatingBackupOnly?' • backup':'')+'</span>').join(' '):'<span class="muted">No umpire roles set yet.</span>')+'</div>';});
+    preserveViewport(()=>{panel.innerHTML='<div class="row wrap"><div><strong>Fair Officiating Rotation</strong><div class="muted">Only players active for that game date are eligible. Captain attendance overrides are respected. Umpire-role players remain reserved for umpiring and are never assigned as line refs.</div></div><button id="buildOfficiatingRotation" class="primary">Sync Fair Rotation</button></div><div class="officiating-pool">'+(umpires.length?umpires.map(p=>'<span class="pill">'+esc(p.name)+' • '+(ctr.get(p.name)?.umpire||0)+' ump'+(p.officiatingBackupOnly?' • backup':'')+'</span>').join(' '):'<span class="muted">No umpire roles set yet.</span>')+'</div>';});
     panel.querySelector('#buildOfficiatingRotation').onclick=build;
     installManualRuleObserver();enforceManualLineRefRule();
   }
