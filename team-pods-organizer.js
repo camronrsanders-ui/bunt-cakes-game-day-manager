@@ -87,7 +87,8 @@
       const status=document.getElementById('teamPodLiveStatus');
       if(status)status.innerHTML='<span class="team-pod-status-dot"></span><span>Live inning '+inning+' • updates automatically from Captain View</span>';
     }
-    const me=localStorage.getItem('buntCakesPlayerName')||new URLSearchParams(location.search).get('player')||'';
+    const playerKey=window.__teamStorageKey?window.__teamStorageKey('playerName'):'teamgameday:playerName';
+    const me=new URLSearchParams(location.search).get('player')||localStorage.getItem(playerKey)||'';
     const cards=[...plan.children].filter(x=>x.classList.contains('card'));
     cards.forEach(card=>{
       if(card.dataset.teamPodOrganized==='1')return;
