@@ -32,7 +32,8 @@
   function target(){return dates()[0]||''}
   function pretty(d){return new Date(d+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'})}
   function mount(){const dash=document.getElementById('dashboard');if(!dash)return null;let card=document.getElementById('captainAttendance');if(!card){card=document.createElement('div');card.id='captainAttendance';card.className='card cap-attendance';dash.prepend(card)}return card}
-  function answerLabel(s){return s==='yes'?'Yes':s==='no'?'No':s==='not_sure'?'Not sure':'No response'}\n  function playerList(names,responses){return names.map(name=>{const note=String(responses?.[name]?.note||'').trim();return esc(name)+(note?'<span class="cap-rsvp-note">“'+esc(note)+'”</span>':'')}).join(', ')||'—'}
+  function answerLabel(s){return s==='yes'?'Yes':s==='no'?'No':s==='not_sure'?'Not sure':'No response'}
+  function playerList(names,responses){return names.map(name=>{const note=String(responses?.[name]?.note||'').trim();return esc(name)+(note?'<span class="cap-rsvp-note">“'+esc(note)+'”</span>':'')}).join(', ')||'—'}
   function currentCaptain(){
     const email=String(session?.user?.email||'').toLowerCase();
     return captains.find(c=>String(c.email||'').toLowerCase()===email)||null;
