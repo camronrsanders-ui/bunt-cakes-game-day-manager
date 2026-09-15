@@ -339,6 +339,7 @@ function sendLogo(res, row) {
 }
 
 module.exports = async function handler(req, res) {
+  res.setHeader('Cache-Control','private, no-store, max-age=0');
   try {
     const sql = getSql();
     if (req.method === 'GET' && String(req.headers['user-agent'] || '') === 'vercel-cron/1.0') {
