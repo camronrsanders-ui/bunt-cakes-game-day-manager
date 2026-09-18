@@ -180,11 +180,17 @@ async function acceptCaptainInvite(req,res,sql){
   const body=req.body||{};
   const teamSlug=normalizeTeamSlug(body.teamSlug);
   const rawInviteToken=String(body.inviteToken||'').trim();
-  const normalizedEmail=String(body.email||'').trim().toLowerCase();
-  const displayName=String(body.displayName||'').trim();
+  let normalizedEmail=String(body.email||'').trim().toLowerCase();
+  let displayName=String(body.displayName||'').trim();
   const password=String(body.password||'');
+  const useCurrentSession=body.useCurrentSession===true;
+  const sessionCaptain=useCurrentSession?await getCaptain(req):null;
   if(!teamSlug||!/^[A-Za-z0-9_-]{43}$/.test(rawInviteToken))return res.status(400).json({error:'This Captain invite is invalid or expired'});
-  if(!normalizedEmail||!password)return res.status(400).json({error:'Email and password are required'});
+  if(useCurrentSession&&!sessionCaptain)return res.status(401).json({error:'Your Captain session expired. Sign in again to continue'});
+  if(sessionCaptain){
+    normalizedEmail=String(sessionCaptain.email||'').trim().toLowerCase();
+    displayName=String(sessionCaptain.display_name||'').trim();
+  }else if(!normalizedEmail||!password)return res.status(400).json({error:'Email and password are required'});
   const inviteHash=hashToken(rawInviteToken);
   const teamRows=await sql`
     SELECT t.id,t.slug
@@ -209,7 +215,9 @@ async function acceptCaptainInvite(req,res,sql){
     LIMIT 1
   `;
   let captainId,createdNew=false;
-  if(existing.length){
+  if(sessionCaptain){
+    captainId=sessionCaptain.id;
+  }else if(existing.length){
     if(!passwordMatches(password,existing[0]))return res.status(401).json({error:'Could not join with that email and password'});
     captainId=existing[0].id;
   }else{
