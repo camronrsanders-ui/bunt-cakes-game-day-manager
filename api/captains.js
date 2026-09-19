@@ -143,6 +143,29 @@ async function createCaptainInvite(req,res,sql){
   const teamSlug=requestedTeamSlug(req);
   const user=await requireTeamCaptain(req,res,teamSlug);if(!user)return;
   if(user.role!=='owner') return res.status(403).json({error:'Only the team owner can invite another Captain'});
+  const inviteEmail=String(req.body&&req.body.email||'').trim().toLowerCase();
+  const inviteName=String(req.body&&req.body.displayName||'').trim();
+  if(inviteEmail){
+    const existing=await sql`
+      SELECT id,email,display_name FROM captain_users
+      WHERE lower(email)=lower(${inviteEmail}) AND active=true
+      LIMIT 1
+    `;
+    if(existing.length){
+      await sql`
+        INSERT INTO captain_team_memberships(captain_user_id,team_id,role,active)
+        VALUES (${existing[0].id},${user.team_id},'captain',true)
+        ON CONFLICT(captain_user_id,team_id) DO UPDATE SET
+          active=true,
+          role=CASE WHEN captain_team_memberships.role='owner' THEN 'owner' ELSE 'captain' END
+      `;
+      return res.status(200).json({
+        ok:true,directAdded:true,teamSlug,
+        captainUrl:`/captain/${encodeURIComponent(teamSlug)}`,
+        captain:{email:existing[0].email,displayName:existing[0].display_name}
+      });
+    }
+  }
   const rawInviteToken=crypto.randomBytes(32).toString('base64url');
   const inviteHash=hashToken(rawInviteToken);
   const rows=await sql`
@@ -171,7 +194,7 @@ async function createCaptainInvite(req,res,sql){
   return res.status(200).json({
     ok:true,
     teamSlug,
-    inviteUrl:`/captain/${encodeURIComponent(teamSlug)}#captain-invite=${rawInviteToken}`,
+    inviteUrl:`/captain/${encodeURIComponent(teamSlug)}#captain-invite=${rawInviteToken}${inviteName?'&name='+encodeURIComponent(inviteName):''}`,
     expiresAt:rows[0].expires_at
   });
 }
