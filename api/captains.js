@@ -199,6 +199,46 @@ async function createCaptainInvite(req,res,sql){
   });
 }
 
+async function createCaptainPasswordReset(req,res,sql){
+  const teamSlug=requestedTeamSlug(req);
+  const owner=await requireTeamCaptain(req,res,teamSlug);if(!owner)return;
+  if(owner.role!=='owner')return res.status(403).json({error:'Only the team owner can create a Captain password reset'});
+  const email=String(req.body&&req.body.email||'').trim().toLowerCase();
+  if(!email)return res.status(400).json({error:'Enter the Captain email first'});
+  const users=await sql`SELECT id,email,display_name FROM captain_users WHERE lower(email)=lower(${email}) AND active=true LIMIT 1`;
+  if(!users.length)return res.status(404).json({error:'No Captain account was found with that email'});
+  const target=users[0],playerId='__captain_password_reset__:'+target.id;
+  const raw=crypto.randomBytes(32).toString('base64url'),tokenHash=hashToken(raw);
+  const rows=await sql`
+    WITH revoked AS (
+      UPDATE player_pairing_invites SET revoked_at=now()
+      WHERE team_id=${owner.team_id} AND player_id=${playerId} AND used_at IS NULL AND revoked_at IS NULL RETURNING 1
+    ), gate AS (SELECT count(*) FROM revoked), created AS (
+      INSERT INTO player_pairing_invites(token_hash,team_id,player_id,created_by_captain_user_id,created_at,expires_at,used_at,revoked_at)
+      SELECT ${tokenHash},${owner.team_id},${playerId},${owner.id},now(),now()+interval '30 minutes',NULL,NULL FROM gate RETURNING expires_at
+    ) SELECT expires_at FROM created
+  `;
+  return res.status(200).json({ok:true,resetUrl:`/captain/${encodeURIComponent(teamSlug)}#captain-reset=${raw}`,expiresAt:rows[0].expires_at,displayName:target.display_name});
+}
+async function resetCaptainPassword(req,res,sql){
+  const body=req.body||{},teamSlug=normalizeTeamSlug(body.teamSlug),raw=String(body.resetToken||'').trim(),password=String(body.password||'');
+  if(!teamSlug||!/^[A-Za-z0-9_-]{43}$/.test(raw))return res.status(400).json({error:'This password reset link is invalid or expired'});
+  if(password.length<10)return res.status(400).json({error:'Choose a password with at least 10 characters'});
+  const tokenHash=hashToken(raw);
+  const rows=await sql`
+    SELECT i.player_id,u.id AS captain_id FROM player_pairing_invites i JOIN teams t ON t.id=i.team_id
+    JOIN captain_users u ON i.player_id=('__captain_password_reset__:'||u.id::text)
+    WHERE t.slug=${teamSlug} AND i.token_hash=${tokenHash} AND i.used_at IS NULL AND i.revoked_at IS NULL AND i.expires_at>now() LIMIT 1
+  `;
+  if(!rows.length)return res.status(401).json({error:'This password reset link is invalid or expired'});
+  const {salt,hash}=passwordParts(password),captainId=rows[0].captain_id;
+  const used=await sql`UPDATE player_pairing_invites SET used_at=now() WHERE token_hash=${tokenHash} AND used_at IS NULL AND revoked_at IS NULL AND expires_at>now() RETURNING 1`;
+  if(!used.length)return res.status(401).json({error:'This password reset link is invalid or expired'});
+  await sql`UPDATE captain_users SET password_hash=${hash},password_salt=${salt},active=true WHERE id=${captainId}`;
+  await sql`DELETE FROM captain_sessions WHERE captain_user_id=${captainId}`;
+  return res.status(200).json({ok:true,teamSlug,captainUrl:`/captain/${encodeURIComponent(teamSlug)}`});
+}
+
 async function acceptCaptainInvite(req,res,sql){
   const body=req.body||{};
   const teamSlug=normalizeTeamSlug(body.teamSlug);
