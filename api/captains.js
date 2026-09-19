@@ -310,6 +310,8 @@ module.exports = async function handler(req,res){
     if(req.method==='POST'&&action==='signup') return signup(req,res,sql);
     if(req.method==='POST'&&action==='accept-invite') return acceptCaptainInvite(req,res,sql);
     if(req.method==='POST'&&action==='create-invite') return createCaptainInvite(req,res,sql);
+    if(req.method==='POST'&&action==='create-password-reset') return createCaptainPasswordReset(req,res,sql);
+    if(req.method==='POST'&&action==='reset-password') return resetCaptainPassword(req,res,sql);
 
     if(req.method==='POST'&&action==='create-team'){
       if(!await pilotInviteConfigured(sql)||!await pilotInviteMatches(sql,req.body&&req.body.pilotCode)) return res.status(403).json({error:'A valid Founding Team invite code is required'});
