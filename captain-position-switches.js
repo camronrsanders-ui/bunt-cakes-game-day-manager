@@ -342,8 +342,9 @@
         <g fill="white"><path d="M200 143 l6 6 -6 6 -6 -6Z"/><path d="M308 251 l6 6 -6 6 -6 -6Z"/><path d="M92 251 l6 6 -6 6 -6 -6Z"/><path d="M194 360 h12 v6 l-6 5 -6 -5Z"/></g>
       </svg>`;
   function fieldLine(layout,preview){
-    const fallback=preview?.[layout]||buildInnings()?.[layout]||{};
-    return (dirty?preview?.[layout]:state?.innings?.[layout])||fallback;
+    const draft=preview?.[layout]||{};
+    const published=state?.innings?.[layout]||{};
+    return dirty?draft:published;
   }
   function renderFieldMap(line,label){
     return `<div class="assignment-map-card"><div class="assignment-map-label"><strong>${label}</strong><span class="muted">${label==='Layout 1'?'Primary rotation':'Second rotation'}</span></div><div class="assignment-map" role="group" aria-label="Assigned fielders for ${label.toLowerCase()}">${FIELD_SVG}${FIELD_SPOTS.map(([position,short,x,y])=>{
