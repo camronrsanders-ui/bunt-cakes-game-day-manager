@@ -16,7 +16,7 @@
     if(!hasUpcomingGame()){showNoGame();return;}
     loading=true;
     const script=document.createElement('script');
-    script.src='/captain-position-switches.js?v=5';
+    script.src='/captain-position-switches.js?v=6';
     script.dataset.positionSwitchController='1';
     script.onload=()=>{loaded=true;loading=false};
     script.onerror=()=>{loading=false;setTimeout(load,1000)};
