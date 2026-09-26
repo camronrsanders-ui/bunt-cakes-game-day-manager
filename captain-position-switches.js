@@ -344,7 +344,11 @@
   function fieldLine(layout,preview){
     const draft=preview?.[layout]||{};
     const published=state?.innings?.[layout]||{};
-    return dirty?draft:published;
+    const planned=buildInnings()?.[layout]||{};
+    const hasNames=line=>line&&Object.values(line).some(value=>clean(value));
+    if(dirty&&hasNames(draft))return draft;
+    if(hasNames(published))return published;
+    return planned;
   }
   function renderFieldMap(line,label){
     return `<div class="assignment-map-card"><div class="assignment-map-label"><strong>${label}</strong><span class="muted">${label==='Layout 1'?'Primary rotation':'Second rotation'}</span></div><div class="assignment-map" role="group" aria-label="Assigned fielders for ${label.toLowerCase()}">${FIELD_SVG}${FIELD_SPOTS.map(([position,short,x,y])=>{
