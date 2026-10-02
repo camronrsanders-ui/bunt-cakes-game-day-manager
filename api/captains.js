@@ -109,14 +109,16 @@ async function createWorkspace(sql,captainId,timeZone='UTC'){
 
 async function signup(req,res,sql){
   const {email,displayName,password,timeZone,pilotCode}=req.body||{};
-  if(!await pilotInviteConfigured(sql)) return res.status(503).json({error:'Founding Team enrollment is temporarily closed'});
-  if(!await pilotInviteMatches(sql,pilotCode)) return res.status(403).json({error:'A valid Founding Team invite code is required'});
+  const log=(result,reason='')=>console.info('[pilot-signup]',JSON.stringify({result,reason,at:new Date().toISOString()}));
+  if(!await pilotInviteConfigured(sql)){log('blocked','enrollment-closed');return res.status(503).json({error:'Founding Team enrollment is temporarily closed'});}
+  if(!await pilotInviteMatches(sql,pilotCode)){log('blocked','invalid-code');return res.status(403).json({error:'That Founding Team invite code was not accepted. Check the code and try again.'});}
   if(!email||!displayName||!password||String(password).length<10){
+    log('blocked','invalid-account-fields');
     return res.status(400).json({error:'Name, email, and a password of at least 10 characters are required'});
   }
   const normalizedEmail=String(email).trim().toLowerCase();
   const exists=await sql`SELECT id FROM captain_users WHERE lower(email)=lower(${normalizedEmail}) LIMIT 1`;
-  if(exists.length) return res.status(409).json({error:'An account already exists for this email. Sign in instead.'});
+  if(exists.length){log('blocked','existing-account');return res.status(409).json({error:'An account already exists for this email. Use Captain sign in instead.'});}
 
   const {salt,hash}=passwordParts(password);
   const created=await sql`
@@ -133,6 +135,7 @@ async function signup(req,res,sql){
   const token=crypto.randomBytes(32).toString('base64url');
   await sql`INSERT INTO captain_sessions(token_hash,captain_user_id,expires_at) VALUES (${hashToken(token)},${user.id},now()+interval '7 days')`;
   setSessionCookie(res,token);
+  log('created','workspace-created');
   return res.status(201).json({
     ok:true,teamSlug:workspace.slug,teamUrl:`/team/${workspace.slug}`,captainUrl:`/captain/${workspace.slug}`,
     user:{email:user.email,displayName:user.display_name}
