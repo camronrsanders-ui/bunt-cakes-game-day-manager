@@ -312,15 +312,13 @@ async function sendAllAttendanceReminders(sql){
 }
 
 function sendManifest(res, row) {
-  const state=row.state||{},team = teamConfig(state),slug=row.slug;
-  const name = team.name ? `${team.name} Game Day Manager` : 'Team Game Day Manager';
-  const shortName = team.shortName || team.name || 'Game Day';
+  const slug=row.slug;
   res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
   return res.status(200).json({
-    id:`/team/${slug}`,name,short_name:shortName.slice(0,30),start_url:`/team/${slug}`,scope:'/',display:'standalone',
-    background_color:team.accentColor||'#f7fff8',theme_color:team.primaryColor||'#15803d',
-    icons:[{src:`/api/team-state?team=${encodeURIComponent(slug)}&logo=1`,sizes:'any',purpose:'any maskable'}]
+    id:`/team/${slug}`,name:'FeildHaus',short_name:'FeildHaus',start_url:`/team/${slug}`,scope:'/',display:'standalone',
+    background_color:'#071926',theme_color:'#071926',
+    icons:[{src:'/feildhaus-mark.svg',sizes:'any',type:'image/svg+xml',purpose:'any maskable'}]
   });
 }
 
