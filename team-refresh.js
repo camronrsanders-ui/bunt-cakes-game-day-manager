@@ -50,7 +50,7 @@
       if(changed){state=incoming;state.playerAccess=nextAccess;const n=Number(state.gameInning||state.fieldInning||1);state.gameInning=n;state.fieldInning=n;canonicalizePlayer(nextAccess);if(typeof render==='function')render();window.dispatchEvent(new Event('buntpreferrednamesrefresh'));window.dispatchEvent(new CustomEvent('teamlivestatechange',{detail:{updatedAt:j.updatedAt||null}}));lastVersion=version;lastStateFingerprint=fingerprint;}
       else if(state){state.playerAccess=nextAccess;canonicalizePlayer(nextAccess);lastStateFingerprint=fingerprint;}
       if(accessChanged)window.dispatchEvent(new Event('teamplayeraccesschange'));if(error)error.classList.add('hidden');showLiveCheck(j.updatedAt,manual?'Refreshed':'Live');if(manual)showManualDone();
-    }catch(e){if(e&&e.name==='AbortError')return;if(manual){if(error){error.textContent=e.message||'Could not refresh live team data';error.classList.remove('hidden');}if(updated)updated.textContent='Refresh failed';btn.disabled=false;btn.textContent='Try again';}}
+    }catch(e){if(e&&e.name==='AbortError')return;const message=e&&e.message||'Could not refresh live team data';if(error){error.textContent=message;error.classList.remove('hidden');}if(updated)updated.textContent='Live update failed';if(manual){btn.disabled=false;btn.textContent='Try again';}}
     finally{if(requestId===activeRequest)activeController=null;}
   }
   btn.onclick=()=>refreshLiveTeam(true);window.teamGameDayRefresh=()=>refreshLiveTeam(true);window.buntCakesRefresh=window.teamGameDayRefresh;
