@@ -1,6 +1,7 @@
 (function(){
   const TOKEN_RE=/^[A-Za-z0-9_-]{43}$/;
   const SUCCESS_KEY=window.__teamStorageKey?window.__teamStorageKey('playerPairSuccess'):'teamgameday:playerPairSuccess';
+  const PENDING_KEY=window.__teamStorageKey?window.__teamStorageKey('playerPairPending'):'teamgameday:playerPairPending';
   const PLAYER_KEY=window.__teamStorageKey?window.__teamStorageKey('playerName'):'teamgameday:playerName';
   const FAILURE='This player setup link is invalid or expired. Ask your captain for a new setup link.';
 
@@ -54,6 +55,7 @@
   const rawToken=params.get('pair');
   if(rawToken===null)return;
 
+  try{sessionStorage.setItem(PENDING_KEY,rawToken);}catch(_){}
   try{
     history.replaceState(history.state,'',location.pathname+location.search);
   }catch(_){
@@ -75,7 +77,7 @@
     if(!response.ok||!data||data.paired!==true||typeof data.playerName!=='string'||!data.playerName.trim())throw new Error('PAIR_FAILED');
     const playerName=data.playerName.trim();
     try{localStorage.setItem(PLAYER_KEY,playerName);}catch(_){}
-    try{sessionStorage.setItem(SUCCESS_KEY,playerName);}catch(_){}
+    try{sessionStorage.setItem(SUCCESS_KEY,playerName);sessionStorage.removeItem(PENDING_KEY);}catch(_){}
     const next=new URL(location.href);
     next.hash='';
     next.searchParams.set('player',playerName);
