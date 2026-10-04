@@ -246,8 +246,11 @@
   async function saveLive(message){
     if(saving)return false;saving=true;renderButtons();
     try{
-      if(typeof queueSave==='function')queueSave();
+      // Save the exact fielding snapshot through the live-sync queue. Calling
+      // queueSave() and saveNow() back-to-back can race the initial server prime
+      // and replace this freshly-built lineup with the older remote snapshot.
       if(typeof window.buntCakesSaveNow==='function')await window.buntCakesSaveNow();
+      else if(typeof queueSave==='function'){queueSave();await new Promise(resolve=>setTimeout(resolve,500));}
       else await new Promise(resolve=>setTimeout(resolve,500));
       dirty=false;setStatus(message||'Saved live. Players will receive the update automatically.');return true;
     }catch(e){setStatus('Save failed: '+(e?.message||'try again'),true);return false;}
