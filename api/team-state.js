@@ -457,6 +457,17 @@ module.exports = async function handler(req, res) {
       const state=row.state||{};
       const action=String(req.body&&req.body.action||'access');
 
+      if(action==='publish-fielding'){
+        const user=await requireTeamCaptain(req,res,teamSlug);if(!user)return;
+        const incomingInnings=req.body&&req.body.innings&&typeof req.body.innings==='object'?req.body.innings:{};
+        const incomingSwitches=req.body&&req.body.fieldSwitches&&typeof req.body.fieldSwitches==='object'?req.body.fieldSwitches:{};
+        const occupied=Object.values(incomingInnings).reduce((n,inning)=>n+Object.values(inning||{}).filter(Boolean).length,0);
+        if(!occupied)return res.status(400).json({error:'Fielding lineup is empty; nothing was published.'});
+        const next={...state,innings:incomingInnings,fieldSwitches:incomingSwitches,pods:[]};
+        const updated=await sql`UPDATE team_states SET state=${JSON.stringify(next)}::jsonb,updated_at=now() WHERE team_id=${row.id} RETURNING updated_at`;
+        return res.status(200).json({ok:true,occupied,updatedAt:updated[0]&&updated[0].updated_at||new Date().toISOString()});
+      }
+
       if(action==='pilot-feedback'){
         const category=String(req.body&&req.body.category||'').trim().toLowerCase();
         const allowed=new Set(['bug','confusing','idea','love']);
