@@ -149,7 +149,7 @@
       assignAuto(cfg.positions[best.pos],best.player.name);
       pool=pool.filter(p=>p.name!==best.player.name);
     }
-    cfg.updatedAt=new Date().toISOString();dirty=true;render();
+    cfg.updatedAt=new Date().toISOString();dirty=true;state.innings=buildInnings();state.pods=[];render();scheduleLivePublish();
     setStatus(pool.length
       ?`Auto Assign placed everyone it could. ${pool.length} active player${pool.length===1?' is':'s are'} still unassigned; use + Add player or a custom game player, then tap Update live.`
       :'Draft rebuilt from current RSVPs and field preferences. Review the position rotations, then tap Update live.');
@@ -172,7 +172,8 @@
     const name=canonical(value);
     if(name)clearPlayerFromConfig(name,pos,index);
     pair.slots[index]={name,manual:!!manual,custom:!!custom};
-    syncLegacy(pair);dirty=true;render();
+    syncLegacy(pair);dirty=true;state.innings=buildInnings();state.pods=[];render();
+    scheduleLivePublish();
   }
   function chooseSlot(pos,index,value){
     const cfg=config(true);if(!cfg)return;const pair=cfg.positions[pos];if(!pair)return;
@@ -180,17 +181,17 @@
       while(pair.slots.length<=index&&pair.slots.length<MAX_SLOTS)pair.slots.push(blankSlot());
       const existing=pair.slots[index]||blankSlot();
       pair.slots[index]={name:existing.custom?existing.name:'',manual:true,custom:true};
-      syncLegacy(pair);dirty=true;render();return;
+      syncLegacy(pair);dirty=true;state.innings=buildInnings();state.pods=[];render();scheduleLivePublish();return;
     }
     setSlot(pos,index,value,{custom:false,manual:true});
   }
   function addSlot(pos){
     const cfg=config(true),pair=cfg?.positions?.[pos];if(!pair||pair.slots.length>=MAX_SLOTS)return;
-    pair.slots.push(blankSlot());syncLegacy(pair);dirty=true;render();setStatus(`Added Player ${pair.slots.length} to ${pos}.`);
+    pair.slots.push(blankSlot());syncLegacy(pair);dirty=true;state.innings=buildInnings();state.pods=[];render();scheduleLivePublish();setStatus(`Added Player ${pair.slots.length} to ${pos}.`);
   }
   function removeSlot(pos,index){
     const cfg=config(true),pair=cfg?.positions?.[pos];if(!pair||index<2||index>=pair.slots.length)return;
-    pair.slots.splice(index,1);syncLegacy(pair);dirty=true;render();setStatus(`Removed the extra rotation slot from ${pos}.`);
+    pair.slots.splice(index,1);syncLegacy(pair);dirty=true;state.innings=buildInnings();state.pods=[];render();scheduleLivePublish();setStatus(`Removed the extra rotation slot from ${pos}.`);
   }
   function slotEligible(slot){
     const value=clean(slot?.name);if(!value)return false;
@@ -233,6 +234,14 @@
     const activeList=activePlayers(),assigned=assignedKeys();
     const unassigned=activeList.filter(p=>!assigned.has(identityKey(p.name)));
     return{n:activeList.length,placed:assigned.size,unassigned};
+  }
+  let livePublishTimer=null;
+  function scheduleLivePublish(){
+    clearTimeout(livePublishTimer);
+    livePublishTimer=setTimeout(async()=>{
+      if(saving){scheduleLivePublish();return;}
+      await saveLive('Fielding changes are live. Player devices refresh automatically.');
+    },350);
   }
   async function saveLive(message){
     if(saving)return false;saving=true;renderButtons();
