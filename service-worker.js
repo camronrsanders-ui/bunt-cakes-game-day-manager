@@ -1,4 +1,4 @@
-const CACHE='feildhaus-pilot-v5';
+const CACHE='feildhaus-pilot-v6';
 const CORE=['/manifest.webmanifest','/feildhaus-mark.svg','/generic-team-icon.svg'];
 
 self.addEventListener('install',event=>{
@@ -26,28 +26,26 @@ async function networkFirst(request){
   }
 }
 
-async function fastNavigation(request,event){
-  const cache=await caches.open(CACHE);
-  const cached=(await cache.match(request))||(await cache.match(request,{ignoreSearch:true}));
-  if(!cached)return networkFirst(request);
-
-  const network=fetch(request,{cache:'no-store'}).then(async response=>{
+// Navigations are network-first, full stop. The previous design raced the
+// network against a 350ms cached fallback, so on ordinary field connections
+// players and captains routinely ran the PREVIOUS deploy's page shell (most
+// app logic is inline in the HTML) and needed a manual refresh after every
+// fix. The cache is now only an offline fallback.
+async function fastNavigation(request){
+  try{
+    const response=await fetch(request,{cache:'no-store'});
     if(response&&response.ok){
+      const cache=await caches.open(CACHE);
       await cache.put(request,response.clone());
       return response;
     }
-    return cached;
-  }).catch(()=>cached);
-
-  if(event&&typeof event.waitUntil==='function'){
-    event.waitUntil(network.then(()=>undefined).catch(()=>undefined));
+    throw new Error('Navigation failed');
+  }catch(error){
+    const cache=await caches.open(CACHE);
+    const cached=(await cache.match(request))||(await cache.match(request,{ignoreSearch:true}));
+    if(cached)return cached;
+    throw error;
   }
-
-  const quickFallback=new Promise(resolve=>{
-    setTimeout(()=>resolve(cached),350);
-  });
-
-  return Promise.race([network,quickFallback]);
 }
 
 self.addEventListener('push',event=>{
@@ -87,7 +85,7 @@ self.addEventListener('fetch',event=>{
 
   if(request.mode==='navigate'){
     event.respondWith((async()=>{
-      try{return await fastNavigation(request,event)}catch(error){
+      try{return await fastNavigation(request)}catch(error){
         const cache=await caches.open(CACHE);
         const exact=(await cache.match(request))||(await cache.match(request,{ignoreSearch:true}));
         if(exact)return exact;

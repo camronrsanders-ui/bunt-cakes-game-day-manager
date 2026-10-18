@@ -1,6 +1,9 @@
 (()=>{
   const POSITIONS=['Pitcher','Catcher','First Base','Second Base','Third Base','Shortstop','Left Field','Left Center Field','Center Field','Right Center Field','Right Field'];
   const HOME_DEFAULTS={Pitcher:['cam'],Catcher:['cj'],Shortstop:['raff','rafael']};
+  // These defaults are the founding team's own players. They must never seed
+  // another team's lineup just because a roster happens to share the names.
+  const homeDefaultsEnabled=()=>{const slug=String(window.__teamSlug||'');return slug===''||slug==='those-dirty-bunt-cakes';};
   const MAX_SLOTS=4;
   const CUSTOM_VALUE='__custom__';
   let installed=false,saving=false,dirty=false;
@@ -34,6 +37,7 @@
   const sameName=(a,b)=>!!identityKey(a)&&identityKey(a)===identityKey(b);
   const display=value=>rosterPlayer(value)?.fullName||clean(value)||'Open';
   const homePlayer=pos=>{
+    if(!homeDefaultsEnabled())return null;
     const aliases=HOME_DEFAULTS[pos]||[];
     return roster().find(p=>{
       const n=clean(p?.name).toLowerCase(),f=clean(p?.fullName).toLowerCase();
@@ -131,7 +135,7 @@
     cfg.homeDefaultsSeeded=true;
     const reserved=homeNames();
     let pool=activePlayers().filter(p=>!reserved.has(p.name)).sort(byRsvp);
-    const normalPositions=POSITIONS.filter(pos=>!HOME_DEFAULTS[pos]);
+    const normalPositions=homeDefaultsEnabled()?POSITIONS.filter(pos=>!HOME_DEFAULTS[pos]):POSITIONS.slice();
 
     let open=normalPositions.filter(pos=>filledCount(cfg.positions[pos])===0);
     while(pool.length&&open.length){
@@ -151,8 +155,8 @@
     }
     cfg.updatedAt=new Date().toISOString();dirty=true;state.innings=buildInnings();state.pods=[];render();scheduleLivePublish();
     setStatus(pool.length
-      ?`Auto Assign placed everyone it could. ${pool.length} active player${pool.length===1?' is':'s are'} still unassigned; use + Add player or a custom game player, then tap Update live.`
-      :'Draft rebuilt from current RSVPs and field preferences. Review the position rotations, then tap Update live.');
+      ?`Auto Assign placed everyone it could. ${pool.length} active player${pool.length===1?' is':'s are'} still unassigned; use + Add player or a custom game player. Changes publish automatically.`
+      :'Rotation rebuilt from current RSVPs and field preferences. Changes are live automatically — players refresh on their own.');
   }
   function allSlotRefs(){
     const cfg=config(true);if(!cfg)return[];
@@ -249,6 +253,9 @@
       const response=await fetch('/api/team-state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'publish-fielding',innings:state.innings,fieldSwitches:state.fieldSwitches||{},fieldSwitchInningOverrides:state.fieldSwitchInningOverrides||{}})});
       const result=await response.json().catch(()=>({}));
       if(!response.ok)throw new Error(result.error||'Could not publish fielding lineup');
+      // Tell the full-state sync what version this publish created, so the
+      // next unrelated save does not conflict with the captain's own publish.
+      if(result.updatedAt&&typeof window.__buntNoteExternalVersion==='function')window.__buntNoteExternalVersion(result.updatedAt);
       else await new Promise(resolve=>setTimeout(resolve,500));
       dirty=false;setStatus(message||'Saved live. Players will receive the update automatically.');return true;
     }catch(e){setStatus('Save failed: '+(e?.message||'try again'),true);return false;}
@@ -296,7 +303,7 @@
   }
   function statusLineFor(pos){
     const pair=normalizePosition(config(false)?.positions?.[pos]||blankPosition()),names=pair.slots.map(s=>clean(s.name)).filter(Boolean),home=homePlayer(pos);
-    const homeText=HOME_DEFAULTS[pos]?`Home default: ${display(home?.name||HOME_DEFAULTS[pos][0])}. `:'';
+    const homeText=home?`Home default: ${display(home.name)}. `:'';
     if(!names.length)return `${homeText}Open position.`;
     if(names.length===1)return `${homeText}${display(names[0])} fields every inning.`;
     return `${homeText}Rotation: ${names.map(display).join(' → ')} → repeat.`;
@@ -311,8 +318,9 @@
   }
   function renderPositions(){
     const box=document.getElementById('switchPositions');if(!box)return;const cfg=config(true);
+    if(!cfg){box.innerHTML='<div class="card"><strong>Fielding</strong><div class="muted">No upcoming game is posted yet. Sync or add the next game first; then Fielding will use that game\u2019s RSVPs and rotation assignments.</div></div>';return;}
     box.innerHTML=POSITIONS.map(pos=>{
-      const pair=normalizePosition(cfg.positions[pos]),home=!!HOME_DEFAULTS[pos];
+      const pair=normalizePosition(cfg.positions[pos]),home=!!homePlayer(pos);
       const slots=pair.slots.map((slot,index)=>{
         const current=clean(slot.name),custom=!!slot.custom||(current&&!rosterPlayer(current));
         return `<div class="switch-slot-row"><label class="switch-slot-label">Player ${index+1}<select data-pos="${esc(pos)}" data-index="${index}">${playerOptions(current,false)}</select></label>${custom?`<label class="switch-custom-label">Game-only name<input type="search" data-custom-pos="${esc(pos)}" data-custom-index="${index}" value="${esc(current)}" placeholder="Type player name" autocomplete="off" autocapitalize="words" spellcheck="true"></label>`:''}${index>=2?`<button type="button" class="switch-remove-slot" data-remove-pos="${esc(pos)}" data-remove-index="${index}" aria-label="Remove Player ${index+1}">Remove</button>`:''}</div>`;
@@ -376,7 +384,7 @@
       const names=normalizePosition(config(false)?.positions?.[pos]||blankPosition()).slots.slice(2).map(s=>clean(s.name)).filter(Boolean).map(display);
       return names.length?`${pos}: ${names.join(' / ')}`:'';
     }).filter(Boolean);
-    box.innerHTML=`<div class="assignment-map-heading"><div><strong>Field layout</strong><div class="muted">${dirty?'Draft preview • tap Update live to share':'Assigned positions'}${same?' • same lineup across both layouts':''}</div></div></div><div class="assignment-map-grid">${renderFieldMap(lines[0],'Layout 1')}${renderFieldMap(lines[1],'Layout 2')}</div>${extras.length?`<div class="assignment-map-extra"><strong>Additional rotation slots</strong><span>${esc(extras.join(' • '))}</span></div>`:''}<div class="assignment-map-note">Layout 1 and Layout 2 show the first two rotation slots. Additional slots continue in later innings; field depth is schematic.</div>`;
+    box.innerHTML=`<div class="assignment-map-heading"><div><strong>Field layout</strong><div class="muted">${dirty?'Live preview • changes publish automatically':'Assigned positions'}${same?' • same lineup across both layouts':''}</div></div></div><div class="assignment-map-grid">${renderFieldMap(lines[0],'Layout 1')}${renderFieldMap(lines[1],'Layout 2')}</div>${extras.length?`<div class="assignment-map-extra"><strong>Additional rotation slots</strong><span>${esc(extras.join(' • '))}</span></div>`:''}<div class="assignment-map-note">Layout 1 and Layout 2 show the first two rotation slots. Additional slots continue in later innings; field depth is schematic.</div>`;
   }
   function renderButtons(){
     renderFieldDiagram();
@@ -393,14 +401,14 @@
   function mount(){
     const section=document.getElementById('pods');if(!section||!state)return false;ensureStyles();const tab=document.querySelector('[data-tab="pods"]');if(tab)tab.textContent='Fielding';
     config(true);
-    section.innerHTML=`<div class="card switch-hero"><h2 style="margin:.2rem 0">Fielding</h2><div id="switchRules"></div><div class="switch-actions"><button id="switchAuto">Auto assign from RSVPs</button><button id="switchPublish" class="primary">Update live</button></div><div id="switchStatus" class="switch-status">${dirty?'Unsaved fielding changes.':'Ready.'}</div></div><div id="captainAssignmentDiagram" class="card"></div><div id="switchQuick" class="card switch-quick"></div><div id="switchPositions" class="switch-grid"></div>`;
+    section.innerHTML=`<div class="card switch-hero"><h2 style="margin:.2rem 0">Fielding</h2><div id="switchRules"></div><div class="switch-actions"><button id="switchAuto">Auto assign from RSVPs</button><button id="switchPublish" class="primary">Update live</button></div><div id="switchStatus" class="switch-status">${dirty?'Publishing…':'Ready. Changes publish automatically.'}</div></div><div id="captainAssignmentDiagram" class="card"></div><div id="switchQuick" class="card switch-quick"></div><div id="switchPositions" class="switch-grid"></div>`;
     document.getElementById('switchAuto').onclick=autoAssign;document.getElementById('switchPublish').onclick=publish;renderRules();renderQuick();renderPositions();renderButtons();return true;
   }
   function render(){if(!document.getElementById('pods'))return;mount();}
   function install(){
     if(installed)return;if(typeof state==='undefined'||!state||!document.getElementById('pods')){setTimeout(install,150);return;}installed=true;mount();
     window.addEventListener('buntpreferrednamesrefresh',()=>{if(!document.querySelector('#pods input:focus,#pods select:focus'))render();});
-    window.addEventListener('buntgamedayeligibilitychange',()=>{dirty=true;render();setStatus('Attendance changed. Auto Assign can rebuild from RSVPs, or keep your manual Captain setup and tap Update live.');});
+    window.addEventListener('buntgamedayeligibilitychange',()=>{dirty=true;render();setStatus('Attendance changed. Auto Assign can rebuild from RSVPs, or keep your manual Captain setup — changes publish automatically.');});
     window.addEventListener('pageshow',render);
   }
   window.BuntPositionSwitches={autoAssign,publish,buildInnings,render};install();

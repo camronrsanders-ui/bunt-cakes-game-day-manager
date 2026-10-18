@@ -34,7 +34,7 @@ assert.ok(!box.innerHTML.includes('<select'));
 context.dirty=true;
 vm.runInContext('renderFieldDiagram()',context);
 assert.ok(box.innerHTML.includes('Draft &lt;Player&gt;'));
-assert.ok(box.innerHTML.includes('Draft preview'));
+assert.ok(box.innerHTML.includes('Live preview'));
 assert.equal((box.innerHTML.match(/class="assignment-marker/g)||[]).length,22);
 assert.equal(context.spots.length,11);
 assert.equal(new Set(context.spots.map(p=>p[0])).size,11);

@@ -787,6 +787,11 @@ module.exports = async function handler(req, res) {
       const preservedPushSubscriptions=JSON.stringify(identity.pushSubscriptions);
       const expectedUpdatedAt=String(req.body&&req.body.expectedUpdatedAt||'').trim();
       if(expectedUpdatedAt&&Number.isNaN(Date.parse(expectedUpdatedAt)))return res.status(400).json({error:'The expected team-state version is invalid'});
+      // A full-state save without a version is an unconditional overwrite of
+      // every section at once. The live Captain client always sends one; a
+      // client that cannot name the version it based its edit on must reload
+      // instead of clobbering concurrent player and captain updates.
+      if(!expectedUpdatedAt)return res.status(409).json({error:'This save is missing its version check. Reload the Captain page and try again.',code:'VERSION_REQUIRED',conflict:true});
       const payload=JSON.stringify(next);if(payload.length>1000000)return res.status(413).json({error:'Team state is too large'});
       let rows;
       if(expectedUpdatedAt){

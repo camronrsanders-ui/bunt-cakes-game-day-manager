@@ -70,7 +70,7 @@
     const remove=$id('removeTeamLogo');if(remove)remove.onclick=()=>{t.logoDataUrl='';t.logoUrl='';applyBrand(t);queueSave();renderLogoPreview()};
     document.querySelectorAll('[data-player-visibility]').forEach(cb=>{const key=cb.dataset.playerVisibility;cb.checked=state.playerVisibility[key]!==false;cb.onchange=()=>{state.playerVisibility[key]=cb.checked;queueSave()}});
     const add=$id('addTeamResource');if(add)add.onclick=()=>{state.resources.push({title:'',description:'',url:''});renderResources();queueSave()};
-    const save=$id('saveTeamSettings');if(save)save.onclick=()=>{queueSave();save.textContent='Saved';setTimeout(()=>save.textContent='Save team settings',900)};
+    const save=$id('saveTeamSettings');if(save)save.onclick=async()=>{save.disabled=true;save.textContent='Saving…';try{if(typeof window.buntCakesSaveNow==='function')await window.buntCakesSaveNow();else if(typeof queueSave==='function')queueSave();save.textContent='Saved';setTimeout(()=>{save.textContent='Save team settings'},1200)}catch(_){save.textContent='Not saved — tap to retry'}finally{save.disabled=false}};
     renderResources();renderLogoPreview();renderSettingsSummary();
   }
   function renderLogoPreview(){const t=team(),img=$id('teamLogoPreview');if(img)img.src=logoSrc(t)}
