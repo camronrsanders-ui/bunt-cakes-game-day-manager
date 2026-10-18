@@ -64,6 +64,7 @@
     const backupUmpires=roster.filter(p=>isUmpire(p)&&p.officiatingBackupOnly);
     const lineRefs=roster.filter(p=>!isUmpire(p));
     if(!activeUmpires.length&&!backupUmpires.length){alert('Add the Umpire role to at least one player first.');return;}
+    if(!confirm('Rebuild the officiating rotation for '+events.length+' officiating assignment(s)? Assignments whose player is unavailable or ineligible will be cleared, and open slots will be auto-filled by fairness counts. This saves live right away.'))return;
     let changed=0;
     events.forEach(e=>{
       if(e.umpire&&!isAvailable(e.umpire,e.date)){e.umpire='';changed++;}
