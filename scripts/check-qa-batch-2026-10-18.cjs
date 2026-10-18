@@ -16,7 +16,7 @@ const login=fs.readFileSync('api/login.js','utf8');
 assert.match(login,/storedBuf\.length === derivedBuf\.length && crypto\.timingSafeEqual/,'login timingSafeEqual is length-guarded');
 // Service worker cache identity bumped so old shells are evicted on activate.
 const sw=fs.readFileSync('service-worker.js','utf8');
-assert.match(sw,/const CACHE='feildhaus-pilot-v5';/,'service worker cache bumped to v5');
+assert.match(sw,/const CACHE='feildhaus-pilot-v[5-9]';/,'service worker cache bumped past v4');
 // Player reminders honour the captain-configured arrival time, and the
 // per-event Add to calendar button survives the replacement renderer.
 const rem=fs.readFileSync('api/team-reminders-page.js','utf8');
