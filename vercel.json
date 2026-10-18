@@ -9,6 +9,32 @@
       "source": "/apple-touch-icon.png",
       "destination": "/feildhaus-mark.svg",
       "permanent": false
+    },
+    {
+      "source": "/index.html",
+      "destination": "/start",
+      "permanent": false
+    },
+    {
+      "source": "/team.html",
+      "destination": "/team",
+      "permanent": false
+    },
+    {
+      "source": "/captain.html",
+      "destination": "/captain",
+      "permanent": false
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "same-origin" },
+        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
+        { "key": "Content-Security-Policy", "value": "frame-ancestors 'self'" }
+      ]
     }
   ],
   "rewrites": [
@@ -68,11 +94,7 @@
   "crons": [
     {
       "path": "/api/team-state",
-      "schedule": "0 22 * * *"
-    },
-    {
-      "path": "/api/team-state",
-      "schedule": "0 23 * * *"
+      "schedule": "0 * * * *"
     }
   ]
 }
