@@ -461,10 +461,32 @@ module.exports = async function handler(req, res) {
         const user=await requireTeamCaptain(req,res,teamSlug);if(!user)return;
         const incomingInnings=req.body&&req.body.innings&&typeof req.body.innings==='object'?req.body.innings:{};
         const incomingSwitches=req.body&&req.body.fieldSwitches&&typeof req.body.fieldSwitches==='object'?req.body.fieldSwitches:{};
+        // Quick-move inning overrides must be published too: without them the
+        // server kept the stale overrides, so the next buildInnings() on any
+        // Captain device regenerated the pre-quick-move lineup. When the
+        // client does not send them, preserve what is already stored.
+        const hasIncomingOverrides=!!(req.body&&req.body.fieldSwitchInningOverrides&&typeof req.body.fieldSwitchInningOverrides==='object');
+        const incomingOverrides=hasIncomingOverrides?req.body.fieldSwitchInningOverrides:(state.fieldSwitchInningOverrides||{});
         const occupied=Object.values(incomingInnings).reduce((n,inning)=>n+Object.values(inning||{}).filter(Boolean).length,0);
         if(!occupied)return res.status(400).json({error:'Fielding lineup is empty; nothing was published.'});
-        const next={...state,innings:incomingInnings,fieldSwitches:incomingSwitches,pods:[]};
-        const updated=await sql`UPDATE team_states SET state=${JSON.stringify(next)}::jsonb,updated_at=now() WHERE team_id=${row.id} RETURNING updated_at`;
+        // Atomic field-by-field update of the CURRENT stored document.
+        // The previous version rewrote the whole state document from the
+        // snapshot loaded at the start of this request, so any player
+        // update (attendance, check-in, push subscription) that landed in
+        // between was silently wiped — and vice versa on the next save.
+        const inningsPayload=JSON.stringify(incomingInnings);
+        const switchesPayload=JSON.stringify(incomingSwitches);
+        const overridesPayload=JSON.stringify(incomingOverrides);
+        const updated=await sql`
+          UPDATE team_states SET state=jsonb_set(
+            jsonb_set(
+              jsonb_set(
+                jsonb_set(state,'{innings}',${inningsPayload}::jsonb,true),
+                '{fieldSwitches}',${switchesPayload}::jsonb,true),
+              '{fieldSwitchInningOverrides}',${overridesPayload}::jsonb,true),
+            '{pods}','[]'::jsonb,true),
+            updated_at=now()
+          WHERE team_id=${row.id} RETURNING updated_at`;
         return res.status(200).json({ok:true,occupied,updatedAt:updated[0]&&updated[0].updated_at||new Date().toISOString()});
       }
 
