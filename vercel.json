@@ -14,16 +14,6 @@
       "source": "/index.html",
       "destination": "/start",
       "permanent": false
-    },
-    {
-      "source": "/team.html",
-      "destination": "/team",
-      "permanent": false
-    },
-    {
-      "source": "/captain.html",
-      "destination": "/captain",
-      "permanent": false
     }
   ],
   "headers": [

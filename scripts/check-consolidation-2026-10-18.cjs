@@ -65,10 +65,10 @@ assert.ok(!sw.includes('quickFallback'),'the stale-shell race is gone');
 
 // Platform config.
 const vercel=JSON.parse(read('vercel.json'));
-assert.equal(vercel.crons.length,1,'one cron entry');
-assert.equal(vercel.crons[0].schedule,'0 * * * *','reminders cron runs hourly for every timezone');
+assert.ok(vercel.crons.every(c=>/^0 \d{1,2} \* \* \*$/.test(c.schedule)),'cron entries stay within daily plan limits (hourly failed the Vercel build)');
 const sources=vercel.redirects.map(r=>r.source);
-for(const p of ['/index.html','/team.html','/captain.html'])assert.ok(sources.includes(p),'legacy redirect '+p);
+assert.ok(sources.includes('/index.html'),'legacy redirect /index.html');
+assert.ok(!sources.includes('/team.html')&&!sources.includes('/captain.html'),'team/captain .html must NOT redirect: the page handlers fetch those files internally');
 assert.ok(JSON.stringify(vercel.headers).includes('frame-ancestors'),'frame protection header set');
 
 // Dead code: never-loaded modules are gone so audits stop reading them as live.
