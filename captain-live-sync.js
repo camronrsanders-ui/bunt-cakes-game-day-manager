@@ -306,6 +306,15 @@
 
     window.__buntCaptainLiveSyncBusy=()=>saving||!!pending;
 
+    // Fielding publishes (captain-position-switches saveLive) create a new
+    // server version outside this save queue. Recording it here stops the
+    // next unrelated save from conflicting with the captain's own publish.
+    window.__buntNoteExternalVersion=v=>{
+      if(!v)return;
+      lastServerVersion=String(v);
+      try{lastSyncedState=clone(snapshot());}catch(_){}
+    };
+
     async function syncExternalChanges(){
       if(!state||saving||pending||document.hidden||interactionBusy())return;
       try{
