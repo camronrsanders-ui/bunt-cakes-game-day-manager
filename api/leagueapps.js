@@ -134,8 +134,15 @@ function parseCalendar(text) {
   return events.filter(e => e.date).sort((a,b) => `${a.date}T${a.time || '00:00'}`.localeCompare(`${b.date}T${b.time || '00:00'}`));
 }
 
+const { getCaptain } = require('./_auth');
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+  // This proxies one person's LeagueApps schedule (including unpublished
+  // items). It backs the Captain "Sync LeagueApps" button, which calls it
+  // with the captain session cookie — nobody else needs it.
+  const captain = await getCaptain(req).catch(() => null);
+  if (!captain) return res.status(401).json({ error: 'Captain sign-in required' });
   const range = defaultRange();
   const start = typeof req.query.start === 'string' ? req.query.start : range.start;
   const end = typeof req.query.end === 'string' ? req.query.end : range.end;
