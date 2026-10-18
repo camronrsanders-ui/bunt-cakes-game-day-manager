@@ -13,7 +13,9 @@ module.exports = async function handler(req, res) {
     const user = rows[0];
     if (!user || !user.active) return res.status(401).json({ error: 'Invalid login' });
     const derived = crypto.pbkdf2Sync(String(password), user.password_salt, 120000, 32, 'sha256').toString('hex');
-    const ok = crypto.timingSafeEqual(Buffer.from(derived,'hex'), Buffer.from(user.password_hash,'hex'));
+    const derivedBuf = Buffer.from(derived,'hex');
+    const storedBuf = Buffer.from(String(user.password_hash || ''),'hex');
+    const ok = storedBuf.length === derivedBuf.length && crypto.timingSafeEqual(derivedBuf, storedBuf);
     if (!ok) return res.status(401).json({ error: 'Invalid login' });
 
     const token = crypto.randomBytes(32).toString('base64url');
