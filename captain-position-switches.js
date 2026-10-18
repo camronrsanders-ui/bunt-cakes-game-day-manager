@@ -246,7 +246,7 @@
   async function saveLive(message){
     if(saving)return false;saving=true;renderButtons();
     try{
-      const response=await fetch('/api/team-state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'publish-fielding',innings:state.innings,fieldSwitches:state.fieldSwitches||{}})});
+      const response=await fetch('/api/team-state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'publish-fielding',innings:state.innings,fieldSwitches:state.fieldSwitches||{},fieldSwitchInningOverrides:state.fieldSwitchInningOverrides||{}})});
       const result=await response.json().catch(()=>({}));
       if(!response.ok)throw new Error(result.error||'Could not publish fielding lineup');
       else await new Promise(resolve=>setTimeout(resolve,500));
