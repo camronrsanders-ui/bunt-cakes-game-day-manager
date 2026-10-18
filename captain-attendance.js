@@ -102,15 +102,24 @@
     }finally{eligibilitySaving=false;}
   }
 
-  function pruneInactiveFromInnings(date=target()){
-    if(!state?.innings)return false;
-    const active=new Set((state.players||[]).filter(p=>p&&p.name&&activeFor(p.name,date)).map(p=>p.name));
+  // Fielding assignments are Captain-controlled (the server rejects player
+  // edits to them for the same reason). Attendance sync must NEVER rewrite
+  // state.innings: this module re-syncs automatically on every poll and
+  // every live-refresh event, so pruning "inactive" names here silently
+  // deleted the Captain's published lineup seconds after it was published —
+  // every manual pick of a player who had not RSVP'd Yes, and every
+  // game-only/custom player (who is not on the roster at all), was wiped
+  // from all seven innings and then saved back over the published state.
+  // Eligibility sync only updates who counts as present/active. The one
+  // exception is an explicit Captain action on one player (below).
+  function removePlayerFromInnings(playerName){
+    if(!state?.innings||!playerName)return false;
     let changed=false;
     Object.values(state.innings).forEach(inn=>{
       if(!inn||typeof inn!=='object')return;
-      Object.keys(inn).forEach(pos=>{if(inn[pos]&&!active.has(inn[pos])){inn[pos]='';changed=true;}});
+      Object.keys(inn).forEach(pos=>{if(inn[pos]===playerName){inn[pos]='';changed=true;}});
     });
-    if(state.currentKicker&&!active.has(state.currentKicker)){state.currentKicker='';changed=true;}
+    if(state.currentKicker===playerName){state.currentKicker='';changed=true;}
     return changed;
   }
   function syncEligibility(date=target(),save=true){
@@ -121,7 +130,6 @@
       const next=activeFor(p.name,date);
       if(p.present!==next){p.present=next;changed++;}
     });
-    if(pruneInactiveFromInnings(date))changed++;
     if(changed&&save)scheduleEligibilitySave(date);
     if(changed){
       if(typeof renderKicking==='function')renderKicking();
@@ -136,7 +144,9 @@
     if(!date){const player=state.players.find(p=>p.name===playerName);if(player){player.present=!!present;queueSave();renderRoster();}return;}
     const o=overridesFor(date,true);o[playerName]=!!present;
     const player=(state.players||[]).find(p=>p&&p.name===playerName);if(player)player.present=!!present;
-    pruneInactiveFromInnings(date);
+    // Explicit Captain action on this one player only: marking them absent
+    // removes just them from the field. Nobody else's assignment is touched.
+    if(!present)removePlayerFromInnings(playerName);
     scheduleEligibilitySave(date);
     if(typeof renderRoster==='function')renderRoster();
     if(typeof renderLineup==='function')renderLineup();
