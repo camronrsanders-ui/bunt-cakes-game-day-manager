@@ -30,10 +30,22 @@
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "Referrer-Policy", "value": "same-origin" },
-        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
-        { "key": "Content-Security-Policy", "value": "frame-ancestors 'self'" }
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "same-origin"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "frame-ancestors 'self'"
+        }
       ]
     }
   ],
@@ -94,7 +106,11 @@
   "crons": [
     {
       "path": "/api/team-state",
-      "schedule": "0 * * * *"
+      "schedule": "0 22 * * *"
+    },
+    {
+      "path": "/api/team-state",
+      "schedule": "0 23 * * *"
     }
   ]
 }
