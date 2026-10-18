@@ -208,7 +208,14 @@ async function createCaptainPasswordReset(req,res,sql){
   if(owner.role!=='owner')return res.status(403).json({error:'Only the team owner can create a Captain password reset'});
   const email=String(req.body&&req.body.email||'').trim().toLowerCase();
   if(!email)return res.status(400).json({error:'Enter the Captain email first'});
-  const users=await sql`SELECT id,email,display_name FROM captain_users WHERE lower(email)=lower(${email}) AND active=true LIMIT 1`;
+  // The reset target must be an active member of the OWNER'S OWN team.
+  // Without this scope, any team owner could issue a reset for any Captain
+  // account (including the platform admin) and take over its global password.
+  const users=await sql`
+    SELECT u.id,u.email,u.display_name FROM captain_users u
+    JOIN captain_team_memberships m ON m.captain_user_id=u.id AND m.team_id=${owner.team_id} AND m.active=true
+    WHERE lower(u.email)=lower(${email}) AND u.active=true LIMIT 1
+  `;
   if(!users.length)return res.status(404).json({error:'No Captain account was found with that email'});
   const target=users[0],playerId='__captain_password_reset__:'+target.id;
   const raw=crypto.randomBytes(32).toString('base64url'),tokenHash=hashToken(raw);
