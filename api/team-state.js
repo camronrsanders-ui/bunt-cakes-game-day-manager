@@ -138,6 +138,7 @@ function publicAvailability(state, playerName) {
     out[date] = {
       [playerName]: {
         status: answer.status,
+        note: answer.note || '',
         respondedAt: answer.respondedAt || null
       }
     };
@@ -153,11 +154,20 @@ function publicState(value, playerName = '') {
     fullName: p && p.fullName || '',
     present: !(p && p.present === false)
   })).filter(p => p.name);
+  // Callers with an authenticated player identity (paired device or captain
+  // login) may see the team chat invite and captain alert metadata. Anonymous
+  // visitors who merely know the team slug must not: slugs are printed on
+  // shared links and QR codes, and the WhatsApp invite grants group access.
+  const authed = !!playerName;
+  const team = teamConfig(raw);
+  if (!authed) team.chatUrl = '';
+  const resources = (Array.isArray(raw.resources) ? raw.resources : [])
+    .filter(r => authed || !/chat\.whatsapp\.com/i.test(String(r && r.url || '')));
 
   return {
-    team: teamConfig(raw),
+    team,
     playerVisibility: raw.playerVisibility || {},
-    resources: Array.isArray(raw.resources) ? raw.resources : [],
+    resources,
     players,
     innings: raw.innings || {},
     pods: Array.isArray(raw.pods) ? raw.pods : [],
@@ -171,9 +181,10 @@ function publicState(value, playerName = '') {
     half: raw.half || '',
     events: Array.isArray(raw.events) ? raw.events : [],
     season: raw.season || {},
+    gameResults: Array.isArray(raw.gameResults) ? raw.gameResults : [],
     lastLeagueSync: raw.lastLeagueSync || null,
     availability: publicAvailability(raw, playerName),
-    captainAlerts: Array.isArray(raw._captainAlerts)?raw._captainAlerts.slice(-10):[]
+    captainAlerts: authed && Array.isArray(raw._captainAlerts)?raw._captainAlerts.slice(-10):[]
   };
 }
 
