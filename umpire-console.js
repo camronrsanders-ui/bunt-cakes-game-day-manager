@@ -43,7 +43,7 @@
   function eventLabel(e){if(!e)return'Officiating game';const d=e.date?new Date(e.date+'T12:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}):'Date TBD';return `${d}${e.time?' • '+time12(e.time):''}${e.location?' • '+e.location:''}`;}
   function teamA(g){return clean(g.teamAName)||'Home';}
   function teamB(g){return clean(g.teamBName)||'Away';}
-  function editingConsole(){if(window.UmpireTrainingGuide?.isOpen())return true;const el=document.activeElement;if(!el||!['INPUT','SELECT','TEXTAREA'].includes(el.tagName))return false;return !!(el.closest('#umpire')||el.closest('#captainUmpireConsole')||el.closest('#rulesCallsOverlay'));}
+  function editingConsole(){if(window.UmpireTrainingGuide?.isOpen())return true;if(document.querySelector('#umpire .utb-setup[open],#captainUmpireConsole .utb-setup[open]'))return true;const el=document.activeElement;if(!el||!['INPUT','SELECT','TEXTAREA'].includes(el.tagName))return false;return !!(el.closest('#umpire')||el.closest('#captainUmpireConsole')||el.closest('#rulesCallsOverlay'));}
 
   function ensureStyles(){
     if(document.getElementById('umpireConsoleStyles'))return;
