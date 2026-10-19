@@ -153,6 +153,8 @@
     }else if(isFinalInning(v)&&v.half==='top'){
       banner.className='utb-banner extra';banner.textContent='Final inning. If Home still leads after this top half, the game ends — no bottom (Rule 4.4).';
     }else{banner.className='utb-banner';banner.textContent='';}
+    var det=el.querySelector('.utb-setup');
+    if(det&&sess.setupOpen&&!det.open)det.open=true;
     var halfBtn=el.querySelector('.utb-half');
     halfBtn.textContent=m.over?'Game over':(v.half==='top'?'End top half →':'End bottom half →');
     halfBtn.disabled=!!m.over;
@@ -179,7 +181,7 @@
     if(!el||!io||!io.eventId)return;
     ensureStyles();
     var sess=sessions[io.eventId];
-    if(!sess){sess={eventId:io.eventId,meta:loadMeta(io.eventId),io:io,el:null,timeUpBuzzed:false};sessions[io.eventId]=sess;}
+    if(!sess){sess={eventId:io.eventId,meta:loadMeta(io.eventId),io:io,el:null,timeUpBuzzed:false,setupOpen:false};sessions[io.eventId]=sess;}
     sess.io=io;
     if(sess.el!==el||!el.querySelector('.utb')){
       sess.el=el;
@@ -203,6 +205,9 @@
       var g0=io.getGame();
       el.querySelector('.utb-name-away').value=g0.teamBName||'';
       el.querySelector('.utb-name-home').value=g0.teamAName||'';
+      // Game setup must survive console re-renders: remember open state.
+      var setupEl=el.querySelector('.utb-setup');
+      if(setupEl){setupEl.open=!!sess.setupOpen;setupEl.addEventListener('toggle',function(){sess.setupOpen=setupEl.open;});}
       el.querySelector('.utb-clockbtn').onclick=function(){
         var mm=sess.meta;if(mm.over)return;
         if(mm.runningSince){mm.elapsedBase=elapsedMs(mm,Date.now());mm.runningSince=0;}else mm.runningSince=Date.now();
