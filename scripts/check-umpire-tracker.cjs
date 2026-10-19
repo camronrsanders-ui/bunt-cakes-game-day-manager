@@ -18,7 +18,7 @@ const tracker = read('umpire-tracker.js');
 const consoleJs = read('umpire-console.js');
 for (const pageFile of ['api/team-page.js', 'api/captain-field-page.js']) {
   const page = read(pageFile);
-  ok(pageFile + ' loads the game bar v3 next to console v6', page.includes('umpire-tracker.js?v=3') && page.includes('umpire-console.js?v=6'));
+  ok(pageFile + ' loads the game bar v4 next to console v7', page.includes('umpire-tracker.js?v=4') && page.includes('umpire-console.js?v=7'));
 }
 
 // --- Unified-console wiring ---
@@ -30,6 +30,8 @@ ok('console count controls remain (balls/strikes/fouls/outs)', consoleJs.include
 ok('bar exposes the mount API and no standalone card', tracker.includes('window.UmpireGameBar') && !tracker.includes('umpire-tracker-card') && !tracker.includes('insertAdjacentElement'));
 ok('bar drives the shared record fields only', tracker.includes('teamBScore') && tracker.includes('teamAScore') && tracker.includes("kickingTeam:'a'") && tracker.includes("kickingTeam:'b'"));
 ok('bar keeps clock meta per officiating slot', tracker.includes("feildhaus-umpire-tracker-v3:'") && tracker.includes('eventId'));
+ok('game setup open state survives console re-renders', tracker.includes('setupOpen') && tracker.includes("addEventListener('toggle'") && tracker.includes('if(det&&sess.setupOpen&&!det.open)det.open=true;'));
+ok('console pauses live refresh while game setup is open', consoleJs.includes("utb-setup[open]") && consoleJs.includes('function editingConsole()'));
 
 // --- Core rules flow (view-based) ---
 const store = {};
