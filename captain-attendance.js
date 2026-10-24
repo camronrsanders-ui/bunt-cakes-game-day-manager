@@ -112,14 +112,44 @@
   // from all seven innings and then saved back over the published state.
   // Eligibility sync only updates who counts as present/active. The one
   // exception is an explicit Captain action on one player (below).
-  function removePlayerFromInnings(playerName){
-    if(!state?.innings||!playerName)return false;
+  function removePlayerFromInnings(playerName,date){
+    if(!playerName)return false;
     let changed=false;
-    Object.values(state.innings).forEach(inn=>{
-      if(!inn||typeof inn!=='object')return;
-      Object.keys(inn).forEach(pos=>{if(inn[pos]===playerName){inn[pos]='';changed=true;}});
-    });
+    if(state?.innings){
+      Object.values(state.innings).forEach(inn=>{
+        if(!inn||typeof inn!=='object')return;
+        Object.keys(inn).forEach(pos=>{if(inn[pos]===playerName){inn[pos]='';changed=true;}});
+      });
+    }
     if(state.currentKicker===playerName){state.currentKicker='';changed=true;}
+    // The published innings are only one of the places this player can come
+    // back from. A saved per-inning override is a full-line snapshot that
+    // buildInnings prefers over the rotation, and this game date's rotation
+    // slots re-derive the innings on the next Captain edit — if the player
+    // survives in either, the next publish quietly resurrects someone the
+    // Captain explicitly marked absent (P0 findings F2/F3, 2026-10-23).
+    // Strip them from both, scoped to this game date.
+    const byDate=state?.fieldSwitchInningOverrides?.[date];
+    if(byDate&&typeof byDate==='object'){
+      Object.values(byDate).forEach(line=>{
+        if(!line||typeof line!=='object')return;
+        Object.keys(line).forEach(pos=>{if(line[pos]===playerName){line[pos]='';changed=true;}});
+      });
+    }
+    const cfg=state?.fieldSwitches?.[date];
+    if(cfg?.positions&&typeof cfg.positions==='object'){
+      Object.values(cfg.positions).forEach(pair=>{
+        if(!pair||typeof pair!=='object')return;
+        if(Array.isArray(pair.slots)){
+          pair.slots.forEach(slot=>{if(slot&&slot.name===playerName){slot.name='';slot.manual=false;slot.custom=false;changed=true;}});
+          pair.primary=pair.slots[0]?.name||'';pair.primaryManual=!!pair.slots[0]?.manual;
+          pair.switch=pair.slots[1]?.name||'';pair.switchManual=!!pair.slots[1]?.manual;
+        }else{
+          if(pair.primary===playerName){pair.primary='';pair.primaryManual=false;changed=true;}
+          if(pair.switch===playerName){pair.switch='';pair.switchManual=false;changed=true;}
+        }
+      });
+    }
     return changed;
   }
   function syncEligibility(date=target(),save=true){
@@ -146,7 +176,7 @@
     const player=(state.players||[]).find(p=>p&&p.name===playerName);if(player)player.present=!!present;
     // Explicit Captain action on this one player only: marking them absent
     // removes just them from the field. Nobody else's assignment is touched.
-    if(!present)removePlayerFromInnings(playerName);
+    if(!present)removePlayerFromInnings(playerName,date);
     scheduleEligibilitySave(date);
     if(typeof renderRoster==='function')renderRoster();
     if(typeof renderLineup==='function')renderLineup();

@@ -86,12 +86,25 @@
       Object.keys(HOME_DEFAULTS).forEach(pos=>{
         const p=homePlayer(pos),pair=cfg.positions[pos];
         if(p&&!pair.slots.some(s=>clean(s.name))){
-          pair.slots[0]={name:p.name,manual:false,custom:false};
+          pair.slots[0]={name:p.name,manual:true,custom:false};
           syncLegacy(pair);
         }
       });
       cfg.homeDefaultsSeeded=true;
     }
+    // Home defaults are the founder captain's standing choices, not RSVP
+    // suggestions: they must count in the rotation math even before the
+    // player has RSVP'd. Configs seeded by older builds stored them as
+    // manual:false, which silently dropped the seeded player from
+    // buildInnings whenever they had not RSVP'd "yes" (P0 finding F1,
+    // 2026-10-23). Upgrade any stored slot that still names the position's
+    // home player in the seeded slot so existing configs heal on load.
+    Object.keys(HOME_DEFAULTS).forEach(pos=>{
+      const p=homePlayer(pos),pair=cfg.positions[pos],slot=pair?.slots?.[0];
+      if(p&&slot&&clean(slot.name)===p.name&&!slot.manual&&!slot.custom){
+        slot.manual=true;syncLegacy(pair);
+      }
+    });
     return cfg;
   }
   function overrides(create=true){
