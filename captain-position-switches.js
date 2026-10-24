@@ -308,10 +308,43 @@
     delete ov[inning];delete ov[String(inning)];state.innings=buildInnings();render();if(typeof renderLineup==='function')renderLineup();await saveLive(`Inning ${inning} returned to the normal rotation plan.`);
   }
   function sortedRoster(){return roster().slice().sort((a,b)=>(a.fullName||a.name).localeCompare(b.fullName||b.name));}
+  function assignedPositions(){
+    // short name -> positions whose rotation slots already hold that player,
+    // so a dropdown can show who is placed (and where) without the Captain
+    // leaving Fielding to check the Roster tab.
+    const map=new Map(),cfg=config(false);if(!cfg)return map;
+    POSITIONS.forEach(pos=>{
+      (cfg.positions?.[pos]?.slots||[]).forEach(slot=>{
+        const name=clean(slot?.name);if(!name)return;
+        if(!map.has(name))map.set(name,[]);
+        if(!map.get(name).includes(pos))map.get(name).push(pos);
+      });
+    });
+    return map;
+  }
   function playerOptions(value='',includePrompt=false){
     const current=rosterPlayer(value);
+    const assigned=assignedPositions();
+    const all=sortedRoster(),hereSet=new Set(all.filter(active).map(p=>p.name));
+    const optionFor=p=>{
+      const here=hereSet.has(p.name),placed=assigned.get(p.name)||[];
+      // A player already chosen in THIS select is its current value, not
+      // "taken elsewhere" — never grey a select's own pick. Greyed names stay
+      // fully selectable: the grey is information, not a lock, so a player
+      // can still be moved or doubled up exactly as before.
+      const taken=placed.length&&!(current&&current.name===p.name);
+      const notes=[];
+      if(here)notes.push('here');
+      if(taken)notes.push('at '+placed.join(', '));
+      const cls=[here?'opt-here':'',taken?'opt-assigned':''].filter(Boolean).join(' ');
+      return `<option value="${esc(p.name)}"${cls?` class="${cls}"`:''} ${current?.name===p.name?'selected':''}>${esc(p.fullName||p.name)}${notes.length?' — '+esc(notes.join(' • ')):''}</option>`;
+    };
+    const here=all.filter(p=>hereSet.has(p.name)),rest=all.filter(p=>!hereSet.has(p.name));
+    const group=(label,list)=>list.length?`<optgroup label="${label}">${list.map(optionFor).join('')}</optgroup>`:'';
+    // Who is actually here leads the list; everyone else stays one tap away.
+    const body=here.length&&rest.length?group('Here for this game',here)+group('Not here yet',rest):all.map(optionFor).join('');
     return `${includePrompt?'<option value="">Choose a player</option>':'<option value="">Open</option>'}`
-      +sortedRoster().map(p=>`<option value="${esc(p.name)}" ${current?.name===p.name?'selected':''}>${esc(p.fullName||p.name)}</option>`).join('')
+      +body
       +`<option value="${CUSTOM_VALUE}" ${clean(value)&&!current?'selected':''}>+ Custom player for this game…</option>`;
   }
   function statusLineFor(pos){
@@ -408,7 +441,7 @@
   function setStatus(message,warn=false){const el=document.getElementById('switchStatus');if(!el)return;el.className=warn?'switch-status warn':'switch-status';el.textContent=message;}
   function ensureStyles(){
     if(document.getElementById('positionSwitchStyles'))return;const style=document.createElement('style');style.id='positionSwitchStyles';style.textContent=`
-      #pods{gap:12px}.switch-hero{border:2px solid #86efac;background:#f7fff8}.switch-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.switch-actions button{flex:1 1 180px;font-weight:900}.switch-ok,.switch-warn{margin-top:10px;padding:10px;border-radius:12px;font-weight:800}.switch-ok{background:#ecfdf3;color:#166534;border:1px solid #86efac}.switch-warn{background:#fff7ed;color:#9a3412;border:1px solid #fed7aa}.switch-status{margin-top:9px;color:#166534;font-weight:800}.switch-status.warn{color:#991b1b}.switch-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.switch-position{padding:12px}.switch-position-head{display:flex;justify-content:space-between;gap:8px;align-items:center}.switch-fixed{border:2px solid #bbf7d0;background:#f7fff8}.switch-slot-list{display:grid;gap:8px;margin-top:9px}.switch-slot-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:8px;align-items:end}.switch-slot-row select,.switch-slot-row input,.switch-quick-grid input,.switch-quick-grid select{width:100%;margin-top:5px;min-height:44px;border:1px solid var(--l);border-radius:12px;padding:10px;font:inherit;background:#fff}.switch-custom-label{min-width:0}.switch-remove-slot{min-height:44px}.switch-position-actions{margin-top:8px}.switch-add-slot{font-weight:800}.switch-pattern{margin-top:8px}.switch-quick{border:2px solid #93c5fd;background:#eff6ff}.switch-quick-grid{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end;margin-top:10px}.switch-clear{margin-top:8px}.switch-explain{display:grid;gap:5px;margin-top:8px}.switch-explain strong{color:#166534}@media(max-width:850px){.switch-quick-grid{grid-template-columns:1fr 1fr}.switch-quick-grid button{width:100%}}@media(max-width:700px){.switch-grid{grid-template-columns:1fr}.switch-slot-row{grid-template-columns:1fr}.switch-remove-slot{width:100%}.switch-quick-grid{grid-template-columns:1fr}.switch-quick-grid button{width:100%}}
+      #pods{gap:12px}.switch-hero{border:2px solid #86efac;background:#f7fff8}.switch-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.switch-actions button{flex:1 1 180px;font-weight:900}.switch-ok,.switch-warn{margin-top:10px;padding:10px;border-radius:12px;font-weight:800}.switch-ok{background:#ecfdf3;color:#166534;border:1px solid #86efac}.switch-warn{background:#fff7ed;color:#9a3412;border:1px solid #fed7aa}.switch-status{margin-top:9px;color:#166534;font-weight:800}.switch-status.warn{color:#991b1b}.switch-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.switch-position{padding:12px}.switch-position-head{display:flex;justify-content:space-between;gap:8px;align-items:center}.switch-fixed{border:2px solid #bbf7d0;background:#f7fff8}.switch-slot-list{display:grid;gap:8px;margin-top:9px}.switch-slot-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:8px;align-items:end}.switch-slot-row select,.switch-slot-row input,.switch-quick-grid input,.switch-quick-grid select{width:100%;margin-top:5px;min-height:44px;border:1px solid var(--l);border-radius:12px;padding:10px;font:inherit;background:#fff}.switch-custom-label{min-width:0}.switch-remove-slot{min-height:44px}.switch-position-actions{margin-top:8px}.switch-add-slot{font-weight:800}.switch-pattern{margin-top:8px}.switch-quick{border:2px solid #93c5fd;background:#eff6ff}.switch-quick-grid{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end;margin-top:10px}.switch-clear{margin-top:8px}.switch-explain{display:grid;gap:5px;margin-top:8px}.switch-explain strong{color:#166534}#pods option.opt-here{font-weight:800}#pods option.opt-assigned{color:#9ca3af}@media(max-width:850px){.switch-quick-grid{grid-template-columns:1fr 1fr}.switch-quick-grid button{width:100%}}@media(max-width:700px){.switch-grid{grid-template-columns:1fr}.switch-slot-row{grid-template-columns:1fr}.switch-remove-slot{width:100%}.switch-quick-grid{grid-template-columns:1fr}.switch-quick-grid button{width:100%}}
     `;document.head.appendChild(style);
   }
   function mount(){
