@@ -247,9 +247,16 @@
         saveMeta(sess.eventId,mm);render(sess);buzz();
       };
       el.querySelector('.utb-reset').onclick=function(){
-        if(!window.confirm('Reset the tracker clock for a new game? The shared score is NOT changed by this — use the score − buttons if the score also needs resetting.'))return;
+        // A new-game reset must reset the WHOLE game, not just this phone's
+        // clock: the inning, half and score live in the console's shared
+        // record, and an umpire who resets before a game reasonably expects
+        // 0-0 at the top of the 1st. (The old clock-only reset left the
+        // shared record wherever it was — reported 2026-10-24: the Oct 25
+        // slot kept reopening at "Inning 3" no matter how often it was hit.)
+        if(!window.confirm('Start a new game? This resets the shared score to 0–0, returns to the top of the 1st, clears balls / strikes / fouls / outs, and resets the clock. Team names are kept.'))return;
         var keepMode=sess.meta.mode,keepDur=sess.meta.durationMin;
         sess.meta=createMeta();sess.meta.mode=keepMode;sess.meta.durationMin=keepDur;sess.timeUpBuzzed=false;
+        sess.io.patch({inning:1,kickingTeam:'b',teamAScore:0,teamBScore:0,balls:0,strikes:0,fouls:0,outs:0});
         saveMeta(sess.eventId,sess.meta);render(sess);
       };
     }
