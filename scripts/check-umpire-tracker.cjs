@@ -18,7 +18,7 @@ const tracker = read('umpire-tracker.js');
 const consoleJs = read('umpire-console.js');
 for (const pageFile of ['api/team-page.js', 'api/captain-field-page.js']) {
   const page = read(pageFile);
-  ok(pageFile + ' loads the game bar v4 next to console v7', page.includes('umpire-tracker.js?v=4') && page.includes('umpire-console.js?v=7'));
+  ok(pageFile + ' loads the game bar v5 next to console v7', page.includes('umpire-tracker.js?v=5') && page.includes('umpire-console.js?v=7'));
 }
 
 // --- Unified-console wiring ---
@@ -116,6 +116,16 @@ ok('bar + Run patches the shared away score', patches.some((p) => p.teamBScore =
 const afterScore = patches.length;
 barEl.querySelector('.utb-half').onclick();
 ok('bar End-half patches kicking team + count reset to the shared record', patches.slice(afterScore).some((p) => p.kickingTeam === 'a' && p.balls === 0 && p.outs === 0));
+
+// --- Reset must start a genuinely new game (2026-10-24 regression: the old
+// clock-only reset left the shared record at "Inning 3" forever) ---
+ok('reset no longer claims the score is untouched', !tracker.includes('The shared score is NOT changed'));
+game.inning = 3; game.kickingTeam = 'b'; game.teamAScore = 4; game.teamBScore = 2; game.balls = 2; game.outs = 1;
+const beforeReset = patches.length;
+barEl.querySelector('.utb-reset').onclick();
+const resetPatch = patches.slice(beforeReset).find((p) => p.inning === 1);
+ok('reset patches the shared record back to a fresh game', !!resetPatch && resetPatch.kickingTeam === 'b' && resetPatch.teamAScore === 0 && resetPatch.teamBScore === 0 && resetPatch.balls === 0 && resetPatch.strikes === 0 && resetPatch.fouls === 0 && resetPatch.outs === 0);
+ok('reset keeps team names', game.teamAName === 'Home Sox' && game.teamBName === 'Away Cats');
 
 console.log(failures ? `\n${failures} check(s) failed` : '\nAll umpire game bar checks passed');
 process.exit(failures ? 1 : 0);
