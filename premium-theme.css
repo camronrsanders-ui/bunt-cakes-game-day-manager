@@ -183,7 +183,7 @@ input:focus,select:focus,textarea:focus{outline:3px solid rgba(11,93,59,.16);bor
 .event-title{font-size:1.02rem;}
 .type-chip{border:1px solid currentColor;font-weight:900!important;letter-spacing:.045em;}
 .event-type.type-game{color:#0B5D3B!important;background:#E8F3EE!important;}
-.type-officiating{color:#a86508!important;background:#fff0cf!important;}
+.type-officiating{color:#B45309!important;background:#F7F3EC!important;}
 .type-league{color:#315f8f!important;background:#eaf1f8!important;}
 .type-tournament{color:#704c88!important;background:#f1eafa!important;}
 .official-box{background:#FFF7ED!important;border:1px solid #F3D9AE;}
