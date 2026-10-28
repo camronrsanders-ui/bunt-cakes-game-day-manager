@@ -1,4 +1,4 @@
-const CACHE='feildhaus-pilot-v6';
+const CACHE='feildhaus-pilot-v7';
 const CORE=['/manifest.webmanifest','/feildhaus-mark.svg','/generic-team-icon.svg'];
 
 self.addEventListener('install',event=>{

@@ -12,12 +12,12 @@ assert.ok(!fieldPage.includes("replace('Build 7-Inning Rotation', 'Update live')
 assert.ok(!fieldPage.includes('captain-field.js'),'hidden legacy Lineup editor script removed from captain page');
 assert.ok(fieldPage.includes('&manifest=1'),'captain page emits the per-team manifest');
 assert.ok(fieldPage.includes('captain-live-sync.js?v=13'),'live-sync cache bumped');
-assert.ok(fieldPage.includes('captain-position-switch-loader.js?v=14'),'switch loader cache bumped');
+assert.ok(fieldPage.includes('captain-position-switch-loader.js?v=15'),'switch loader cache bumped');
 
 // H-1: no upcoming game -> explanation, never a crashed empty Fielding grid.
 const loader=read('captain-position-switch-loader.js');
 assert.match(loader,/if\(!hasUpcomingGame\(\)\)\{showNoGame\(\);return;\}/,'loader shows the no-game card instead of loading the controller');
-assert.ok(loader.includes('captain-position-switches.js?v=12'),'switches cache bumped');
+assert.ok(loader.includes('captain-position-switches.js?v=13'),'switches cache bumped');
 const switches=read('captain-position-switches.js');
 assert.match(switches,/if\(!cfg\)\{box\.innerHTML=/,'renderPositions guards a missing game config');
 assert.match(switches,/homeDefaultsEnabled/, 'founder home defaults are slug-gated');
@@ -60,7 +60,7 @@ assert.match(league,/Captain sign-in required/,'leagueapps 401 message');
 
 // Service worker: navigations are network-first (no stale-shell race).
 const sw=read('service-worker.js');
-assert.ok(sw.includes("const CACHE='feildhaus-pilot-v6';"),'service worker cache bumped to v6');
+assert.ok(sw.includes("const CACHE='feildhaus-pilot-v7';"),'service worker cache bumped to v7');
 assert.ok(!sw.includes('quickFallback'),'the stale-shell race is gone');
 
 // Platform config.

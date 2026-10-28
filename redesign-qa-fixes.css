@@ -57,7 +57,7 @@
 /* The global cream card skin must never erase the Kicking Deck's dark hero. */
 .kick-hero,
 .team-kick-hero{
-  background:linear-gradient(135deg,#052e16,#166534)!important;
+  background:linear-gradient(135deg,#07301D,#0B5D3B)!important;
   color:#fff!important;
   border:0!important;
 }
@@ -71,7 +71,7 @@
 .kick-hero .kick-now,
 .team-kick-hero .team-kick-card.now{
   background:#fff!important;
-  color:#14532d!important;
+  color:#0B5D3B!important;
   border-color:#fff!important;
 }
 .kick-hero .kick-back,
@@ -82,7 +82,7 @@
 }
 .kick-hero .kick-advance{
   background:#fff!important;
-  color:#14532d!important;
+  color:#0B5D3B!important;
   border-color:#fff!important;
 }
 .team-kick-hero .my-kick-status{
@@ -102,22 +102,22 @@
 .kick-hero .kick-now .kick-name,
 .team-kick-hero .team-kick-card.now .team-kick-label,
 .team-kick-hero .team-kick-card.now .team-kick-name{
-  color:#14532d!important;
+  color:#0B5D3B!important;
 }
 
 /* Keep component-level status colors readable against the cream visual system. */
 .kick-order-card,
 .kick-queue{
-  background:#fffaf0!important;
+  background:#ffffff!important;
   color:#17211b!important;
 }
 .kick-order-row.current,
 .kick-queue-row.current{
-  background:#e8f4e9!important;
+  background:#E8F3EE!important;
 }
 .kick-order-row.next,
 .kick-queue-row.next{
-  background:#f3f7df!important;
+  background:#F7F3EC!important;
 }
 
 /* Shared officiating presentation. Existing tracker remains underneath. */
@@ -131,7 +131,7 @@
 .officiating-role{background:#fff1cf;border:1px solid #e3c476;border-radius:12px;padding:10px 11px;}
 .officiating-role span{display:block;color:#8a6612;font-size:.68rem;font-weight:900;letter-spacing:.08em;text-transform:uppercase;margin-bottom:2px;}
 .officiating-role strong{display:block;color:#073d2c;font-size:1.05rem;}
-.officiating-unassigned{grid-column:1/-1;padding:10px 11px;border:1px dashed #cfb879;border-radius:12px;color:#6b665b;background:#fffaf0;}
+.officiating-unassigned{grid-column:1/-1;padding:10px 11px;border:1px dashed #cfb879;border-radius:12px;color:#6b665b;background:#ffffff;}
 @media(max-width:650px){
   .officiating-heading,.officiating-slot-top{align-items:flex-start;}
   .officiating-roles{grid-template-columns:1fr;}

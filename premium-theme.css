@@ -1,24 +1,24 @@
 /* Premium flyer-inspired Team Game Day visual system.
    Keeps all existing app behavior intact and skins player + captain views. */
 :root{
-  --premium-green:#073d2c;
-  --premium-green-2:#0d563c;
-  --premium-green-soft:#e8f2ea;
-  --premium-cream:#f5efe2;
-  --premium-paper:#fffaf0;
-  --premium-ink:#17211b;
-  --premium-muted:#6f756d;
-  --premium-gold:#d6a323;
-  --premium-gold-soft:#fbefbd;
-  --premium-red:#b7392f;
-  --premium-shadow:0 10px 28px rgba(35,42,34,.10);
-  --premium-shadow-soft:0 4px 14px rgba(35,42,34,.08);
-  --premium-radius:18px;
-  --premium-radius-sm:12px;
+  --premium-green:#0B5D3B;
+  --premium-green-2:#0B5D3B;
+  --premium-green-soft:#E8F3EE;
+  --premium-cream:#FAF8F3;
+  --premium-paper:#ffffff;
+  --premium-ink:#1F2937;
+  --premium-muted:#6B7280;
+  --premium-gold:#B45309;
+  --premium-gold-soft:#E8F3EE;
+  --premium-red:#823B3D;
+  --premium-shadow:0 12px 32px rgba(31,41,55,.08);
+  --premium-shadow-soft:0 1px 3px rgba(31,41,55,.05),0 8px 24px rgba(31,41,55,.05);
+  --premium-radius:20px;
+  --premium-radius-sm:14px;
   --a:var(--premium-green-2);
   --bg:var(--premium-cream);
   --c:var(--premium-paper);
-  --l:#d8d0bf;
+  --l:#E7E2D9;
   --m:var(--premium-muted);
   --game:var(--premium-green-2);
   --off:#aa6812;
@@ -30,14 +30,14 @@ html{background:var(--premium-cream);}
 body{
   color:var(--premium-ink)!important;
   background:
-    radial-gradient(circle at 12% -8%,rgba(214,163,35,.12),transparent 31%),
-    radial-gradient(circle at 95% 0%,rgba(7,61,44,.09),transparent 26%),
-    linear-gradient(180deg,#faf5e9 0%,var(--premium-cream) 44%,#f2eadb 100%)!important;
+    radial-gradient(circle at 12% -8%,rgba(11,93,59,.05),transparent 31%),
+    radial-gradient(circle at 95% 0%,rgba(11,93,59,.04),transparent 26%),
+    linear-gradient(180deg,#FAF8F3 0%,var(--premium-cream) 44%,#FAF8F3 100%)!important;
   min-height:100vh;
   font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;
 }
 body:before{
-  content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;opacity:.22;
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;opacity:0;
   background-image:radial-gradient(rgba(66,53,30,.18) .6px,transparent .7px);
   background-size:8px 8px;
   mask-image:linear-gradient(to bottom,#000,transparent 42%);
@@ -48,7 +48,7 @@ body:before{
 /* Athletic headings without requiring an external font download. */
 h1,h2,h3,.day-date,.schedule-section-title,.event-title,.big,
 .card>strong,.attendance-badge{
-  font-family:"Arial Narrow","Avenir Next Condensed","Roboto Condensed",Inter,sans-serif;
+  font-family:Inter,ui-sans-serif,system-ui,sans-serif;
   letter-spacing:.01em;
 }
 h1{font-weight:900!important;letter-spacing:.02em!important;}
@@ -62,46 +62,46 @@ h2,h3{font-weight:850;}
   border-radius:24px;
   padding:16px 17px;
   background:
-    radial-gradient(circle at 82% 16%,rgba(214,163,35,.28),transparent 20%),
-    linear-gradient(135deg,var(--premium-green) 0%,#0a4934 62%,#0d5c40 100%);
-  color:#fff9e9;
-  border:1px solid rgba(214,163,35,.65);
-  box-shadow:0 16px 34px rgba(7,61,44,.20);
+    radial-gradient(circle at 82% 16%,rgba(255,255,255,.13),transparent 20%),
+    linear-gradient(135deg,#0B5D3B 0%,#0C6B44 62%,#0E7A4D 100%);
+  color:#ffffff;
+  border:1px solid rgba(255,255,255,.22);
+  box-shadow:0 16px 34px rgba(11,93,59,.22);
   margin-bottom:12px;
 }
 .app>.row.wrap:first-child:after,
 #manager>.row.wrap:first-child:after{
   content:"";position:absolute;right:-35px;bottom:-55px;width:175px;height:120px;
   transform:rotate(-13deg);opacity:.14;
-  background:repeating-linear-gradient(135deg,var(--premium-gold) 0 4px,transparent 4px 12px);
+  background:repeating-linear-gradient(135deg,rgba(255,255,255,.55) 0 4px,transparent 4px 12px);
 }
 .app>.row.wrap:first-child .muted,
-#manager>.row.wrap:first-child .muted{color:#e7dfcd!important;}
+#manager>.row.wrap:first-child .muted{color:#DCE9DF!important;}
 .app>.row.wrap:first-child h1,
-#manager>.row.wrap:first-child h1{color:#fffaf0;font-size:clamp(1.55rem,4.4vw,2.25rem)!important;line-height:.98!important;text-transform:uppercase;}
+#manager>.row.wrap:first-child h1{color:#ffffff;font-size:clamp(1.55rem,4.4vw,2.25rem)!important;line-height:1.05!important;}
 .brand{gap:14px!important;position:relative;z-index:1;}
 .brand-logo{width:92px!important;height:92px!important;filter:drop-shadow(0 7px 12px rgba(0,0,0,.32))!important;}
-#who,.app>.row.wrap:first-child .pill{background:rgba(255,250,240,.10);border-color:rgba(255,250,240,.26);color:#fffaf0;}
-#logout,.app>.row.wrap:first-child button:not(.primary){background:#fffaf0;color:var(--premium-green);border-color:#fffaf0;font-weight:800;}
-.app>.row.wrap:first-child .chat-btn{background:var(--premium-gold)!important;color:#1d2b21!important;border:1px solid #f4d466!important;}
+#who,.app>.row.wrap:first-child .pill{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.28);color:#ffffff;}
+#logout,.app>.row.wrap:first-child button:not(.primary){background:#ffffff;color:var(--premium-green);border-color:#ffffff;font-weight:800;}
+.app>.row.wrap:first-child .chat-btn{background:#ffffff!important;color:var(--premium-green)!important;border:1px solid #ffffff!important;}
 
 /* Live/save strips */
 #updated,#saveStatus{font-weight:750;}
-#saveStatus{padding:8px 4px 2px!important;color:#4d5e51!important;}
-.ok{color:#157347!important}.warn{color:#98620f!important}
+#saveStatus{padding:8px 4px 2px!important;color:#6B7280!important;}
+.ok{color:#0B5D3B!important}.warn{color:#98620f!important}
 
 /* Cards */
 .card,
 .day-group,
 .install-sheet,
 .team-onboard-sheet{
-  background:rgba(255,250,240,.96)!important;
-  border:1px solid #ddd3c0!important;
+  background:rgba(255,255,255,.97)!important;
+  border:1px solid #E7E2D9!important;
   border-radius:var(--premium-radius)!important;
   box-shadow:var(--premium-shadow-soft);
 }
 .card{padding:15px!important;}
-.card:hover{border-color:#d2c4a8;}
+.card:hover{border-color:#DAD4C6;}
 .stack{gap:12px!important;}
 .grid{gap:11px!important;}
 
@@ -113,22 +113,22 @@ button,.reminder-btn,.chat-btn{
 }
 button:active,.reminder-btn:active,.chat-btn:active{transform:translateY(1px) scale(.995);}
 .primary,.reminder-btn,.chat-btn,.attendance-notify button{
-  background:linear-gradient(180deg,#126142 0%,var(--premium-green-2) 100%)!important;
-  border-color:#0c4b35!important;
+  background:linear-gradient(180deg,#0E6E45 0%,#0B5D3B 100%)!important;
+  border-color:#0B5D3B!important;
   color:#fff!important;
-  box-shadow:0 4px 10px rgba(7,61,44,.15);
+  box-shadow:0 4px 10px rgba(11,93,59,.16);
 }
-button:not(.primary){background:#fffdf6;border-color:#d8d0bf;color:#203127;}
+button:not(.primary){background:#ffffff;border-color:#E7E2D9;color:#1F2937;}
 input,select,textarea{
-  background:#fffdf8!important;color:var(--premium-ink)!important;border:1px solid #d8cfbc!important;border-radius:12px!important;
+  background:#ffffff!important;color:var(--premium-ink)!important;border:1px solid #E7E2D9!important;border-radius:12px!important;
   box-shadow:inset 0 1px 1px rgba(31,41,35,.04);
 }
-input:focus,select:focus,textarea:focus{outline:3px solid rgba(214,163,35,.18);border-color:#b6912f!important;}
+input:focus,select:focus,textarea:focus{outline:3px solid rgba(11,93,59,.16);border-color:#0B5D3B!important;}
 
 /* App navigation */
 .tabs{
-  background:rgba(250,245,233,.93)!important;
-  border:1px solid #ddd3c0;
+  background:rgba(250,248,243,.92)!important;
+  border:1px solid #E7E2D9;
   border-radius:16px;
   padding:6px!important;
   gap:5px!important;
@@ -136,21 +136,21 @@ input:focus,select:focus,textarea:focus{outline:3px solid rgba(214,163,35,.18);b
   backdrop-filter:blur(14px);
 }
 .tabs button{
-  border:0!important;background:transparent!important;color:#5e665e!important;
+  border:0!important;background:transparent!important;color:#6B7280!important;
   min-height:42px!important;padding:9px 13px!important;font-size:.92rem;font-weight:800!important;
 }
-.tabs .on{background:var(--premium-green)!important;color:#fffaf0!important;box-shadow:0 3px 10px rgba(7,61,44,.18);}
+.tabs .on{background:var(--premium-green)!important;color:#ffffff!important;box-shadow:0 3px 10px rgba(7,61,44,.18);}
 
 /* Dashboard score/state cards */
 #home>.grid.g3>.card,#dashboard>.grid.g3>.card{
   border-top:4px solid var(--premium-green)!important;
-  background:linear-gradient(180deg,#fffdf7,#faf5e8)!important;
+  background:linear-gradient(180deg,#ffffff,#F7F3EC)!important;
 }
 .big{font-size:2.35rem!important;color:var(--premium-green)!important;line-height:1;}
 #teamScore.big,#oppScore.big,#inning.big{font-variant-numeric:tabular-nums;}
 
 /* Player next game / live cards */
-.event{border-left:0!important;border-top:4px solid var(--premium-gold)!important;}
+.event{border-left:0!important;border-top:4px solid var(--premium-green)!important;}
 #next{position:relative;overflow:hidden;}
 #next:before{content:"NEXT UP";display:inline-block;margin-bottom:5px;color:var(--premium-green);font-size:.73rem;font-weight:950;letter-spacing:.12em;}
 #next>.muted:first-child{display:none;}
@@ -158,65 +158,65 @@ input:focus,select:focus,textarea:focus{outline:3px solid rgba(214,163,35,.18);b
 
 /* Weekly RSVP */
 .attendance-card{
-  background:linear-gradient(145deg,#fffaf0 0%,#f2f7ee 100%)!important;
-  border:2px solid #a9c9ad!important;
+  background:linear-gradient(145deg,#ffffff 0%,#F2F7F3 100%)!important;
+  border:1px solid #CFE6D8!important;
   box-shadow:var(--premium-shadow)!important;
 }
 .attendance-card h2{font-size:1.65rem;margin:.18rem 0!important;color:var(--premium-green)!important;}
-.attendance-badge{background:var(--premium-green)!important;color:#fff9e9!important;letter-spacing:.08em!important;}
-.attendance-games{background:#fffdf7!important;border-color:#d9ceb9!important;}
-.attendance-answer button{background:#fffdf7!important;border:1px solid #d9ceb9!important;min-height:52px!important;}
+.attendance-badge{background:var(--premium-green)!important;color:#ffffff!important;letter-spacing:.08em!important;}
+.attendance-games{background:#ffffff!important;border-color:#E7E2D9!important;}
+.attendance-answer button{background:#ffffff!important;border:1px solid #E7E2D9!important;min-height:52px!important;}
 .attendance-answer button.on{background:var(--premium-green)!important;border-color:var(--premium-green)!important;color:white!important;}
 .attendance-answer button.no.on{background:var(--premium-red)!important;border-color:var(--premium-red)!important;}
-.attendance-answer button.maybe.on{background:var(--premium-gold)!important;border-color:#bd8b0d!important;color:#222!important;}
-.attendance-notify{background:#fffaf0!important;border-color:#e0d2b2!important;}
+.attendance-answer button.maybe.on{background:#B45309!important;border-color:#92400E!important;color:#fff!important;}
+.attendance-notify{background:#ffffff!important;border-color:#E7E2D9!important;}
 
 /* Schedule */
-.schedule-stat{background:#fffdf7!important;border-color:#ded3bf!important;border-radius:12px!important;}
+.schedule-stat{background:#ffffff!important;border-color:#E7E2D9!important;border-radius:12px!important;}
 .schedule-stat strong{color:var(--premium-green);font-size:1.35rem!important;}
 .schedule-section-title{color:var(--premium-green)!important;font-size:.82rem!important;letter-spacing:.13em!important;}
 .day-group{overflow:hidden;box-shadow:var(--premium-shadow-soft)!important;}
-.day-head{background:linear-gradient(90deg,#e7eee5,#f5eedf)!important;border-bottom:1px solid #d8cdb9!important;}
-.day-date{color:var(--premium-green);text-transform:uppercase;letter-spacing:.045em;}
+.day-head{background:#F7F3EC!important;border-bottom:1px solid #E7E2D9!important;}
+.day-date{color:var(--premium-green);letter-spacing:.02em;}
 .event-row{border-top-color:#e9dfcd!important;}
-.event-time{font-size:1rem!important;color:#1d2b21;}
+.event-time{font-size:1rem!important;color:#1F2937;}
 .event-title{font-size:1.02rem;}
 .type-chip{border:1px solid currentColor;font-weight:900!important;letter-spacing:.045em;}
-.type-game{color:#17633f!important;background:#e8f4e9!important;}
+.event-type.type-game{color:#0B5D3B!important;background:#E8F3EE!important;}
 .type-officiating{color:#a86508!important;background:#fff0cf!important;}
 .type-league{color:#315f8f!important;background:#eaf1f8!important;}
 .type-tournament{color:#704c88!important;background:#f1eafa!important;}
-.official-box{background:#fff1d0!important;border:1px solid #e8cb8b;}
+.official-box{background:#FFF7ED!important;border:1px solid #F3D9AE;}
 
 /* Lineup */
 #lineup>.card:first-child,#pods>.card:first-child,#kicking>.card:first-child,#officials>.card:first-child,#resources>.card:first-child{
-  background:linear-gradient(100deg,var(--premium-green),#0b5038)!important;
-  color:#fffaf0!important;border-color:#1a684d!important;
+  background:linear-gradient(100deg,#0B5D3B,#0C6B44)!important;
+  color:#ffffff!important;border-color:#0B5D3B!important;
 }
-#lineup>.card:first-child .muted,#pods>.card:first-child .muted,#officials>.card:first-child .muted,#resources>.card:first-child .muted{color:#e7dfcd!important;}
-#positions>.card,#homeLineup>.card{border-left:4px solid #b6cbb6!important;}
+#lineup>.card:first-child .muted,#pods>.card:first-child .muted,#officials>.card:first-child .muted,#resources>.card:first-child .muted{color:#DCE9DF!important;}
+#positions .card .card,#positions .card{border-left:4px solid #CFE6D8!important;}
 #positions>.card strong,#homeLineup>.card strong{font-size:1.06rem;color:var(--premium-green);}
 
 /* Rotation field / player cards */
-.my-rotation-hero{border-color:#c5aa62!important;background:linear-gradient(140deg,#fffaf0,#edf5ec)!important;}
+.my-rotation-hero{border-color:#E7E2D9!important;background:linear-gradient(140deg,#ffffff,#F2F7F3)!important;}
 .my-field{
   border:2px solid #b88b24!important;
   background:linear-gradient(#173f2d 0 44%,#245f3c 44% 100%)!important;
   box-shadow:inset 0 0 44px rgba(0,0,0,.22),0 8px 20px rgba(7,61,44,.14)!important;
 }
 .my-field:before{background:#a7773d!important;border-color:#ead9ae!important;}
-.my-field-slot{background:#fffaf0!important;border:1px solid #d6b85e!important;box-shadow:0 3px 9px rgba(0,0,0,.18)!important;}
-.my-field-slot.me{background:var(--premium-gold-soft)!important;border-color:var(--premium-gold)!important;box-shadow:0 0 0 2px rgba(214,163,35,.25),0 4px 11px rgba(0,0,0,.2)!important;}
-.my-now,.my-next{background:#fffaf0!important;border-color:#d9ceb9!important;}
+.my-field-slot{background:#ffffff!important;border:1px solid #d6b85e!important;box-shadow:0 3px 9px rgba(0,0,0,.18)!important;}
+.my-field-slot.me{background:#E8F3EE!important;border-color:var(--premium-green)!important;box-shadow:0 0 0 2px rgba(11,93,59,.22),0 4px 11px rgba(0,0,0,.14)!important;}
+.my-now,.my-next{background:#ffffff!important;border-color:#E7E2D9!important;}
 .my-now strong,.my-next strong{color:var(--premium-green)!important;}
-.my-inning-row.current{background:var(--premium-gold-soft);color:#46350b!important;border-radius:9px;padding-left:7px;padding-right:7px;}
+.my-inning-row.current{background:#E8F3EE;color:#0B5D3B!important;border-radius:9px;padding-left:7px;padding-right:7px;}
 
 /* Kicking list */
 #kickList>.card{border-left:4px solid var(--premium-green)!important;}
 #kickList>.card strong{color:var(--premium-green);}
 
 /* Resources */
-.resource{background:linear-gradient(145deg,#fffdf8,#f5efe1)!important;}
+.resource{background:linear-gradient(145deg,#ffffff,#FAF8F3)!important;}
 .resource .go{color:var(--premium-green)!important;}
 .resource:hover{transform:translateY(-2px)!important;box-shadow:var(--premium-shadow)!important;}
 
@@ -224,14 +224,14 @@ input:focus,select:focus,textarea:focus{outline:3px solid rgba(214,163,35,.18);b
 .login{max-width:480px!important;margin:7vh auto!important;border-top:5px solid var(--premium-green)!important;box-shadow:var(--premium-shadow)!important;}
 #manager section>.card:first-child strong{font-size:1.08rem;}
 #players>.card,#events>.card,#captainList>.card{box-shadow:var(--premium-shadow-soft)!important;}
-#dashboard .card label,#lineup .card label{font-weight:800;color:#344039;}
-.danger{color:#a22b24!important;}
-button.danger,.danger button{border-color:#d8aaa6!important;background:#fff4f2!important;color:#9a2722!important;}
+#dashboard .card label,#lineup .card label{font-weight:800;color:#3C4741;}
+.danger{color:#823B3D!important;}
+button.danger,.danger button{border-color:#DCC0C2!important;background:#FBF4F4!important;color:#823B3D!important;}
 
 /* Onboarding */
 .install-overlay,.team-onboard-overlay{background:rgba(8,25,18,.82)!important;backdrop-filter:blur(7px);}
-.install-sheet,.team-onboard-sheet{border:1px solid rgba(214,163,35,.55)!important;box-shadow:0 26px 75px rgba(0,0,0,.35)!important;}
-.install-note,.team-onboard-callout{background:#eff6eb!important;border-color:#b4d2b4!important;}
+.install-sheet,.team-onboard-sheet{border:1px solid rgba(11,93,59,.35)!important;box-shadow:0 26px 75px rgba(0,0,0,.35)!important;}
+.install-note,.team-onboard-callout{background:#E8F3EE!important;border-color:#CFE6D8!important;}
 .install-step b,.team-onboard-step b{background:var(--premium-green)!important;}
 
 /* Mobile: transform horizontal tabs into a premium app bottom bar. */
@@ -242,16 +242,16 @@ button.danger,.danger button{border-color:#d8aaa6!important;background:#fff4f2!i
   .tabs{
     position:fixed!important;left:8px;right:8px;bottom:8px;top:auto!important;z-index:60!important;
     border-radius:18px!important;padding:6px!important;overflow-x:auto!important;
-    background:rgba(255,250,240,.96)!important;
+    background:rgba(255,255,255,.97)!important;
     box-shadow:0 13px 32px rgba(16,33,24,.23)!important;
-    border:1px solid #cfbf9d!important;
+    border:1px solid #E7E2D9!important;
     scrollbar-width:none;
   }
   .tabs::-webkit-scrollbar{display:none;}
   .tabs button{flex:1 0 auto;min-width:82px;min-height:50px!important;padding:8px 10px!important;font-size:.78rem!important;}
   .tabs .on{background:var(--premium-green)!important;}
   .g2,.g3{gap:9px!important;}
-  .card{padding:13px!important;border-radius:15px!important;}
+  .card{padding:13px!important;border-radius:18px!important;}
   .attendance-card h2{font-size:1.45rem!important;}
   .day-head{padding:11px 12px!important;}
 }
