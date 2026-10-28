@@ -36,14 +36,14 @@
   if(!document.querySelector('link[data-premium-team-theme]')){
     const theme=document.createElement('link');
     theme.rel='stylesheet';
-    theme.href='/premium-theme.css?v=4';
+    theme.href='/premium-theme.css?v=5';
     theme.dataset.premiumTeamTheme='1';
     document.head.appendChild(theme);
   }
   if(!document.querySelector('link[data-redesign-qa-fixes]')){
     const fixes=document.createElement('link');
     fixes.rel='stylesheet';
-    fixes.href='/redesign-qa-fixes.css?v=4';
+    fixes.href='/redesign-qa-fixes.css?v=5';
     fixes.dataset.redesignQaFixes='1';
     document.head.appendChild(fixes);
   }
