@@ -11,8 +11,8 @@
   --premium-gold:#B45309;
   --premium-gold-soft:#E8F3EE;
   --premium-red:#823B3D;
-  --premium-shadow:0 12px 32px rgba(31,41,55,.08);
-  --premium-shadow-soft:0 1px 3px rgba(31,41,55,.05),0 8px 24px rgba(31,41,55,.05);
+  --premium-shadow:0 18px 42px rgba(31,41,55,.13);
+  --premium-shadow-soft:0 2px 5px rgba(31,41,55,.06),0 16px 36px rgba(31,41,55,.10);
   --premium-radius:20px;
   --premium-radius-sm:14px;
   --a:var(--premium-green-2);
@@ -53,32 +53,33 @@ h1,h2,h3,.day-date,.schedule-section-title,.event-title,.big,
 }
 h1{font-weight:900!important;letter-spacing:.02em!important;}
 h2,h3{font-weight:850;}
+.card h2{font-size:1.3rem;line-height:1.15;}
 .muted{color:var(--premium-muted)!important;}
 
 /* Branded top shell */
 .app>.row.wrap:first-child,
 #manager>.row.wrap:first-child{
   position:relative;overflow:hidden;
-  border-radius:24px;
-  padding:16px 17px;
+  border-radius:26px;
+  padding:24px 22px;
   background:
     radial-gradient(circle at 82% 16%,rgba(255,255,255,.13),transparent 20%),
-    linear-gradient(135deg,#0B5D3B 0%,#0C6B44 62%,#0E7A4D 100%);
+    linear-gradient(150deg,#052A18 0%,#07301D 38%,#0B5D3B 100%);
   color:#ffffff;
   border:1px solid rgba(255,255,255,.22);
-  box-shadow:0 16px 34px rgba(11,93,59,.22);
+  box-shadow:0 22px 44px rgba(7,48,29,.35);
   margin-bottom:12px;
 }
 .app>.row.wrap:first-child:after,
 #manager>.row.wrap:first-child:after{
   content:"";position:absolute;right:-35px;bottom:-55px;width:175px;height:120px;
-  transform:rotate(-13deg);opacity:.14;
+  transform:rotate(-13deg);opacity:.10;
   background:repeating-linear-gradient(135deg,rgba(255,255,255,.55) 0 4px,transparent 4px 12px);
 }
 .app>.row.wrap:first-child .muted,
-#manager>.row.wrap:first-child .muted{color:#DCE9DF!important;}
+#manager>.row.wrap:first-child .muted{color:rgba(255,255,255,.86)!important;}
 .app>.row.wrap:first-child h1,
-#manager>.row.wrap:first-child h1{color:#ffffff;font-size:clamp(1.55rem,4.4vw,2.25rem)!important;line-height:1.05!important;}
+#manager>.row.wrap:first-child h1{color:#ffffff;font-size:clamp(1.95rem,5.4vw,2.75rem)!important;line-height:1.05!important;}
 .brand{gap:14px!important;position:relative;z-index:1;}
 .brand-logo{width:92px!important;height:92px!important;filter:drop-shadow(0 7px 12px rgba(0,0,0,.32))!important;}
 #who,.app>.row.wrap:first-child .pill{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.28);color:#ffffff;}
@@ -118,6 +119,7 @@ button:active,.reminder-btn:active,.chat-btn:active{transform:translateY(1px) sc
   color:#fff!important;
   box-shadow:0 4px 10px rgba(11,93,59,.16);
 }
+.primary,.reminder-btn,.chat-btn{min-height:48px;font-size:.98rem;font-weight:800;}
 button:not(.primary){background:#ffffff;border-color:#E7E2D9;color:#1F2937;}
 input,select,textarea{
   background:#ffffff!important;color:var(--premium-ink)!important;border:1px solid #E7E2D9!important;border-radius:12px!important;
@@ -136,17 +138,26 @@ input:focus,select:focus,textarea:focus{outline:3px solid rgba(11,93,59,.16);bor
   backdrop-filter:blur(14px);
 }
 .tabs button{
-  border:0!important;background:transparent!important;color:#6B7280!important;
-  min-height:42px!important;padding:9px 13px!important;font-size:.92rem;font-weight:800!important;
+  border:0!important;background:transparent!important;color:#3C4741!important;
+  border-radius:999px!important;
+  min-height:46px!important;padding:9px 13px!important;font-size:.92rem;font-weight:800!important;
 }
-.tabs .on{background:var(--premium-green)!important;color:#ffffff!important;box-shadow:0 3px 10px rgba(7,61,44,.18);}
+.tabs .on{background:var(--premium-green)!important;color:#ffffff!important;border-radius:999px;box-shadow:0 6px 16px rgba(7,61,44,.30);}
 
 /* Dashboard score/state cards */
 #home>.grid.g3>.card,#dashboard>.grid.g3>.card{
-  border-top:4px solid var(--premium-green)!important;
-  background:linear-gradient(180deg,#ffffff,#F7F3EC)!important;
+  border:1px solid #07301D!important;
+  background:linear-gradient(150deg,#07301D 0%,#0B5D3B 100%)!important;
+  color:#ffffff!important;
+  box-shadow:0 16px 34px rgba(7,48,29,.28)!important;
 }
-.big{font-size:2.35rem!important;color:var(--premium-green)!important;line-height:1;}
+#home>.grid.g3>.card .muted,#dashboard>.grid.g3>.card .muted{color:rgba(255,255,255,.78)!important;}
+#home>.grid.g3>.card label,#dashboard>.grid.g3>.card label{color:rgba(255,255,255,.85)!important;}
+#home>.grid.g3>.card .primary,#dashboard>.grid.g3>.card .primary{
+  background:#ffffff!important;color:#0B5D3B!important;border-color:#ffffff!important;box-shadow:none!important;
+}
+.big{font-size:2.9rem!important;color:var(--premium-green)!important;line-height:1;}
+#home>.grid.g3>.card .big,#dashboard>.grid.g3>.card .big{color:#ffffff!important;}
 #teamScore.big,#oppScore.big,#inning.big{font-variant-numeric:tabular-nums;}
 
 /* Player next game / live cards */
@@ -162,7 +173,7 @@ input:focus,select:focus,textarea:focus{outline:3px solid rgba(11,93,59,.16);bor
   border:1px solid #CFE6D8!important;
   box-shadow:var(--premium-shadow)!important;
 }
-.attendance-card h2{font-size:1.65rem;margin:.18rem 0!important;color:var(--premium-green)!important;}
+.attendance-card h2{font-size:1.85rem;margin:.18rem 0!important;color:var(--premium-green)!important;}
 .attendance-badge{background:var(--premium-green)!important;color:#ffffff!important;letter-spacing:.08em!important;}
 .attendance-games{background:#ffffff!important;border-color:#E7E2D9!important;}
 .attendance-answer button{background:#ffffff!important;border:1px solid #E7E2D9!important;min-height:52px!important;}
@@ -174,10 +185,10 @@ input:focus,select:focus,textarea:focus{outline:3px solid rgba(11,93,59,.16);bor
 /* Schedule */
 .schedule-stat{background:#ffffff!important;border-color:#E7E2D9!important;border-radius:12px!important;}
 .schedule-stat strong{color:var(--premium-green);font-size:1.35rem!important;}
-.schedule-section-title{color:var(--premium-green)!important;font-size:.82rem!important;letter-spacing:.13em!important;}
+.schedule-section-title{color:var(--premium-green)!important;font-size:.92rem!important;letter-spacing:.13em!important;background:var(--premium-green-soft);padding:7px 11px;border-radius:10px;}
 .day-group{overflow:hidden;box-shadow:var(--premium-shadow-soft)!important;}
-.day-head{background:#F7F3EC!important;border-bottom:1px solid #E7E2D9!important;}
-.day-date{color:var(--premium-green);letter-spacing:.02em;}
+.day-head{background:#E8F3EE!important;border-bottom:2px solid rgba(11,93,59,.35)!important;}
+.day-date{color:var(--premium-green);letter-spacing:.02em;font-size:1.08rem;font-weight:900;}
 .event-row{border-top-color:#e9dfcd!important;}
 .event-time{font-size:1rem!important;color:#1F2937;}
 .event-title{font-size:1.02rem;}
@@ -190,12 +201,12 @@ input:focus,select:focus,textarea:focus{outline:3px solid rgba(11,93,59,.16);bor
 
 /* Lineup */
 #lineup>.card:first-child,#pods>.card:first-child,#kicking>.card:first-child,#officials>.card:first-child,#resources>.card:first-child{
-  background:linear-gradient(100deg,#0B5D3B,#0C6B44)!important;
+  background:linear-gradient(120deg,#07301D,#0B5D3B)!important;
   color:#ffffff!important;border-color:#0B5D3B!important;
 }
 #lineup>.card:first-child .muted,#pods>.card:first-child .muted,#officials>.card:first-child .muted,#resources>.card:first-child .muted{color:#DCE9DF!important;}
 #positions .card .card,#positions .card{border-left:4px solid #CFE6D8!important;}
-#positions>.card strong,#homeLineup>.card strong{font-size:1.06rem;color:var(--premium-green);}
+#positions>.card strong,#homeLineup>.card strong{font-size:1.12rem;color:var(--premium-green);}
 
 /* Rotation field / player cards */
 .my-rotation-hero{border-color:#E7E2D9!important;background:linear-gradient(140deg,#ffffff,#F2F7F3)!important;}
@@ -222,7 +233,7 @@ input:focus,select:focus,textarea:focus{outline:3px solid rgba(11,93,59,.16);bor
 
 /* Captain-specific polish */
 .login{max-width:480px!important;margin:7vh auto!important;border-top:5px solid var(--premium-green)!important;box-shadow:var(--premium-shadow)!important;}
-#manager section>.card:first-child strong{font-size:1.08rem;}
+#manager section>.card:first-child strong{font-size:1.16rem;}
 #players>.card,#events>.card,#captainList>.card{box-shadow:var(--premium-shadow-soft)!important;}
 #dashboard .card label,#lineup .card label{font-weight:800;color:#3C4741;}
 .danger{color:#823B3D!important;}
@@ -234,10 +245,27 @@ button.danger,.danger button{border-color:#DCC0C2!important;background:#FBF4F4!i
 .install-note,.team-onboard-callout{background:#E8F3EE!important;border-color:#CFE6D8!important;}
 .install-step b,.team-onboard-step b{background:var(--premium-green)!important;}
 
+/* Umpire console header band */
+.umpire-hero{
+  background:linear-gradient(150deg,#07301D 0%,#0B5D3B 100%)!important;
+  color:#ffffff!important;border-color:#07301D!important;
+  box-shadow:0 16px 34px rgba(7,48,29,.30)!important;
+}
+.umpire-hero .umpire-title{color:#ffffff!important;font-size:1.55rem!important;font-weight:900;}
+.umpire-hero .muted{color:rgba(255,255,255,.84)!important;}
+.umpire-hero .pill{background:rgba(255,255,255,.14)!important;border-color:rgba(255,255,255,.35)!important;color:#ffffff!important;}
+.umpire-hero label{color:#ffffff!important;}
+.umpire-hero .umpire-live{color:#BFE6D2!important;}
+.umpire-hero .umpire-live.warn{color:#FCA5A5!important;}
+.umpire-hero .umpire-rules-button{
+  background:#ffffff!important;color:#0B5D3B!important;border-color:#ffffff!important;
+  box-shadow:0 6px 16px rgba(0,0,0,.18)!important;
+}
+
 /* Mobile: transform horizontal tabs into a premium app bottom bar. */
 @media(max-width:700px){
   .app{padding:12px 10px 112px!important;}
-  .app>.row.wrap:first-child,#manager>.row.wrap:first-child{border-radius:20px;padding:14px;}
+  .app>.row.wrap:first-child,#manager>.row.wrap:first-child{border-radius:20px;padding:17px;}
   .brand-logo{width:74px!important;height:74px!important;}
   .tabs{
     position:fixed!important;left:8px;right:8px;bottom:8px;top:auto!important;z-index:60!important;
@@ -252,7 +280,7 @@ button.danger,.danger button{border-color:#DCC0C2!important;background:#FBF4F4!i
   .tabs .on{background:var(--premium-green)!important;}
   .g2,.g3{gap:9px!important;}
   .card{padding:13px!important;border-radius:18px!important;}
-  .attendance-card h2{font-size:1.45rem!important;}
+  .attendance-card h2{font-size:1.62rem!important;}
   .day-head{padding:11px 12px!important;}
 }
 
