@@ -60,7 +60,7 @@ assert.match(league,/Captain sign-in required/,'leagueapps 401 message');
 
 // Service worker: navigations are network-first (no stale-shell race).
 const sw=read('service-worker.js');
-assert.ok(sw.includes("const CACHE='feildhaus-pilot-v7';"),'service worker cache bumped to v7');
+assert.ok(sw.includes("const CACHE='feildhaus-pilot-v8';"),'service worker cache bumped to v8');
 assert.ok(!sw.includes('quickFallback'),'the stale-shell race is gone');
 
 // Platform config.
