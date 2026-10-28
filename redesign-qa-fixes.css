@@ -122,16 +122,16 @@
 
 /* Shared officiating presentation. Existing tracker remains underneath. */
 .officiating-assignments{display:grid;gap:10px;}
-.officiating-summary-card{border-left:4px solid #d6a323!important;}
+.officiating-summary-card{border-left:4px solid #B45309!important;}
 .officiating-heading,
 .officiating-slot-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
-.officiating-kicker{font-size:.7rem;font-weight:950;letter-spacing:.12em;text-transform:uppercase;color:#8a6612;margin-bottom:3px;}
-.officiating-slot{border-left:4px solid #b97813!important;}
+.officiating-kicker{font-size:.7rem;font-weight:950;letter-spacing:.12em;text-transform:uppercase;color:#B45309;margin-bottom:3px;}
+.officiating-slot{border-left:4px solid #B45309!important;}
 .officiating-roles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:11px;}
-.officiating-role{background:#fff1cf;border:1px solid #e3c476;border-radius:12px;padding:10px 11px;}
-.officiating-role span{display:block;color:#8a6612;font-size:.68rem;font-weight:900;letter-spacing:.08em;text-transform:uppercase;margin-bottom:2px;}
+.officiating-role{background:#F7F3EC;border:1px solid #E7E2D9;border-radius:12px;padding:10px 11px;}
+.officiating-role span{display:block;color:#B45309;font-size:.68rem;font-weight:900;letter-spacing:.08em;text-transform:uppercase;margin-bottom:2px;}
 .officiating-role strong{display:block;color:#073d2c;font-size:1.05rem;}
-.officiating-unassigned{grid-column:1/-1;padding:10px 11px;border:1px dashed #cfb879;border-radius:12px;color:#6b665b;background:#ffffff;}
+.officiating-unassigned{grid-column:1/-1;padding:10px 11px;border:1px dashed #E7E2D9;border-radius:12px;color:#6b665b;background:#ffffff;}
 @media(max-width:650px){
   .officiating-heading,.officiating-slot-top{align-items:flex-start;}
   .officiating-roles{grid-template-columns:1fr;}
