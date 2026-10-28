@@ -36,7 +36,7 @@
   if(!document.querySelector('link[data-premium-team-theme]')){
     const theme=document.createElement('link');
     theme.rel='stylesheet';
-    theme.href='/premium-theme.css?v=5';
+    theme.href='/premium-theme.css?v=6';
     theme.dataset.premiumTeamTheme='1';
     document.head.appendChild(theme);
   }
