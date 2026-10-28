@@ -18,7 +18,7 @@ const tracker = read('umpire-tracker.js');
 const consoleJs = read('umpire-console.js');
 for (const pageFile of ['api/team-page.js', 'api/captain-field-page.js']) {
   const page = read(pageFile);
-  ok(pageFile + ' loads the game bar v6 next to console v8', page.includes('umpire-tracker.js?v=6') && page.includes('umpire-console.js?v=8'));
+  ok(pageFile + ' loads the game bar v7 next to console v8', page.includes('umpire-tracker.js?v=7') && page.includes('umpire-console.js?v=8'));
 }
 
 // --- Unified-console wiring ---
