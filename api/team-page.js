@@ -41,7 +41,7 @@ module.exports = async function handler(req, res) {
       ".forEach(id=>{const el=$(id);if(el)el.classList.add('hidden')});const umpEl=document.getElementById('umpire');if(umpEl&&b.dataset.tab!=='umpire')umpEl.classList.add('hidden');$(b.dataset.tab).classList.remove('hidden')"
     );
     html = html.replace('load();setInterval(load,20000);', 'load();');
-    html = html.replace('</body>', '<script src="/team-refresh.js?v=12"></script><script src="/team-kicking.js?v=1"></script><script data-team-officiating-view="1" src="/team-officiating-view.js?v=1"></script><script src="/rules-visual-renderer.js?v=1"></script><link rel="stylesheet" href="/umpire-training-guide.css?v=2"><script src="/umpire-training-data.js?v=2"></script><script src="/umpire-training-guide.js?v=2"></script><script data-bunt-umpire-console="1" src="/umpire-console.js?v=8"></script><script src="/umpire-tracker.js?v=7"></script></body>');
+    html = html.replace('</body>', '<script src="/team-refresh.js?v=12"></script><script src="/team-kicking.js?v=1"></script><script data-team-officiating-view="1" src="/team-officiating-view.js?v=1"></script><script src="/rules-visual-renderer.js?v=1"></script><link rel="stylesheet" href="/umpire-training-guide.css?v=2"><script src="/umpire-training-data.js?v=2"></script><script src="/umpire-training-guide.js?v=2"></script><script data-bunt-umpire-console="1" src="/umpire-console.js?v=9"></script><script src="/umpire-tracker.js?v=8"></script></body>');
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store, max-age=0');
